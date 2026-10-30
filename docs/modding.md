@@ -12,7 +12,7 @@ time, from a few places:
 
 ## The mods folder
 
-`paths.mods` in `heliasdream.toml` (default `<data>/mods`) is checked before the
+`paths.mods` in `HeliasDream.toml` (default `<data>/mods`) is checked before the
 game dump for every file the game opens. A file at
 `<mods>/dvdroot_ps4/<path>` replaces the game's `dvdroot_ps4/<path>`. The log
 lists the files served from it (`FS overlay: ...`).
@@ -106,7 +106,7 @@ kind = "code"                       # optional: "code" (default) or "data"
 
 The setup window's Patches tab lists every manifest with a switch. A patch
 that follows an `option` is switched by that setting; any other is turned off
-with `<name> = false` under `[patches]` in `heliasdream.toml`.
+with `<name> = false` under `[patches]` in `HeliasDream.toml`.
 
 Shipped patches:
 

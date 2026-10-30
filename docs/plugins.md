@@ -17,7 +17,7 @@ Helia's Dream loads every plugin in `<exe dir>/plugins` and `<data>/plugins`. A 
 in a later directory replaces one with the same name in an earlier one.
 `HELIAS_PLUGINS=0` loads none.
 
-Plugins are enabled and disabled by name under `[plugins]` in `heliasdream.toml`:
+Plugins are enabled and disabled by name under `[plugins]` in `HeliasDream.toml`:
 
 ```toml
 [plugins]
@@ -147,7 +147,7 @@ gives the Binary Ninja address.
 
 - `bb_plugin_options` (v9): a table of headings, switches, numbers, choices,
   text fields and action buttons. Values are stored under `[<plugin name>]` in
-  the per-user `heliasdream.toml` and read back with `config("<name>.<key>")`.
+  the per-user `HeliasDream.toml` and read back with `config("<name>.<key>")`.
 - `on_option`, `on_action` (v9): callbacks for changes and button presses made
   in the in-game menu.
 - `show_message(text, seconds)` (v8): a banner over the game.

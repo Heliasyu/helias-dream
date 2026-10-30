@@ -86,7 +86,7 @@ Install
   copy of Helia's Dream reads, so a new download or an update needs nothing set
   again. The F10 settings and your account sign-in are kept beside it, saves
   and caches in %LOCALAPPDATA%\\HeliasDream\\data. HeliasDream.example.toml lists
-  every setting. A bbhost install's settings and saves are copied over the
+  every setting. An earlier install's settings and saves are copied over the
   first time.
 
 Start the game

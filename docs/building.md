@@ -69,7 +69,7 @@ repository.
 
 `cmake --build build --target smoke` boots the game to the title screen and
 checks the log for crashes and unimplemented system calls; it needs a
-configured `heliasdream.toml` with the game paths (see [running.md](running.md)).
+configured `HeliasDream.toml` with the game paths (see [running.md](running.md)).
 The Windows build has the same target under wine (`build-win`, target
 `smoke`).
 

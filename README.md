@@ -30,26 +30,69 @@ triggers.
 
 ## In progress
 - A steady 120 fps in the heaviest areas.
-- A new launcher with a Bloodborne look.
+- Testing the Windows build on more PCs.
 
 ## Install
-You need your own Bloodborne game files (CUSA03173 with the 1.09 update, and its decrypted
-eboot). None are included here.
 
-**Windows 10/11:** download `helias-dream-windows-<version>.zip` from
-[Releases](https://github.com/Heliasyu/helias-dream/releases), unzip it to a folder of its
-own and run `HeliasDream.exe`. Pick the game folder and eboot, then Play. A bbhost install's
-settings and saves are copied over the first time.
+### What you need
+- **Your own copy of Bloodborne** (CUSA03173, or CUSA00900 in other regions) with the
+  **1.09 update**, dumped from your own PS4. You need two things from it:
+  - the game folder with the update applied: the folder that contains `dvdroot_ps4`;
+  - the 1.09 `eboot.bin` **decrypted** to an ELF (SHA-256 `941f887a…aaa5ae7`).
 
-**Linux:** download the `helias-dream-linux-<version>.tar.gz`, unpack it and run
-`./HeliasDream` (the launcher; `./run-heliasdream.sh` starts the engine alone). To update an existing install, copy the new `heliasdream` engine over
-`HeliasDream.bin` (keep a backup).
+  No game files are included here.
+- **A PC** running Windows 10/11 or 64-bit Linux, with a Vulkan 1.3 graphics driver. 16 GB
+  of RAM and 8 GB of video memory are recommended.
 
-FSR 3.1 works out of the box. FSR 4.1.1 needs its assets built once from your own copy of
-AMD's DLL (`./build-fsr4.sh` in the Linux release, see `tools/fsr4cap`). They go in
-`~/.local/share/HeliasDream/fsr4_411` on Linux and `%LOCALAPPDATA%\HeliasDream\fsr4_411` on Windows.
-For HD haptics, connect the DualSense by USB with Bluetooth off. On Windows, its speaker must
-be set to 4 channels in Sound settings.
+### Windows
+1. Download `helias-dream-windows-<version>.zip` from
+   [Releases](https://github.com/Heliasyu/helias-dream/releases/latest).
+2. Unzip it into a folder of its own, for example `C:\Games\HeliasDream`.
+3. Run `HeliasDream.exe`. If Windows says "Windows protected your PC", click
+   **More info**, then **Run anyway**.
+4. On the **Setup** page, pick the game folder and the decrypted eboot, then press **Play**.
+5. The first time Windows Firewall asks, allow access on both networks. Other players reach
+   you on UDP port 9307.
+
+### Linux
+1. Download `helias-dream-linux-<version>.tar.gz` from
+   [Releases](https://github.com/Heliasyu/helias-dream/releases/latest). It needs glibc 2.38
+   or newer: Ubuntu 24.04, Mint 22, Fedora 39, Arch or SteamOS.
+2. Unpack it into a folder of its own:
+   `tar xzf helias-dream-linux-<version>.tar.gz -C ~/Games`
+3. Run `./HeliasDream` from that folder. On the **Setup** page, pick the game folder and the
+   decrypted eboot, then press **Play**.
+4. `./run-heliasdream.sh` starts the game without the launcher and writes its log to
+   `logs/`.
+
+### Online
+Online play uses the community server, [thehuntersdream.com](https://thehuntersdream.com).
+Link this PC once on the launcher's **Online** page (sign in with Discord, no password). After
+that, co-op, invasions, messages and bloodstains work as on the console, with other PC
+players.
+
+### Optional extras
+- **FSR 4.1.1:** build its assets once from your own copy of AMD's FSR 4 DLL with
+  `./build-fsr4.sh` in the Linux release (see `tools/fsr4cap`). Until then it falls back
+  to FSR 3.1, and FSR 3.1, FSR 4 (INT8) and Native AA work right away.
+- **DualSense HD haptics:** plug the controller in by USB (not Bluetooth) and set Haptics to
+  HD. On Windows, set the controller's speaker to 4 channels (Sound settings > the
+  controller's speaker > Properties > Advanced).
+- **Steam / Steam Deck:** the launcher's **Add to Steam** button adds the game as a
+  non-Steam game.
+
+### Updating and where things are kept
+To update, unpack the new release over the old folder, or into a new one. Settings, saves
+and the online sign-in live outside the game folder, so they carry over:
+
+| | Windows | Linux |
+|---|---|---|
+| Settings | `%APPDATA%\HeliasDream` | `~/.config/HeliasDream` |
+| Saves and caches | `%LOCALAPPDATA%\HeliasDream\data` | `~/.local/share/HeliasDream/data` |
+| Logs | `logs\` in the game folder | `logs/` in the game folder |
+
+If something goes wrong, open an issue with the newest log from `logs` (it contains your IP
+address, so share it privately if you prefer). Include your graphics card and what happened.
 
 ## Building
 - Linux: `tools/ci_build.sh` (Clang, CMake, Ninja; on Ubuntu 24.04 it installs the packages).

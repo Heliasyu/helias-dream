@@ -12,7 +12,7 @@ PS4 cross-play is not a goal: Helia's Dream players meet only other Helia's Drea
 ## Connecting
 
 The setup window chooses the server (the public one, a playtest server, or
-your own) and links an account. In `heliasdream.toml`, the public server's
+your own) and links an account. In `HeliasDream.toml`, the public server's
 settings, which are the defaults:
 
 ```toml

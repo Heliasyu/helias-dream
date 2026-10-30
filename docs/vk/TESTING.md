@@ -49,7 +49,7 @@ swapchain images.
 - `session.txt`: phase, times, monitor, `heliasdream.bin`'s SHA-256, Vulkan
   driver, kernel; at the end, the error-line count and what was captured.
 - `options-before.toml`, `options-after.toml`, `options.diff`: the F10
-  settings file (`~/.config/heliasdream/heliasdream-options.toml`) at both ends. Its
+  settings file (`~/.config/HeliasDream/HeliasDream-options.toml`) at both ends. Its
   `[account]` section (your account token) is **removed** from these copies.
 - `shots/`: `auto-*.png` every 10 s (`BBTEST_SHOT_EVERY`, 0 for none), `mark-*.png`.
 - `clips/`: the replay clips. `frames/`: heliasdream's own presented-frame PNGs.
@@ -481,8 +481,8 @@ Profiler (RGP) to open the captures.
 
 ## v0.2.18-vk.1 defaults check (~3 min)
 
-1. Move `heliasdream-options.toml` aside:
-   `mv heliasdream-options.toml heliasdream-options.toml.mine`.
+1. Move `HeliasDream-options.toml` aside:
+   `mv HeliasDream-options.toml HeliasDream-options.toml.mine`.
 2. Run `./heliasdream --setup`.
    - The Graphics defaults: AA Auto.
    - Even frame pacing and Post-processing at render size are both ticked.
@@ -496,7 +496,7 @@ Profiler (RGP) to open the captures.
    - The FPS stays at 120.
 5. Go through one loading screen (lamp travel) and back.
 6. Run `./bbtest stop`, then put your file back:
-   `mv heliasdream-options.toml.mine heliasdream-options.toml`.
+   `mv HeliasDream-options.toml.mine HeliasDream-options.toml`.
 7. Send session.txt and heliasdream.log.
    - The `120 LOCK:` line.
    - The log should say `post-at-render: on (the options' ...)` and `present: pacing on`.
@@ -661,7 +661,7 @@ B. **Sharpening's cost (0.315 ms in t6):** the same with sharpness 0:
    `./bbtest start t7-fsr4p-sharp0`. Note the FPS looking forward.
 C. **Game anti-aliasing (t6's "noaa" run still had it on: options-before and -after say
    `anti_alias = "On"`):** in the game's settings set Anti-aliasing Off, check
-   `~/.config/heliasdream/heliasdream-options.toml` says `anti_alias = "Off"`, then
+   `~/.config/HeliasDream/HeliasDream-options.toml` says `anti_alias = "Off"`, then
    `HELIAS_GPU_PROFILE=3 ./bbtest start t7-fsr4p-noaa-p3`. The profile shows which 4K
    pass goes (dc609f83+da1faca9 is the candidate) and what it cost. Set it back On after.
 
@@ -760,12 +760,12 @@ Nothing of AMD's ships with heliasdream-vk. The assets are built on your PC from
    (`PROTONPATH=<a Proton folder> ./build-fsr4.sh ...` picks one Proton).
    It records 40 sizes on RDNA4 (FP8 and INT8). Work files go to `~/.cache/heliasdream/fsr4cap`
    (`BB_FSR4CAP_CLEAN=1` removes them after a successful build).
-4. The assets land in `~/.local/share/heliasdream/fsr4_411/` (Helia's Dream reads them there, or
+4. The assets land in `~/.local/share/HeliasDream/fsr4_411/` (Helia's Dream reads them there, or
    wherever `HELIAS_FSR411_DIR` points). Check that `t1080_m0/initializer.bin` or
    `fp8/t1080_m0/initializer.bin` exists in that folder.
    Exit codes: 2 the DLL is not 4.1.x, 3 no Proton, 4 tools missing, 5 FSR 4.1 did not start
    under any Proton, 7 a loader is needed. Keep the last 30 lines if it fails.
-5. test3's log said `fsr4: no FSR 4.1.1 assets in /home/helias/.local/share/heliasdream/fsr4_411`.
+5. test3's log said `fsr4: no FSR 4.1.1 assets in /home/helias/.local/share/HeliasDream/fsr4_411`.
    After the build, that line must be gone.
 
 ## test3 checks (~20 min)
@@ -865,7 +865,7 @@ Pass:
    - Note how long it took and its last lines. The exit codes are in
      `tools/fsr4cap/build_assets.sh`'s header: 3 means no Proton, 5 means the DLL's FSR 4.1
      did not run under Proton.
-   - The setup window then says "FSR 4.1.1 assets built in ~/.local/share/heliasdream/fsr4_411".
+   - The setup window then says "FSR 4.1.1 assets built in ~/.local/share/HeliasDream/fsr4_411".
 2. `bbtest start t1-fsr4 --record`. Choose **FSR 4.1.1** at **Quality**, load your save, and
    repeat part 3's still spot, the fight, the particles and a warp. Then **Performance**.
 3. Note the GPU line (`FSR 4.1.1 x.xx ms`) and the FPS, compared with FSR 3.1.

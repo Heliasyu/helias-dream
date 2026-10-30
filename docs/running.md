@@ -30,23 +30,26 @@ And a PC with:
 
 ## First run
 
-Started without a configuration, Helia's Dream opens its setup window: pick the game
-folder and the eboot (both are checked as you go), choose the online server
-and account if you want to play online, and press Play. The window writes the
-per-user `heliasdream.toml` and starts the game. `heliasdream --setup` opens it again.
+Start the launcher, `HeliasDream.exe` on Windows or `./HeliasDream` on Linux. On its
+**Setup** page, pick the game folder and the eboot (both are checked as you go), set the
+display and graphics options, link your account on the **Online** page if you want to
+play online, and press **Play**. The launcher writes the per-user `HeliasDream.toml`
+and starts the engine.
 
-Without a display (a headless run) Helia's Dream writes a template config instead and
-tells you which paths to fill in.
+The engine can also be started on its own (`HeliasDream-engine.exe`, `run-engine.bat`
+or `./run-heliasdream.sh`). Without a configuration it opens its own setup window, and
+`--setup` opens that again. Without a display (a headless run) it writes a template
+config instead and tells you which paths to fill in.
 
 ## Configuration
 
 `heliasdream.example.toml` lists every setting with its default. The configuration
 is read in layers, each overriding only the keys it sets:
 
-1. the per-user `heliasdream.toml`: `%APPDATA%\heliasdream` on Windows,
-   `$XDG_CONFIG_HOME/heliasdream` or `~/.config/heliasdream` on Linux
+1. the per-user `HeliasDream.toml`: `%APPDATA%\HeliasDream` on Windows,
+   `$XDG_CONFIG_HOME/heliasdream` or `~/.config/HeliasDream` on Linux
    (`HELIAS_CONFIG_DIR` replaces the folder);
-2. `heliasdream.toml` in the working directory, or next to the executable;
+2. `HeliasDream.toml` in the working directory, or next to the executable;
 3. `--config <file>`;
 4. the command line: `--app0 <dir>`, `--data <dir>`, `--eboot <file>`, or the
    eboot as the last argument.
@@ -56,12 +59,12 @@ relative path is taken from the folder of the file it is in.
 
 The in-game settings (F10, or the PC Settings, PC Graphics and Key Bindings
 entries the game's own System menu gains) are saved beside the per-user config
-in `heliasdream-options.toml`.
+in `HeliasDream-options.toml`.
 
 ## Saves
 
 Saves are in `<data>/saves/SPRJ0005`, where `<data>` defaults to
-`%LOCALAPPDATA%\Helia's Dream\data` or `~/.local/share/heliasdream/data`. Each time the
+`%LOCALAPPDATA%\Helia's Dream\data` or `~/.local/share/HeliasDream/data`. Each time the
 game writes a save (at most every five minutes) a copy goes to
 `<data>/save-backups/`, and the newest eight are kept. To restore one, quit and
 copy its files over `<data>/saves/SPRJ0005`.

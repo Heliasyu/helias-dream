@@ -10,7 +10,7 @@ Bloodborne CUSA03173 1.09, on Linux and Windows 10/11. You need your own game fi
 - **Linux:** `helias-dream-linux-v0.2.18-vk.3.tar.gz`. Unpack it and run `./HeliasDream`.
 - `SHA256SUMS` lists both.
 
-Settings and saves from a bbhost or earlier Helia's Dream install are copied over on the
+Settings and saves from an earlier install are copied over on the
 first start; the old folders are kept.
 
 ## What's new since vk.2

@@ -140,11 +140,10 @@ Vulkan. Free software under the GNU GPL, version 3 or later (LICENSE); the
 source is at https://github.com/Heliasyu/helias-dream (based on
 https://github.com/droogie/bbhost).
 
-This is Helia's Dream, built on bbhost, with FSR 3.1 and FSR 4.1.1 upscaling,
-frame rate caps and DualSense haptics (https://github.com/Heliasyu/helias-dream). README-TESTING.txt says how
-to install it over an existing heliasdream, build FSR 4.1.1 and what to test;
-docs/TESTING.md is the full test session. Online is unchanged: the same
-community server as heliasdream (https://thehuntersdream.com).
+It adds FSR 3.1, FSR 4 and FSR 4.1.1 upscaling, HDR, frame rate caps up to
+120, DualSense HD haptics and adaptive triggers, and a launcher. Online play
+uses the community server, https://thehuntersdream.com. docs/TESTING.md is a
+full test session.
 
 You need
   - x86-64 Linux with glibc ${glibc#GLIBC_} or newer (Ubuntu 24.04, Linux Mint 22, Debian 13,
@@ -171,28 +170,28 @@ Built static: libstdc++ ($glibcxx), SDL3, ffmpeg (movie decoders only),
 SPIRV-Tools.
 
 Setup
-  Untar this folder somewhere of its own, for example ~/Games/heliasdream, and run
-  ./run-heliasdream.sh from a terminal there. The first time, the setup window
-  opens: pick the game folder and the decrypted eboot with the Browse buttons
-  (each turns green when it is right), then Play. ./run-heliasdream.sh --setup
-  opens it again.
+  Untar this folder somewhere of its own, for example ~/Games/HeliasDream, and
+  run ./HeliasDream, the launcher. On its Setup page pick the game folder and
+  the decrypted eboot, then press Play.
 
-  The settings are kept in ~/.config/HeliasDream/HeliasDream.toml, which every copy of
-  heliasdream reads, so a new download or an update needs nothing set again. The
-  F10 settings and your account sign-in are kept beside it, saves and caches
-  in ~/.local/share/heliasdream/data.
-  heliasdream.example.toml lists every setting.
+  The settings are kept in ~/.config/HeliasDream/HeliasDream.toml, which every
+  copy of Helia's Dream reads, so a new download or an update needs nothing set
+  again. The F10 settings and your account sign-in are kept beside it, saves
+  and caches in ~/.local/share/HeliasDream/data. heliasdream.example.toml
+  lists every setting.
 
 Run
-  ./run-heliasdream.sh          (the log goes to logs/ and the terminal)
+  ./HeliasDream                 the launcher: press Play (its Console page shows the log)
+  ./run-heliasdream.sh          the game alone (the log goes to logs/ and the terminal;
+                                --setup opens the engine's own setup window)
   The first visit to an area stutters for a moment while its graphics are
   prepared for your GPU; later visits do not. F10 in the game window opens
   the PC settings: resolution, window mode, V-Sync, frame cap, mouse, key
   bindings and your account.
 
 Online
-  heliasdream plays online on the community server, https://thehuntersdream.com,
-  with other heliasdream players (not with PS4s). The game stays offline until this
+  Helia's Dream plays online on the community server, https://thehuntersdream.com,
+  with other players on PC (not with PS4s). The game stays offline until this
   PC is linked to an account, and the account's name is your name online.
   Link it once, in the setup window's Account section or with F10 > ACCOUNT
   at the title screen:
