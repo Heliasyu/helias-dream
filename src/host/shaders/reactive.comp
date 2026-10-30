@@ -1,5 +1,5 @@
 #version 460
-// bbhost-vk Phase 3: the reactive mask for the temporal upscalers
+// heliasdream-vk Phase 3: the reactive mask for the temporal upscalers
 // (host/temporal_inputs.cpp), one invocation per render pixel. Where the
 // finished scene differs from the opaque snapshot - the scene before its first
 // blended draw - something transparent was drawn over it: particles, fog,
@@ -10,7 +10,7 @@
 // with the flags its samples use - TONEMAP, APPLY_THRESHOLD,
 // USE_COMPONENTS_MAX: both colours tone-mapped c / (1 + max(c)), the largest
 // component of their difference, times `scale`; below `threshold` 0, else
-// `binary_value`. Written from that description for bbhost's bindings.
+// `binary_value`. Written from that description for heliasdream's bindings.
 //
 // Out: R8, 0 opaque .. 1 fully reactive. Compiled offline
 // (tools/build_shaders.sh) into reactive.spv.h.

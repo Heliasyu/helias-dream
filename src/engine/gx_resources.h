@@ -21,7 +21,7 @@
 // initial data and every Map), which is the census that decides whether the
 // content hashes can go for covered resources.
 //
-// BBHOST_GX_MAP_TRACE=1 (reconnaissance) still logs Map's callers
+// HELIAS_GX_MAP_TRACE=1 (reconnaissance) still logs Map's callers
 // and the ring allocator's from here.
 #pragma once
 

@@ -4,7 +4,7 @@
 #   tools/glitch_hunt.sh [NAME] [VAR=value...]
 #
 # Plays the frozen seed (PERF_SOAK_DATA, default tmp/seed-data, on a scratch
-# copy) with BBHOST_GLITCH=1 on the menu driver's Xvfb display: the title and
+# copy) with HELIAS_GLITCH=1 on the menu driver's Xvfb display: the title and
 # main menu, the in-game menu opened and closed, then combat - light, strong
 # and firearm attacks, transforms, dodges and camera turns - and the menu
 # again. Every frame is compared with its neighbours and every draw's
@@ -17,30 +17,30 @@
 # and a muzzle flash is one too - the report's draw spikes say which draw.
 #
 # NAME defaults to glitch-hunt. VAR=value pairs go into the game's
-# environment (BBHOST_GLITCH_CELL=0.08, BBHOST_BUFFER_SHADOW=0, ...), so the
+# environment (HELIAS_GLITCH_CELL=0.08, HELIAS_BUFFER_SHADOW=0, ...), so the
 # same script A/Bs a suspected cause: compare the catch counts of two runs
 # against the frames each one watched. GLITCH_ROUNDS (default 6) sets how
 # many menu-and-combat rounds; each is about 50 s.
 set -u
-export BBHOST_SETUP_WINDOW=0  # a harness run never stops at the setup window
+export HELIAS_SETUP_WINDOW=0  # a harness run never stops at the setup window
 cd "$(dirname "$0")/.."
 NAME=${1:-glitch-hunt}
 [ $# -gt 0 ] && shift
-[ -f bbhost.toml ] || { echo "no bbhost.toml (see bbhost.example.toml)"; exit 1; }
+[ -f heliasdream.toml ] || { echo "no heliasdream.toml (see heliasdream.example.toml)"; exit 1; }
 mkdir -p tmp
 rm -rf tmp/data-scratch
-data=$(sed -n 's/^data *= *"\(.*\)"/\1/p' bbhost.toml | head -1)
+data=$(sed -n 's/^data *= *"\(.*\)"/\1/p' heliasdream.toml | head -1)
 seed=${PERF_SOAK_DATA:-tmp/seed-data}
 [ -d "$seed" ] || seed=${data:-data}
 cp -a "$seed" tmp/data-scratch
-sed -e "s|^data *=.*|data = \"$PWD/tmp/data-scratch\"|" -e "s|^mods *=.*|mods = \"$PWD/tmp/data-scratch/mods\"|" bbhost.toml > tmp/glitch-hunt.toml
+sed -e "s|^data *=.*|data = \"$PWD/tmp/data-scratch\"|" -e "s|^mods *=.*|mods = \"$PWD/tmp/data-scratch/mods\"|" heliasdream.toml > tmp/glitch-hunt.toml
 cat > tmp/glitch-hunt-run.sh <<EOF
 #!/bin/bash
-if [ -n "\${BB_OPT:-}" ] && [ -n "\${BBHOST_OPTIONS_PATH:-}" ]; then
-  sed -i "/^frame_cap = /d" "\$BBHOST_OPTIONS_PATH"; sed -i "/^\[options\]/a \$BB_OPT" "\$BBHOST_OPTIONS_PATH"
+if [ -n "\${BB_OPT:-}" ] && [ -n "\${HELIAS_OPTIONS_PATH:-}" ]; then
+  sed -i "/^frame_cap = /d" "\$HELIAS_OPTIONS_PATH"; sed -i "/^\[options\]/a \$BB_OPT" "\$HELIAS_OPTIONS_PATH"
 fi
 export SDL_AUDIO_DRIVER=\${SDL_AUDIO_DRIVER:-dummy}
-exec "\${BBHOST_EXE:-$PWD/build/bbhost}" --config "$PWD/tmp/glitch-hunt.toml" "\$@"
+exec "\${HELIAS_EXE:-$PWD/build/heliasdream}" --config "$PWD/tmp/glitch-hunt.toml" "\$@"
 EOF
 chmod +x tmp/glitch-hunt-run.sh
 
@@ -56,8 +56,8 @@ for _ in $(seq 1 "$rounds"); do
 done
 timeout_s=$(( 150 + rounds * 55 ))
 out=build/$NAME
-env "$@" BBHOST_GLITCH=1 BBHOST_GLITCH_DIR="$out/glitch" BBHOST_GAME_FPS=60 BB_OPT='frame_cap = "60"' \
-    MENU_DRIVE_OUT="$out" MENU_DRIVE_TIMEOUT=$timeout_s BBHOST_BIN="$PWD/tmp/glitch-hunt-run.sh" \
+env "$@" HELIAS_GLITCH=1 HELIAS_GLITCH_DIR="$out/glitch" HELIAS_GAME_FPS=60 BB_OPT='frame_cap = "60"' \
+    MENU_DRIVE_OUT="$out" MENU_DRIVE_TIMEOUT=$timeout_s HELIAS_BIN="$PWD/tmp/glitch-hunt-run.sh" \
     timeout $(( timeout_s + 60 )) tools/menu_drive.sh "${steps[@]}" > /dev/null 2>&1
 
 log=$out/run.log
@@ -65,9 +65,9 @@ log=$out/run.log
 grep -q 'area.glare.luminance' "$log" || echo "note: the run never reached the world (menus only)"
 grep -E 'dumped core|Segmentation' "$log" | head -3
 echo "== catches"
-grep -E '^\[bbhost\] glitch: (flip|  spike)' "$log" | sed 's/^\[bbhost\] glitch: //' | head -120
+grep -E '^\[heliasdream\] glitch: (flip|  spike)' "$log" | sed 's/^\[heliasdream\] glitch: //' | head -120
 echo "== summary"
-grep -E '^\[bbhost\] glitch: [0-9]+ frames watched' "$log" | sed 's/^\[bbhost\] //'
+grep -E '^\[heliasdream\] glitch: [0-9]+ frames watched' "$log" | sed 's/^\[heliasdream\] //'
 # The kinds worth looking at first, from every catch (catches.csv): most
 # one-frame events are fast effects (sparks) and are not glitches.
 [ -f "$out/glitch/catches.csv" ] && python3 - "$out/glitch/catches.csv" <<'PY'

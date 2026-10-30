@@ -1,6 +1,6 @@
-# bbhost-vk v0.2.18-vk.1
+# heliasdream-vk v0.2.18-vk.1
 
-The first bbhost-vk release since `v0.2.18-vk.0`. It is built on droogie's bbhost v0.2.18
+The first heliasdream-vk release since `v0.2.18-vk.0`. It is built on droogie's Helia's Dream v0.2.18
 (GPLv3), for Bloodborne CUSA03173 1.09 on Linux.
 
 ## What's new
@@ -45,17 +45,17 @@ The first bbhost-vk release since `v0.2.18-vk.0`. It is built on droogie's bbhos
 
 ## Fallbacks
 - Launcher: **Even frame pacing** off, or **Post-processing at render size** off.
-- Environment variables, which win over the options: `BBHOST_PRESENT_PACE=0`,
-  `BBHOST_POST_AT_RENDER=0`, `BBHOST_MOTION_BLUR_SKIP=0`.
+- Environment variables, which win over the options: `HELIAS_PRESENT_PACE=0`,
+  `HELIAS_POST_AT_RENDER=0`, `HELIAS_MOTION_BLUR_SKIP=0`.
 
 ## Unchanged
 - Online play and sign-in (thehuntersdream.com) are untouched.
 - No HDR changes. MangoHud works as before.
 
 ## Install
-1. Keep a copy of your `bbhost.bin`, `bbhost-options.toml` and `~/.config/bbhost/bbhost.toml`.
-2. Run `tar xzf bbhost-vk-linux-v0.2.18-vk.1.tar.gz`.
-3. Copy `bbhost-vk-linux-v0.2.18-vk.1/bbhost` over your `bbhost.bin`.
+1. Keep a copy of your `heliasdream.bin`, `heliasdream-options.toml` and `~/.config/heliasdream/heliasdream.toml`.
+2. Run `tar xzf heliasdream-vk-linux-v0.2.18-vk.1.tar.gz`.
+3. Copy `heliasdream-vk-linux-v0.2.18-vk.1/heliasdream` over your `heliasdream.bin`.
 4. Check the download with `sha256sum -c SHA256SUMS`.
 
 ## Known

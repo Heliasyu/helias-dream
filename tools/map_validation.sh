@@ -5,7 +5,7 @@
 #                                            (default: all three)
 #   tools/map_validation.sh --blocks all|m22_00_00_00,m23_00_00_00 [--per-run N]
 #       every block the lamps reach: the frozen seed's character with every
-#       lamp lit (BBHOST_TEST_UNLOCK_LAMPS=1) travels to each block's first
+#       lamp lit (HELIAS_TEST_UNLOCK_LAMPS=1) travels to each block's first
 #       lamp the way the Hunter's Dream headstones do (plugin lamp_warp:
 #       ReturnPointParam row -> return point, then WarpNextStage_Bonfire) and
 #       tours it: its lamps, player starts, notes, 20 navmesh points
@@ -21,7 +21,7 @@
 #
 # For each seed: a scratch copy of its save, the game online against a
 # private server started here on 127.0.0.1 (never a real one), the
-# map-validation probe (tools/mapval_plugin.c, BBHOST_TEST_WARP=1) logging the
+# map-validation probe (tools/mapval_plugin.c, HELIAS_TEST_WARP=1) logging the
 # player's position every second and touring the loaded block - every lamp,
 # the player starts, a few landmarks, one enemy kill and one fall death -
 # while the game uploads its play logs. The server's ingest worker writes
@@ -44,12 +44,12 @@
 # respawn are over by then), MAPVAL_ENEMIES (enemy placements per seed, 6),
 # MAPVAL_CORPUS (a history.db of real players, read only, for the MapOffset
 # check; "" for none), MAPVAL_TRANSFORMS (the world map's transform table),
-# BBHOST_BIN (default build/bbhost).
+# HELIAS_BIN (default build/heliasdream).
 set -u
-export BBHOST_SETUP_WINDOW=0  # a harness run never stops at the setup window
+export HELIAS_SETUP_WINDOW=0  # a harness run never stops at the setup window
 cd "$(dirname "$0")/.."
 REPO=$PWD
-MAIN=$(cd "$(git rev-parse --git-common-dir)/.." && pwd)   # the main checkout: seeds, eboot, bbhost.toml
+MAIN=$(cd "$(git rev-parse --git-common-dir)/.." && pwd)   # the main checkout: seeds, eboot, heliasdream.toml
 # --blocks LIST|all [--per-run N]: lamp travel through map blocks (see the
 # header); each game session takes N blocks (default 1) and is one run
 # directory, b_<first block>.
@@ -76,8 +76,8 @@ PY=${MAPVAL_PYTHON:-$(cd "$SRC/../.." && pwd)/venv/bin/python}
 DISP=${MAPVAL_DISPLAY:-:77}
 HOLD=${MAPVAL_HOLD:-100}
 START=${MAPVAL_START:-45}
-BIN=${BBHOST_BIN:-$REPO/build/bbhost}
-cfg() { sed -n "s|^$1 *= *\"\(.*\)\"|\1|p" "$MAIN/bbhost.toml" | head -1; }
+BIN=${HELIAS_BIN:-$REPO/build/heliasdream}
+cfg() { sed -n "s|^$1 *= *\"\(.*\)\"|\1|p" "$MAIN/heliasdream.toml" | head -1; }
 APP0=${MAPVAL_APP0:-$(cfg app0)}
 EBOOT=${MAPVAL_EBOOT:-$(cfg eboot)}
 mkdir -p "$OUT"
@@ -85,7 +85,7 @@ T0=$(date +%s)
 say() { echo "[$(( $(date +%s) - T0 ))s] $*" | tee -a "$OUT/timings.txt"; }
 say "out $OUT, seeds ${SEEDS[*]}, server from $SRC"
 
-[ -x "$BIN" ] || { echo "no $BIN (build bbhost first)"; exit 1; }
+[ -x "$BIN" ] || { echo "no $BIN (build heliasdream first)"; exit 1; }
 [ -d "$APP0/dvdroot_ps4" ] && [ -f "$EBOOT" ] || { echo "app0/eboot not found ($APP0, $EBOOT)"; exit 1; }
 for p in 20443 18671; do
   if ss -ltn "sport = :$p" | grep -q LISTEN; then echo "port $p is taken: another server is running"; exit 1; fi
@@ -123,7 +123,7 @@ cleanup() {
     kill -9 -- -"$DRIVE" 2>/dev/null   # the game ignores SIGTERM while online
     # menu_drive.sh's own `timeout` puts the game in another process group:
     # this run's game by its config path.
-    for p in $(pgrep -x bbhost); do
+    for p in $(pgrep -x heliasdream); do
       tr '\0' ' ' < /proc/$p/cmdline 2>/dev/null | grep -qF "$OUT/" && kill -9 "$p" 2>/dev/null
     done
   fi
@@ -176,7 +176,7 @@ for seed in "${SEEDS[@]}"; do
     python3 "$REPO/tools/mapval_targets.py" --app0 "$APP0" --map "$block" --out "$D" --kill "$kill" --enemy-start "$estart" --enemies "${MAPVAL_ENEMIES:-6}" | tee -a "$OUT/timings.txt"
     online_id=MapVal$(echo "$seed" | tr a-z A-Z | cut -c1-4)
   fi
-  cat > "$D/bbhost.toml" <<EOF
+  cat > "$D/heliasdream.toml" <<EOF
 [paths]
 app0 = "$APP0"
 data = "$D/data"
@@ -206,7 +206,7 @@ EOF
   cat > "$D/run.sh" <<EOF
 #!/bin/bash
 export SDL_AUDIO_DRIVER=dummy
-exec "$BIN" --config "$D/bbhost.toml" "\$@"
+exec "$BIN" --config "$D/heliasdream.toml" "\$@"
 EOF
   chmod +x "$D/run.sh"
   # The main menu: Continue, or Load Game and the first slot (the clinic
@@ -236,15 +236,15 @@ EOF
   say "run $name: $block from $data (menu item $menu), online as $online_id"
   # Its own session (process group), so an interrupted run takes the game
   # down with it instead of leaving it running.
-  BBHOST_TEST_WARP=1 BBHOST_TEST_UNLOCK_LAMPS=$unlock BBHOST_MAPVAL_TOUR="$D/tour.txt" BBHOST_MAPVAL_START=$START \
-  MENU_DRIVE_ONLINE_CONFIG="$D/bbhost.toml" DISPLAY_DRIVE=$DISP MENU_DRIVE_OUT="$D/out" \
-  MENU_DRIVE_TIMEOUT=$(( 900 + HOLD )) BBHOST_BIN="$D/run.sh" \
+  HELIAS_TEST_WARP=1 HELIAS_TEST_UNLOCK_LAMPS=$unlock HELIAS_MAPVAL_TOUR="$D/tour.txt" HELIAS_MAPVAL_START=$START \
+  MENU_DRIVE_ONLINE_CONFIG="$D/heliasdream.toml" DISPLAY_DRIVE=$DISP MENU_DRIVE_OUT="$D/out" \
+  MENU_DRIVE_TIMEOUT=$(( 900 + HOLD )) HELIAS_BIN="$D/run.sh" \
     setsid timeout $(( 960 + HOLD )) "$REPO/tools/menu_drive.sh" "${steps[@]}" > "$D/drive.txt" 2>&1 &
   DRIVE=$!
   wait $DRIVE
   DRIVE=
   mv "$D/out/"* "$D/" 2>/dev/null; rmdir "$D/out" 2>/dev/null
-  rm -rf "$D/data/bbhost" "$D/data/cache.bin" "$D/data/mods"   # large caches; the saves stay
+  rm -rf "$D/data/heliasdream" "$D/data/cache.bin" "$D/data/mods"   # large caches; the saves stay
   n=$(grep -c "mapval at " "$D/run.log" 2>/dev/null)
   say "run $name: done - $(grep -c 'travel-done' "$D/run.log") travels ok, $(grep -c 'travel-failed' "$D/run.log") failed, $n targets reached, $(grep -c 'mapval pos' "$D/run.log") position lines, $(grep -c 'dumped core\|Segmentation' "$D/run.log") crashes, $(find "$SRV/playlogs/incoming" "$SRV/playlogs/raw" -type f -name '*_*' 2>/dev/null | grep -vc '/\.tmp/') uploads so far"
 done

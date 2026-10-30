@@ -22,7 +22,7 @@ VkResult bb_alloc_memory(VkDevice device, const VkMemoryAllocateInfo* info, cons
                          VkDeviceMemory* out, const char* file, int line);
 void bb_free_memory(VkDevice device, VkDeviceMemory memory, const VkAllocationCallbacks* cb);
 std::string bb_memory_sites_report();
-// BBHOST_TEST_VRAM_MB: allocations in the memory types of `types` (a bit each)
+// HELIAS_TEST_VRAM_MB: allocations in the memory types of `types` (a bit each)
 // fail with VK_ERROR_OUT_OF_DEVICE_MEMORY once they would hold more than
 // `bytes` together - a smaller card's video memory acted out on a bigger one.
 void bb_memory_test_limit(std::uint32_t types, std::uint64_t bytes);
@@ -70,7 +70,7 @@ constexpr std::uint32_t kMaxImages = 32;
 constexpr std::uint32_t kMaxQueued = 2048;    // dispatches + draws per flush
 constexpr std::uint32_t kParamsStride = 512;  // bytes per StageParams slot in the ring (352 bytes, a multiple of 256)
 constexpr std::uint32_t kStageSlots = 2;      // VS + PS descriptor sets per draw
-// Command buffers in flight, at most (BBHOST_GPU_SLOTS picks fewer, Gpu::slot_count).
+// Command buffers in flight, at most (HELIAS_GPU_SLOTS picks fewer, Gpu::slot_count).
 // The command processor submits after every game command buffer - about 11 a
 // frame in the world - so 8 let it run less than a frame ahead of the GPU: on
 // the laptop it waited 1.1-1.9 s of every 5 s for a slot in heavy views, and
@@ -78,7 +78,7 @@ constexpr std::uint32_t kStageSlots = 2;      // VS + PS descriptor sets per dra
 constexpr int kSlots = 16;
 constexpr std::uint64_t kStagingChunkBytes = 64ull << 20;  // upload staging chunk size
 constexpr std::uint64_t kStagingKeepBytes = 1024ull << 20;  // free upload staging chunks kept for reuse
-// BBHOST_GPU_PROFILE timestamp queries per slot: a pair per draw/dispatch,
+// HELIAS_GPU_PROFILE timestamp queries per slot: a pair per draw/dispatch,
 // the last pair spans the whole command buffer.
 constexpr std::uint32_t kQueriesPerSlot = kMaxQueued * kStageSlots * 2;
 
@@ -104,7 +104,7 @@ inline bool chunk_covers(const Chunk& c, std::uint64_t in, std::uint64_t bytes) 
 // (gpu_span): the game's CPU-only heaps, the never-allocated tail and the GPU
 // heaps' untouched parts stay out of the driver's pinned memory - what
 // Windows counts as the process's shared GPU memory. A range across windows
-// gets one import of them all. Only with BBHOST_IMPORT_WINDOWS=1 for now (the
+// gets one import of them all. Only with HELIAS_IMPORT_WINDOWS=1 for now (the
 // page-table walks the host does not resolve, gpu.cpp); otherwise each span
 // is imported whole when the mappings are made.
 constexpr std::uint32_t kImportWindowShift = 24;
@@ -133,7 +133,7 @@ struct ComputePipeline {
     // waited for (gpu.cpp, take_precompiled_compute): failed until it is done.
     bool pending = false;
     // The unoptimized pipeline, standing in while the optimized one is built
-    // in the background (BBHOST_CS_OPTIMIZE, gpu.cpp): the dispatch takes the
+    // in the background (HELIAS_CS_OPTIMIZE, gpu.cpp): the dispatch takes the
     // optimized one once it is there (adopt_optimized_compute).
     bool standin = false;
     std::uint64_t opt_seen = 0;
@@ -204,12 +204,12 @@ struct Gpu {
     // Pixel shaders at wave32 (gcn/wave.h):
     // decided at device creation (gpu.cpp), given to each fragment stage by
     // render.cpp's fragment_stage_wave. 0: the device's own subgroup size for
-    // every stage, as before (BBHOST_PS_WAVE32=0, or a device whose subgroups
+    // every stage, as before (HELIAS_PS_WAVE32=0, or a device whose subgroups
     // are 32 wide already or that cannot be asked); 32: a required size of 32
     // for a program that computes the same in a 32-lane subgroup
     // (TranslateResult::wave64_needs 0), the device's size required of the
     // others; 1: the driver chooses between 32 and its default
-    // (BBHOST_PS_WAVE32=driver, ALLOW_VARYING_SUBGROUP_SIZE).
+    // (HELIAS_PS_WAVE32=driver, ALLOW_VARYING_SUBGROUP_SIZE).
     std::uint32_t ps_wave = 0;
     std::uint32_t subgroup_size = 0;                 // VkPhysicalDeviceSubgroupProperties::subgroupSize: the default
     std::uint32_t subgroup_min = 0, subgroup_max = 0;  // VkPhysicalDeviceSubgroupSizeControlProperties
@@ -228,16 +228,16 @@ struct Gpu {
     // Video memory: the device-local heap images, targets and the buffer
     // shadow's mirrors are made in, and what this process may hold in it - the
     // driver's budget when the device was made (the card's memory less what
-    // other programs held), else the heap's size; BBHOST_TEST_VRAM_MB lowers
+    // other programs held), else the heap's size; HELIAS_TEST_VRAM_MB lowers
     // it. vram_short: an image found no room there and went to host memory
     // (image_memory_alloc); the next submission takes it and has the buffer
     // shadow give its mirrors back (shadow_give_back_locked).
     std::uint32_t local_heap = 0;
     std::uint64_t local_budget = 0;
     std::atomic<bool> vram_short{false};
-    // VK_KHR_pipeline_executable_properties enabled, for BBHOST_PIPELINE_STATS (render.cpp)
+    // VK_KHR_pipeline_executable_properties enabled, for HELIAS_PIPELINE_STATS (render.cpp)
     bool pipeline_stats = false;
-    // rc2, bbtest profile: BBHOST_SHADER_STATS=<file> - every pipeline is
+    // rc2, bbtest profile: HELIAS_SHADER_STATS=<file> - every pipeline is
     // built with VK_PIPELINE_CREATE_CAPTURE_STATISTICS_BIT_KHR and no pipeline
     // cache of ours (the flag is in the driver's cache key), and its
     // statistics are appended to that file (render.cpp shader_stats_note).
@@ -255,7 +255,7 @@ struct Gpu {
     // readable after a device loss.
     PFN_vkCmdWriteBufferMarkerAMD cmd_buffer_marker = nullptr;
     DevBuffer marker_buf;
-    GpuMutex mu;  // host/gpu_mutex.h: BBHOST_LOCK_PROFILE names who holds it
+    GpuMutex mu;  // host/gpu_mutex.h: HELIAS_LOCK_PROFILE names who holds it
     // The queue's own mutex: the submission thread (gpu.cpp, submit_thread)
     // submits without g.mu, so every use of `queue` takes this - through
     // QueueGuard, which first waits for the thread's pending submissions.
@@ -296,17 +296,17 @@ struct Gpu {
         std::vector<ImageMemory> dead_ranges;  // image-heap ranges, released once this slot retired
         std::vector<std::pair<VkDescriptorPool, VkDescriptorSet>> dead_sets;  // cached sets let go (render.cpp set cache)
         std::vector<VkImageView> dead_views;
-        std::vector<UntileCheck> untile_checks;  // BBHOST_GPU_UNTILE=2 pairs, checked once this slot retired
-        // BBHOST_GLITCH=1 (glitch.cpp): an occlusion query around each draw,
+        std::vector<UntileCheck> untile_checks;  // HELIAS_GPU_UNTILE=2 pairs, checked once this slot retired
+        // HELIAS_GLITCH=1 (glitch.cpp): an occlusion query around each draw,
         // and the draw record each one belongs to, read once the slot's fence
         // has signalled.
         VkQueryPool cov_pool = VK_NULL_HANDLE;
         std::vector<std::uint64_t> cov_recs;
         bool cov_reset = false;  // this recording reset the pool before its first query
-        // BBHOST_GPU_PROFILE=1: timestamp pairs around each draw/dispatch.
+        // HELIAS_GPU_PROFILE=1: timestamp pairs around each draw/dispatch.
         VkQueryPool qpool = VK_NULL_HANDLE;
         std::vector<const std::string*> qnames;  // pipeline name per pair
-        // BBHOST_GPU_PROFILE=2: per pair, the recording sites (g_cmd() callers)
+        // HELIAS_GPU_PROFILE=2: per pair, the recording sites (g_cmd() callers)
         // between it and the pair before - what the gap between them ran -
         // and those after the last pair.
         std::vector<std::array<void*, 4>> qgaps;
@@ -317,7 +317,7 @@ struct Gpu {
         VkQueryPool stat_pool = VK_NULL_HANDLE;  // Gpu::profile_stats: one query per pair
         bool stat_open = false;                  // the last pair's statistics query is still active
         std::uint32_t stat_index = 0;            // rc4: the query that is (stat_open), ended by the pair that began it
-        // The GPU busy meter (gpu_busy.cpp, on unless BBHOST_GPU_BUSY=0): a
+        // The GPU busy meter (gpu_busy.cpp, on unless HELIAS_GPU_BUSY=0): a
         // timestamp at the command buffer's start and one at its end, read
         // once the slot retired. `busy_written`: this recording wrote both.
         VkQueryPool busy_pool = VK_NULL_HANDLE;
@@ -328,7 +328,7 @@ struct Gpu {
     };
     Slot slots[kSlots];
     int slot = 0;
-    int slot_count = kSlots;  // slots in use (BBHOST_GPU_SLOTS); submission n is in slots[n % slot_count]
+    int slot_count = kSlots;  // slots in use (HELIAS_GPU_SLOTS); submission n is in slots[n % slot_count]
     // Upload staging chunks free for reuse (acquire_staging_locked).
     std::vector<DevBuffer> staging_free;
     std::uint64_t staging_free_bytes = 0;
@@ -355,7 +355,7 @@ struct Gpu {
     VkDescriptorPool desc_pool = VK_NULL_HANDLE;
     VkPipelineCache cache = VK_NULL_HANDLE;
     VkPipelineCache side_cache = VK_NULL_HANDLE;  // PipelineCacheUse: creations while a save serializes `cache`
-    // The bb-cs-optimize threads' builds (BBHOST_CS_OPTIMIZE): a cache of their
+    // The bb-cs-optimize threads' builds (HELIAS_CS_OPTIMIZE): a cache of their
     // own, merged into `cache` where the side cache is, so that a build taking
     // minutes never holds a save waiting for `cache`'s users (gpu.cpp).
     VkPipelineCache opt_cache = VK_NULL_HANDLE;
@@ -370,14 +370,14 @@ struct Gpu {
     bool tight = false;           // little memory in all its heaps (gpu.cpp, memory_tight)
     bool has_push_descriptor = false;       // VK_KHR_push_descriptor enabled
     PFN_vkCmdPushDescriptorSetKHR cmd_push_descriptor_set = nullptr;
-    // VK_EXT_extended_dynamic_state3's depth clamp (BBHOST_DYNAMIC_DEPTH_CLAMP=0
+    // VK_EXT_extended_dynamic_state3's depth clamp (HELIAS_DYNAMIC_DEPTH_CLAMP=0
     // turns it off): pre-rasterization libraries leave it to the draw.
     bool dynamic_depth_clamp = false;
     PFN_vkCmdSetDepthClampEnableEXT cmd_set_depth_clamp_enable = nullptr;
     // Graphics constant buffers, pushed per draw into set 2 (cb_push_on()):
     // the vertex stage's at bindings 112-127, the pixel stage's at 128-143.
     VkDescriptorSetLayout cb_push_layout = VK_NULL_HANDLE;
-    // BBHOST_BINDLESS=1 (bindless.cpp): graphics stages read
+    // HELIAS_BINDLESS=1 (bindless.cpp): graphics stages read
     // images and samplers from one global set (set 3); their own sets hold the
     // params block alone. gfx_set_layout is the graphics stage sets' layout:
     // set_layout's, or the params block alone when bindless.
@@ -391,6 +391,7 @@ struct Gpu {
     // feature on: the presenter may ask for FIFO_LATEST_READY (window.cpp).
     // The extension's name, or null.
     const char* fifo_latest_ready_ext = nullptr;
+    bool hdr_metadata = false;  // VK_EXT_hdr_metadata on (HDR output tells the display its levels)
     // Stage parameter ring: one block per queued dispatch/draw stage.
     VkBuffer ubo = VK_NULL_HANDLE;
     VkDeviceMemory ubo_mem = VK_NULL_HANDLE;
@@ -417,11 +418,11 @@ struct Gpu {
     std::map<std::uint32_t, VkDeviceMemory> dummy_dim_mem;
     std::map<std::uint32_t, VkImageView> dummy_dim_views;
     VkSampler dummy_sampler = VK_NULL_HANDLE;
-    // Constant buffers as storage buffers (TranslateOptions::cb_ssbo, BBHOST_CB_SSBO=0 to turn off):
+    // Constant buffers as storage buffers (TranslateOptions::cb_ssbo, HELIAS_CB_SSBO=0 to turn off):
     // the buffer bound where a V# could not be, and the device limits for binding one.
     bool cb_ssbo = true;
     bool cb_lean = true;  // pipelines without the fallback for draws whose constant buffers all bind
-    bool exec_known = true;  // translate with static EXEC knowledge (BBHOST_EXEC_KNOWN=0 turns it off)
+    bool exec_known = true;  // translate with static EXEC knowledge (HELIAS_EXEC_KNOWN=0 turns it off)
     VkBuffer dummy_ssbo = VK_NULL_HANDLE;
     VkDeviceMemory dummy_ssbo_mem = VK_NULL_HANDLE;
     VkDeviceSize ssbo_align = 1;
@@ -456,23 +457,23 @@ struct Gpu {
     std::atomic<int> waiting_slot{-1};
     std::atomic<std::uint64_t> wait_started_ns{0};
     std::atomic<std::uint64_t> transfers{0};  // GPU-side CP memory writes
-    // GPU profile (BBHOST_GPU_PROFILE=1): nanoseconds and count by pipeline.
+    // GPU profile (HELIAS_GPU_PROFILE=1): nanoseconds and count by pipeline.
     // =2 also charges the time between pairs to what was recorded in it
     // (profile_gap_ns, by recording sites).
     bool profile = false;
-    // rc2: BBHOST_GPU_PROFILE asked for (profile is also on for the sampler's
+    // rc2: HELIAS_GPU_PROFILE asked for (profile is also on for the sampler's
     // one frame every ~10 s), and the sampler's query pools exist.
     bool profile_env = false;
     bool profile_pools = false;
     bool profile_gaps = false;
-    bool profile_passes = false;  // BBHOST_GPU_PROFILE=3: a pair a render pass, not a draw (render.cpp)
-    // BBHOST_GPU_PROFILE=3 (or =1 with BBHOST_GPU_PROFILE_STATS=1) where the
+    bool profile_passes = false;  // HELIAS_GPU_PROFILE=3: a pair a render pass, not a draw (render.cpp)
+    // HELIAS_GPU_PROFILE=3 (or =1 with HELIAS_GPU_PROFILE_STATS=1) where the
     // device counts them: a pipeline-statistics query beside each pair (vertices and primitives in, vertex-shader
     // invocations, primitives into and out of clipping, fragment-shader
     // invocations), summed by name like profile_ns.
     bool profile_stats = false;
-    bool sample_stats = false;  // rc4: profile_stats for the GPU sampler's frames (BBHOST_GPU_SAMPLE_STATS=0: off)
-    bool debug_labels = false;  // rc4: VK_EXT_debug_utils labels at each render pass for RGP (BBHOST_RGP_LABELS=1)
+    bool sample_stats = false;  // rc4: profile_stats for the GPU sampler's frames (HELIAS_GPU_SAMPLE_STATS=0: off)
+    bool debug_labels = false;  // rc4: VK_EXT_debug_utils labels at each render pass for RGP (HELIAS_RGP_LABELS=1)
     std::map<std::string, std::array<std::uint64_t, 6>> profile_stats_sum;
     std::map<std::array<void*, 4>, std::pair<std::uint64_t, std::uint64_t>> profile_gap_ns;
     float timestamp_period_ns = 1.0f;
@@ -489,7 +490,7 @@ extern Gpu g;
 
 // Why host_gpu_draw returned without drawing (Gpu::draw_fail_why).
 enum DrawFail : int {
-    kFailTessOff,           // BBHOST_TESS=0
+    kFailTessOff,           // HELIAS_TESS=0
     kFailTessPlan,          // a tessellated draw's plan
     kFailTessLs,            // its LS pass
     kFailPrimitive,         // a primitive type with no Vulkan topology
@@ -598,7 +599,7 @@ std::string staging_pool_stats();  // "chunks created N, uploads placed M"
 // The same for an image and its views: avoids a vkDeviceWaitIdle per surface
 // whose memory the game re-used, which cost most of a world load's GPU time.
 void defer_destroy_image(VkImage image, VkDeviceMemory memory);
-// bbhost-vk Phase 5: a 2D single-mip view of `image` for one of the renderer's
+// heliasdream-vk Phase 5: a 2D single-mip view of `image` for one of the renderer's
 // own passes (the motion pass's depth and velocity, FSR 4.1.1's inputs), kept
 // from frame to frame instead of made and destroyed each frame. Forgotten
 // (and destroyed deferred) when the image goes through defer_destroy_image,
@@ -626,7 +627,7 @@ struct QueueGuard {
     QueueGuard& operator=(const QueueGuard&) = delete;
 };
 // bindless.cpp: the global descriptor arrays. Under g.mu.
-bool bindless_wanted();  // BBHOST_BINDLESS=1
+bool bindless_wanted();  // HELIAS_BINDLESS=1
 bool bindless_create_locked(std::uint32_t max_images, std::uint32_t max_samplers);
 void bindless_dummies_locked(VkImageView image, VkImageView storage, VkSampler sampler);  // slot 0 of each array
 std::uint32_t bindless_view_slot_locked(VkImageView view, bool storage);
@@ -644,8 +645,8 @@ bool create_dev_buffer(DevBuffer& b, std::uint64_t size, bool host_visible, bool
 // rc5: the snapshot [walks] line `page_tables: vram= system=` (where the page tables were put; gpu.cpp create_table_buffer).
 std::string page_tables_line();
 // rc5b: constant buffers of the game's compute shaders through storage-buffer
-// bindings (TranslateOptions::cb_ssbo), on unless BBHOST_CS_CB=0 or
-// BBHOST_CB_SSBO=0. compute_cb_line: the [walks] line.
+// bindings (TranslateOptions::cb_ssbo), on unless HELIAS_CS_CB=0 or
+// HELIAS_CB_SSBO=0. compute_cb_line: the [walks] line.
 bool compute_cb_on();
 std::string compute_cb_line();
 // rc5b: guest memory the GPU writes in the current recording, which a
@@ -660,7 +661,7 @@ bool extract_program(std::uint64_t code_va, std::vector<std::uint32_t>& words, s
 // A GX shader creator ran (render.cpp; host_gpu_note_shader_created).
 void note_shader_created(int stage, const std::uint8_t* container, std::size_t size, std::uint64_t flip);
 // Compute shaders compiled when GX creates them (gpu.cpp; on unless
-// BBHOST_PRECOMPILE=0): render.cpp registers a creation (true the first time a
+// HELIAS_PRECOMPILE=0): render.cpp registers a creation (true the first time a
 // name is seen) and its precompile workers run the job.
 bool compute_precompile_enabled();
 bool note_compute_created(const std::string& name, std::uint64_t flip);
@@ -678,11 +679,11 @@ const Chunk* dmem_import(std::uint32_t chunk, std::uint64_t in, std::uint64_t by
 // it is not: for what the shaders reach through the page table, which needs
 // the pages mapped but no one buffer over them.
 void import_windows(std::uint64_t va, std::uint64_t bytes);
-// BBHOST_IMPORT_AUDIT=1 (gpu.cpp): counts the GPU side's resolutions per guest
+// HELIAS_IMPORT_AUDIT=1 (gpu.cpp): counts the GPU side's resolutions per guest
 // mapping - kind 0 locate, 1 a device address, 2 a vertex/index mirror source.
 extern const bool g_import_audit;
 void import_audit(const GuestMapInfo& mi, int kind);
-// BBHOST_IMPORT_AUDIT=1: a guest range the GPU side reads or writes in place,
+// HELIAS_IMPORT_AUDIT=1: a guest range the GPU side reads or writes in place,
 // by how (the 64 KiB direct-memory pages, summed per kind and per window).
 enum ImportUse { kUseBound, kUsePageTable, kUseUntile, kUseMirror, kUseTransfer, kUseIndex, kImportUses };
 void audit_range(std::uint64_t va, std::uint64_t bytes, ImportUse use);
@@ -706,7 +707,7 @@ bool depth_copy_available_locked();
 bool depth_copy_record_locked(VkImage depth, VkFormat depth_format, VkImage dst, std::uint32_t width, std::uint32_t height);
 bool untile_gpu_available_locked();
 void untile_gpu_record_locked(const UntileGpuPass& pass);
-// A compare run's pair (BBHOST_GPU_UNTILE=2): the GPU's untile and the CPU's
+// A compare run's pair (HELIAS_GPU_UNTILE=2): the GPU's untile and the CPU's
 // of the same upload, checked when the slot that wrote them has retired.
 struct UntileCheck {
     const std::uint8_t* gpu = nullptr;
@@ -721,7 +722,7 @@ std::string untile_gpu_report();
 // (the copy runs in shadow_end_uploads_locked's buffer, ahead of this
 // recording); `loc` keeps the import otherwise. A write over a range makes the
 // next read copy it again, or - written by the GPU - bind it from the import.
-bool buffer_shadow_on();  // BBHOST_BUFFER_SHADOW, else on except on an integrated GPU or with tight memory
+bool buffer_shadow_on();  // HELIAS_BUFFER_SHADOW, else on except on an integrated GPU or with tight memory
 void shadow_locate_locked(std::uint64_t va, std::uint64_t bytes, Located& loc);
 void shadow_written_locked(std::uint64_t va, std::uint64_t bytes, bool by_gpu);
 // Diagnostic: describes what the mirror holds for a range and whether a page it
@@ -849,9 +850,9 @@ std::size_t rt_size_bytes(const RtImage& r);
 // climbed with every new place (1080p: +1.5 GiB of image heap over ten
 // places, 4K: a 12 GB card full by the fifth). Once a second
 // (image_reuse_sweep_locked, from the submit) an image no draw, fill or copy
-// has written for BBHOST_IMG_REUSE_IDLE seconds (10), on memory no live GX
+// has written for HELIAS_IMG_REUSE_IDLE seconds (10), on memory no live GX
 // resource holds whole, goes once a GX resource, target or snapshot made after
-// its last write holds part of its memory. BBHOST_IMG_RETIRE_REUSED=0 keeps
+// its last write holds part of its memory. HELIAS_IMG_RETIRE_REUSED=0 keeps
 // them. All under g.mu.
 void image_reuse_sweep_locked();
 struct ReuseRetired {
@@ -910,7 +911,7 @@ extern DrawRec g_draw_recs[kDrawRecs];
 extern std::uint64_t g_draw_rec_next;
 
 // A compute shader's pipeline at its first use, with or without the driver's
-// optimizer as BBHOST_CS_OPTIMIZE says (gpu.cpp). `standin`: it is the
+// optimizer as HELIAS_CS_OPTIMIZE says (gpu.cpp). `standin`: it is the
 // unoptimized one, and the optimized one is being built on a bb-cs-optimize
 // thread under `opt_key`; adopt_optimized_compute swaps it in. `watch`: the
 // name the watchdog lists it under while it compiles.
@@ -929,7 +930,7 @@ std::uint64_t compute_optimized_built();  // optimized builds so far: the period
 // SPIR-V written to the data directory's tmp.
 void compute_compiling_report();
 
-// ---- the glitch hunt (glitch.cpp, BBHOST_GLITCH=1) ----
+// ---- the glitch hunt (glitch.cpp, HELIAS_GLITCH=1) ----
 // Finds the frames that flash or stretch and names the draws behind them:
 // every presented frame is box-filtered on the GPU and compared with both
 // its neighbours, and every draw's covered samples come from an occlusion
@@ -951,8 +952,8 @@ struct SubmitLatencyTotals {
     std::uint64_t record_ns = 0, queue_ns = 0, submit_ns = 0;  // hand-over -> recorded -> vkQueueSubmit -> returned
     std::uint64_t record_max = 0, queue_max = 0, submit_max = 0;  // since the last call
     std::uint64_t flushes = 0, flush_ns = 0;  // flush_locked: the command processor waiting for the GPU
-    std::uint64_t splits = 0;                 // BBHOST_SUBMIT_SPLIT submissions
-    std::uint64_t batch_submits = 0, batch_jobs = 0;   // BBHOST_SUBMIT_BATCH: merged vkQueueSubmits and the jobs in them
+    std::uint64_t splits = 0;                 // HELIAS_SUBMIT_SPLIT submissions
+    std::uint64_t batch_submits = 0, batch_jobs = 0;   // HELIAS_SUBMIT_BATCH: merged vkQueueSubmits and the jobs in them
     std::uint64_t batch_holds = 0, batch_hold_ns = 0;  // jobs held while the GPU had two ahead, and for how long
 };
 // test7c: the fence covering a slot's submission (its own, or its batch's;
@@ -960,7 +961,7 @@ struct SubmitLatencyTotals {
 VkFence slot_fence(const Gpu::Slot& sl);
 bool slot_fence_signaled(const Gpu::Slot& sl);
 SubmitLatencyTotals submit_latency_totals();
-void submit_split_point();  // a draw's start, outside g.mu (BBHOST_SUBMIT_SPLIT)
+void submit_split_point();  // a draw's start, outside g.mu (HELIAS_SUBMIT_SPLIT)
 struct DrawCall;
 bool glitch_on();
 VkQueryControlFlags glitch_query_flags();                     // precise when the device has it
@@ -975,7 +976,7 @@ std::string glitch_report();
 // The PS4's depth-block sample counters behind ZPASS_DONE dumps, from Vulkan
 // occlusion queries, written into guest memory on the GPU's timeline; and
 // SET_PREDICATION, on the CPU when the result is known, else by conditional
-// rendering. BBHOST_OCCLUSION=0: the old fake (every query reads visible).
+// rendering. HELIAS_OCCLUSION=0: the old fake (every query reads visible).
 bool occlusion_on();
 void occlusion_device_features(VkPhysicalDeviceFeatures& enable, std::vector<const char*>& exts, void** chain);  // before vkCreateDevice
 void occlusion_device_ready_locked();     // after the slots are made
@@ -985,10 +986,10 @@ void occlusion_draw_locked(DrawCall& call);
 bool occlusion_submit_locked();  // before the submission's label writes; rc3: whether the recording resolved occlusion on the GPU
 void occlusion_record_cond(VkCommandBuffer cmd, const DrawCall& call, bool begin);
 std::string occlusion_report(bool totals);
-// BBHOST_GLITCH_WATCH=<pipeline prefix>[,...]: the guest ranges those
+// HELIAS_GLITCH_WATCH=<pipeline prefix>[,...]: the guest ranges those
 // pipelines' draws bind are hashed when recorded and again once the GPU has
 // run them, and a spike's report says whether its inputs changed in between.
-// BBHOST_GLITCH_SNAPSHOT=1 binds copies taken at record time instead: the
+// HELIAS_GLITCH_SNAPSHOT=1 binds copies taken at record time instead: the
 // experiment that says whether a race is what spikes.
 void glitch_watch_draw_locked(const std::string& pipeline);  // before a draw's bindings are resolved
 bool glitch_watching_draw();                                  // the draw being resolved is watched
@@ -1004,7 +1005,7 @@ void glitch_watch_note_locked(const char* fmt, ...) __attribute__((format(printf
 // `touched`, when given, collects the guest ranges (address, bytes) it read.
 bool resolve_resource(const gcn::ResourcePath& path, const std::uint32_t* user, int ndw, std::uint32_t* out,
                       std::vector<std::pair<std::uint64_t, std::uint64_t>>* touched = nullptr);
-// BBHOST_WATCH_CHANGED_CB: the constant buffer the renderer is watching (0 when
+// HELIAS_WATCH_CHANGED_CB: the constant buffer the renderer is watching (0 when
 // none), so copy dispatches into it can be logged.
 inline std::atomic<std::uint64_t> g_watch_cb_lo{0}, g_watch_cb_hi{0};
 
@@ -1060,7 +1061,7 @@ struct KeyStage {
 // Fills `out` for a stage; `paths` is null for a stage without a program. The
 // vectors keep their storage from draw to draw. True when `out` was left as
 // it was because the same inputs gave it (the stage memo,
-// BBHOST_CP_STAGE_CACHE=0 turns it off): dims and modes are unchanged then.
+// HELIAS_CP_STAGE_CACHE=0 turns it off): dims and modes are unchanged then.
 bool resolve_key_stage(const gcn::TranslateResult* paths, const std::uint32_t* stage_user, const GxStageRecords* gx, KeyStage& out);
 // True when `meta`, a pipeline's translation, lists the image and sampler
 // bindings of `paths` in the same order.
@@ -1107,7 +1108,7 @@ void textures_report();
 // image view, a surface or a render target is created or destroyed, so a
 // remembered descriptor cannot resolve to a view that is gone or stale.
 void bump_view_epoch();
-std::string view_epoch_sites_report();  // BBHOST_EPOCH_SITES=1
+std::string view_epoch_sites_report();  // HELIAS_EPOCH_SITES=1
 std::uint64_t view_epoch();  // moves whenever a view or image is let go (textures.cpp)
 std::uint64_t textures_upload_count();
 void textures_time_us(std::uint64_t out[5]);  // image+memory, staging, untile, record, views
@@ -1140,7 +1141,7 @@ bool surfaces_may_cover_locked(std::uint64_t va, std::size_t bytes);
 bool copy_version_make_locked(std::uint64_t dst, std::uint64_t src, std::uint64_t bytes);
 // The pending versions' copies into place, recorded once no pass is open.
 void copy_versions_flush_locked();
-// A render pass ended: the flush, when they wait for that (BBHOST_COPY_VERSIONS=1).
+// A render pass ended: the flush, when they wait for that (HELIAS_COPY_VERSIONS=1).
 void copy_versions_pass_end_locked();
 // The copies into place now, the pass ended for them if one is open: a
 // binding across a version's edge, a page-table read over one, a pipeline
@@ -1158,7 +1159,7 @@ void copy_versions_overlay_locked(std::uint64_t base, std::uint64_t bytes, std::
 bool copy_versions_pending_locked();
 std::string copy_versions_report();  // "" when none were made or refused
 bool render_pass_open_locked();
-std::string render_barriers_report();  // "" unless BBHOST_PASS_BARRIERS=lazy
+std::string render_barriers_report();  // "" unless HELIAS_PASS_BARRIERS=lazy
 // Clears the sampled textures a fill covers whole, where no render target took
 // it (textures.cpp); how many.
 int textures_fill_surfaces_locked(std::uint64_t va, std::size_t bytes, const float rgba[4]);
@@ -1292,20 +1293,20 @@ bool render_handle_fill_locked(std::uint64_t va, std::size_t bytes, const float 
                                std::uint32_t stencil_clear);
 std::string render_fill_stats();  // " fill-pending=N fill-applied=M"
 // Command-processor pipeline builds so far: [0] translate us, [1] modules us, [2] vkCreateGraphicsPipelines us,
-// [3] stage translations, [4] stages the cache served (with BBHOST_STAGE_CACHE=0: translations whose key was seen before).
+// [3] stage translations, [4] stages the cache served (with HELIAS_STAGE_CACHE=0: translations whose key was seen before).
 void render_pipeline_time_us(std::uint64_t out[5]);
 // A shader copies a render target's memory elsewhere: copy the image into a snapshot at dst.
 bool render_copy_target_locked(std::uint64_t src_base, std::uint64_t dst_base, std::size_t bytes);
 
-// ---- recorder.cpp: the command stream (BBHOST_RECORDER, BBHOST_STREAM_SUBMIT) ----
+// ---- recorder.cpp: the command stream (HELIAS_RECORDER, HELIAS_STREAM_SUBMIT) ----
 // The command buffer being recorded, once the recorder has replayed every
 // block handed to it: whatever records next lands after them. Under g.mu.
 VkCommandBuffer g_cmd();
-// rc4, BBHOST_RGP_LABELS=1 (debugging only): a VK_EXT_debug_utils label
+// rc4, HELIAS_RGP_LABELS=1 (debugging only): a VK_EXT_debug_utils label
 // inserted at each render pass, named by its first draw's pipeline, for RGP
 // and other capture tools. In place (g_cmd()), as the profiler's pairs are.
 void debug_label_locked(const std::string* name);
-// BBHOST_GPU_PROFILE=2: a recording site (g_cmd()'s caller) noted for the gap
+// HELIAS_GPU_PROFILE=2: a recording site (g_cmd()'s caller) noted for the gap
 // the next profiled draw or dispatch closes.
 void profile_note_site_locked(void* site);
 void recorder_drain();
@@ -1313,7 +1314,7 @@ bool recorder_enabled();
 std::string recorder_report();
 // The stream carries the command buffers too: the recorder begins and ends
 // them and hands their submissions to bb-submit, and rec() appends ops
-// (BBHOST_STREAM_SUBMIT, on unless 0, and the recorder on).
+// (HELIAS_STREAM_SUBMIT, on unless 0, and the recorder on).
 bool stream_on();
 // rc3: grows with every op appended to the stream and every in-place
 // recording (under g.mu): the presenter's priority submit checks its blit
@@ -1347,7 +1348,7 @@ struct StreamTestCounts {
     std::uint64_t blocks = 0, draws = 0, ops = 0, submits = 0, drains = 0, drain_waits = 0;
 };
 StreamTestCounts stream_test_counts();
-extern std::atomic<std::uint64_t> g_validation_messages;  // gpu.cpp: what BBHOST_VK_VALIDATE=1's layer reported
+extern std::atomic<std::uint64_t> g_validation_messages;  // gpu.cpp: what HELIAS_VK_VALIDATE=1's layer reported
 
 // Flushes this core's write-combining buffers. AMD's Windows driver records
 // into write-combined memory, and a release store does not order those
@@ -1429,7 +1430,7 @@ struct DrawCall {
     std::int32_t vertex_offset = 0;
     VkBuffer buffer = VK_NULL_HANDLE;  // indirect arguments
     VkDeviceSize offset = 0;
-    // An occlusion query around the draw: its coverage (BBHOST_GLITCH=1) or
+    // An occlusion query around the draw: its coverage (HELIAS_GLITCH=1) or
     // the PS4's sample counters (occlusion.cpp).
     VkQueryPool query_pool = VK_NULL_HANDLE;
     std::uint32_t query = 0;
@@ -1530,7 +1531,7 @@ void record_copy_order_barrier(VkCommandBuffer cmd);
 // its first copy.
 void record_region_copy(VkCommandBuffer cmd, VkImage src, VkImage dst, std::uint32_t width, std::uint32_t height, bool dst_initialised);
 
-// ---- descriptor sets cached by content (render.cpp, BBHOST_SET_CACHE) ----
+// ---- descriptor sets cached by content (render.cpp, HELIAS_SET_CACHE) ----
 // On (the default), a stage's params block is a dynamic uniform buffer - the
 // whole ring at offset 0, one block long, its offset given when the set is
 // bound - and constant buffers are bound whole, their offsets in the params.

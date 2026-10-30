@@ -1,6 +1,7 @@
-// bbhost-vk: DualSense / DualSense Edge HD haptics and adaptive triggers
+// heliasdream-vk: DualSense / DualSense Edge HD haptics and adaptive triggers
 // (host/haptics.h).
 #include "host/haptics.h"
+#include "core/host_clock.h"
 #include "engine/world_chr.h"
 #include "host/options.h"
 #include "host/settings.h"
@@ -16,10 +17,11 @@
 #include <cstring>
 #include <mutex>
 #include <string>
+#include <thread>
 #include <unordered_map>
 #include <vector>
 
-#if defined(BBHOST_HAVE_SDL3)
+#if defined(HELIAS_HAVE_SDL3)
 #include <SDL3/SDL.h>
 #endif
 #if defined(__linux__)
@@ -65,7 +67,7 @@ struct Envelope {
 };
 
 // What can be tuned between test rounds without a build:
-// BBHOST_HAPTICS_TUNE="cutoff=160,sustain=0,floor=0.006,ratio=2,front=4,slow=800,expand=0.04,carrier=0.5,gain=3,rumble=0.8"
+// HELIAS_HAPTICS_TUNE="cutoff=160,sustain=0,floor=0.006,ratio=2,front=4,slow=800,expand=0.04,carrier=0.5,gain=3,rumble=0.8"
 //   cutoff   the effects' low-pass, Hz (what the motors are given of the sound)
 //   sustain  how much of a steady sound stays (0: only hits; 1: everything)
 //   floor    the level below which a sound is not felt at all
@@ -76,7 +78,7 @@ struct Envelope {
 //   carrier  0: the filtered sound itself; 1: a 150 Hz tone that follows it
 //   gain     the effects' level before the soft limit
 //   rumble   the converted rumble's level
-// BBHOST_HAPTICS_CHANNELS="2,3": the device channels of the left and right motors.
+// HELIAS_HAPTICS_CHANNELS="2,3": the device channels of the left and right motors.
 struct Tuning {
     // Round 7: with 15% of every steady sound kept, a 1.4x rise over 400 ms
     // counted as a hit and a floor of 0.003, wind and ambience were felt as a
@@ -87,7 +89,7 @@ struct Tuning {
 };
 Tuning read_tuning() {
     Tuning t;
-    if (const char* e = std::getenv("BBHOST_HAPTICS_TUNE")) {
+    if (const char* e = std::getenv("HELIAS_HAPTICS_TUNE")) {
         std::string s = e;
         std::size_t at = 0;
         while (at < s.size()) {
@@ -111,7 +113,7 @@ Tuning read_tuning() {
             at = end + 1;
         }
     }
-    if (const char* e = std::getenv("BBHOST_HAPTICS_CHANNELS")) {
+    if (const char* e = std::getenv("HELIAS_HAPTICS_CHANNELS")) {
         int l = 0, r = 0;
         if (std::sscanf(e, "%d,%d", &l, &r) == 2 && l >= 0 && l < 4 && r >= 0 && r < 4) {
             t.left = l;
@@ -155,7 +157,7 @@ struct Side {
     }
 };
 
-#if defined(BBHOST_HAVE_SDL3)
+#if defined(HELIAS_HAVE_SDL3)
 std::mutex g_mu;  // everything below, from the game's audio thread and the shutdown
 SDL_AudioStream* g_stream = nullptr;
 SDL_AudioDeviceID g_device = 0;
@@ -188,6 +190,7 @@ float g_large = 0.0f, g_small = 0.0f;  // the rumble's smoothed amplitudes
 std::atomic<std::uint32_t> g_rumble{0};  // small << 8 | large
 std::atomic<std::int64_t> g_rumble_until_us{0};
 std::atomic<bool> g_hd_live{false};  // an HD output is open and fed
+std::atomic<std::uint32_t> g_hd_generation{0};  // HD outputs opened (haptics_hd_generation)
 
 // Menu taps (haptics_menu_tick): the next one asked for, and the one playing.
 std::atomic<int> g_tick_asked{-1};
@@ -229,8 +232,12 @@ Wanted wanted() {
 // The controller's own playback volume, all the way up. Linux leaves the
 // DualSense's ALSA "PCM Playback Volume" at 80 of 100 - on its -100..0 dB
 // scale, -20 dB, a tenth of the motors' strength - and PipeWire does not
-// raise it. Haptics strength (F10) is the level from there.
-void max_controller_volume() {
+// raise it. Haptics strength (F10) is the level from there. A controller
+// plugged in again gets its old level back from WirePlumber a moment after
+// its card appears - after this ran - so it is checked again every few
+// seconds while HD output is open (haptics_game_audio); `quiet`: say nothing
+// when it was already at its maximum.
+void max_controller_volume(bool quiet = false) {
 #if defined(__linux__)
     std::FILE* f = std::fopen("/proc/asound/cards", "r");
     if (!f) return;
@@ -245,9 +252,10 @@ void max_controller_volume() {
     const std::string path = "/dev/snd/controlC" + std::to_string(card);
     const int fd = ::open(path.c_str(), O_RDWR | O_CLOEXEC);
     if (fd < 0) {
-        host_log("haptics: cannot open %s to raise the controller's volume", path.c_str());
+        if (!quiet) host_log("haptics: cannot open %s to raise the controller's volume", path.c_str());
         return;
     }
+    bool changed = false;
     const auto set_max = [&](const char* name, bool boolean) {
         snd_ctl_elem_info info{};
         info.id.iface = SNDRV_CTL_ELEM_IFACE_MIXER;
@@ -256,17 +264,26 @@ void max_controller_volume() {
         snd_ctl_elem_value v{};
         v.id = info.id;
         const long top = boolean ? 1 : info.value.integer.max;
+        if (::ioctl(fd, SNDRV_CTL_IOCTL_ELEM_READ, &v) == 0) {
+            bool at_top = true;
+            for (unsigned i = 0; i < info.count && i < 128; ++i) at_top = at_top && v.value.integer.value[i] == top;
+            if (at_top) return top;
+        }
         for (unsigned i = 0; i < info.count && i < 128; ++i) v.value.integer.value[i] = top;
-        return ::ioctl(fd, SNDRV_CTL_IOCTL_ELEM_WRITE, &v) < 0 ? -1L : top;
+        if (::ioctl(fd, SNDRV_CTL_IOCTL_ELEM_WRITE, &v) < 0) return -1L;
+        changed = true;
+        return top;
     };
     set_max("PCM Playback Switch", true);
     const long top = set_max("PCM Playback Volume", false);
     ::close(fd);
-    host_log("haptics: the controller's playback volume %s (card %d)", top >= 0 ? "at its maximum" : "could not be set", card);
+    if (!quiet || changed || top < 0)
+        host_log("haptics: the controller's playback volume %s (card %d)",
+                 top < 0 ? "could not be set" : changed ? "raised to its maximum" : "at its maximum", card);
 #endif
 }
 
-#if defined(BBHOST_HAVE_SDL3)
+#if defined(HELIAS_HAVE_SDL3)
 bool contains_nocase(const char* hay, const char* needle) {
     if (!hay) return false;
     const std::size_t n = std::strlen(needle);
@@ -278,6 +295,75 @@ bool contains_nocase(const char* hay, const char* needle) {
     return false;
 }
 
+// The motors' channels of the controller's PipeWire sink at 100%. The sink
+// keeps a volume per channel, restored at each plug-in, and the desktop's
+// volume slider moves all four: lowered for the speaker, it weakens the
+// haptics too. The speaker's two are left as they are; a muted sink is
+// unmuted with the speaker's two at 0, so it stays silent. Through pactl
+// (PipeWire's or PulseAudio's), on a thread of its own: a missing pactl or
+// sink only costs a log line.
+void motor_channels_full() {
+#if defined(__linux__)
+    std::thread([] {
+        host_thread_place(HostPlace::Cold, "bb-haptics-vol");
+        const auto run = [](const std::string& cmd) {
+            std::string out;
+            if (std::FILE* p = ::popen(cmd.c_str(), "r")) {
+                char buf[512];
+                while (std::fgets(buf, sizeof(buf), p)) out += buf;
+                ::pclose(p);
+            }
+            return out;
+        };
+        std::string sink;
+        const std::string sinks = run("pactl list short sinks 2>/dev/null");
+        for (std::size_t at = 0; at < sinks.size() && sink.empty();) {
+            const std::size_t end = sinks.find('\n', at);
+            const std::string line = sinks.substr(at, end == std::string::npos ? std::string::npos : end - at);
+            at = end == std::string::npos ? sinks.size() : end + 1;
+            if (!contains_nocase(line.c_str(), "dualsense") || line.find("4ch") == std::string::npos) continue;
+            const std::size_t t1 = line.find('\t'), t2 = t1 == std::string::npos ? t1 : line.find('\t', t1 + 1);
+            if (t2 != std::string::npos) sink = line.substr(t1 + 1, t2 - t1 - 1);
+        }
+        // A name as PipeWire makes them; anything else is not put on a command line.
+        if (sink.empty() || sink.find_first_not_of("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789._:-") != std::string::npos) {
+            host_log("haptics: no DualSense sink through pactl - its channel volumes are left as they are");
+            return;
+        }
+        // "Volume: front-left: 26214 /  40% / -23.88 dB,   front-right: ...": the channels in the sink's order.
+        const std::string vol = run("pactl get-sink-volume " + sink + " 2>/dev/null");
+        std::vector<std::pair<std::string, long>> ch;
+        for (std::size_t at = vol.find("Volume:"); at != std::string::npos;) {
+            const std::size_t colon = vol.find(": ", at + 7);
+            if (colon == std::string::npos) break;
+            std::size_t name_at = vol.find_last_of(" ,", colon - 1);
+            name_at = name_at == std::string::npos ? 0 : name_at + 1;
+            const std::string name = vol.substr(name_at, colon - name_at);
+            const long v = std::strtol(vol.c_str() + colon + 2, nullptr, 10);
+            if (name.find('-') != std::string::npos) ch.emplace_back(name, v);
+            at = vol.find(',', colon);
+            if (at != std::string::npos && vol.find(':', at) == std::string::npos) break;
+        }
+        const bool muted = run("pactl get-sink-mute " + sink + " 2>/dev/null").find("yes") != std::string::npos;
+        bool low = muted;
+        for (const auto& c : ch) low = low || (c.first.rfind("rear-", 0) == 0 && c.second < 65536);
+        if (ch.size() != 4 || !low) {
+            if (ch.size() != 4) host_log("haptics: the DualSense sink has %zu channels through pactl, not 4 - left as it is", ch.size());
+            return;
+        }
+        std::string cmd = "pactl set-sink-volume " + sink;
+        for (const auto& c : ch) cmd += " " + std::to_string(c.first.rfind("rear-", 0) == 0 ? 65536L : muted ? 0L : c.second);
+        run(cmd + " 2>/dev/null");
+        if (muted) run("pactl set-sink-mute " + sink + " 0 2>/dev/null");
+        std::string was;
+        for (const auto& c : ch)
+            if (c.first.rfind("rear-", 0) == 0) was += (was.empty() ? "" : " and ") + std::to_string(c.second * 100 / 65536) + "%";
+        host_log("haptics: the controller's motor channels raised to 100%%%s (they were %s)", muted ? ", the sink unmuted with its speaker at 0" : "",
+                 was.c_str());
+    }).detach();
+#endif
+}
+
 void close_locked(const char* why) {
     if (!g_stream) return;
     SDL_DestroyAudioStream(g_stream);
@@ -287,8 +373,8 @@ void close_locked(const char* why) {
     host_log("haptics: HD output closed (%s)", why);
 }
 
-// The controller's sound card: a playback device named DualSense with at least
-// four channels. Only while plugged in by USB is there one.
+// The controller's sound card: a playback device named DualSense (or Wireless
+// Controller) with at least four channels. Only while plugged in by USB is there one.
 void scan_locked(bool want_hd) {
     g_last_scan = std::chrono::steady_clock::now();
     if (!want_hd) {
@@ -308,7 +394,9 @@ void scan_locked(bool want_hd) {
     const char* found_name = nullptr;
     for (int i = 0; ids && i < count && !found; ++i) {
         const char* name = SDL_GetAudioDeviceName(ids[i]);
-        if (!contains_nocase(name, "dualsense")) continue;
+        // Windows often names it "Speakers (Wireless Controller)"; the four
+        // channels below keep a DualShock 4's two-channel one out.
+        if (!contains_nocase(name, "dualsense") && !contains_nocase(name, "wireless controller")) continue;
         SDL_AudioSpec spec{};
         int frames = 0;
         if (SDL_GetAudioDeviceFormat(ids[i], &spec, &frames) && spec.channels >= 4) {
@@ -338,8 +426,10 @@ void scan_locked(bool want_hd) {
         SDL_ResumeAudioStreamDevice(g_stream);
         g_device = found;
         g_hd_live = true;
+        g_hd_generation.fetch_add(1, std::memory_order_release);
         g_said_none = false;
         max_controller_volume();
+        motor_channels_full();
         host_log("haptics: HD output on \"%s\" (motors on channels %d and %d of 4)", found_name ? found_name : "?", g_tune.left + 1,
                  g_tune.right + 1);
         // PipeWire's Pro Audio profile names the four channels AUX0..AUX3, and
@@ -433,6 +523,10 @@ void render(const float* in, unsigned count, float gain, const Wanted& w, float*
 
 int haptics_mode() { return wanted().mode; }
 
+std::uint32_t haptics_hd_generation() {
+    return g_hd_live.load(std::memory_order_acquire) ? g_hd_generation.load(std::memory_order_acquire) : 0;
+}
+
 bool haptics_is_dualsense(std::uint16_t vendor, std::uint16_t product) {
     return vendor == 0x054c && (product == 0x0ce6 || product == 0x0df2);
 }
@@ -444,7 +538,7 @@ void haptics_devices_changed(bool dualsense_on_usb) {
 
 float haptics_r2_fire_point() {
     static const float fire = [] {
-        const char* e = std::getenv("BBHOST_R2_FIRE");
+        const char* e = std::getenv("HELIAS_R2_FIRE");
         const float v = e && *e ? std::strtof(e, nullptr) : 0.0f;
         return v > 0.05f && v < 1.0f ? v : 0.55f;  // just into the wall that starts at zone 4 of 10
     }();
@@ -466,7 +560,7 @@ bool gun_empty() {
 
 float haptics_l2_fire_point() {
     static const float fire = [] {
-        const char* e = std::getenv("BBHOST_L2_FIRE");
+        const char* e = std::getenv("HELIAS_L2_FIRE");
         const float v = e && *e ? std::strtof(e, nullptr) : 0.0f;
         return v > 0.05f && v < 1.0f ? v : 0.65f;  // the break (zone 6 of 10) gives way just before
     }();
@@ -490,7 +584,7 @@ bool haptics_rumble(std::uint8_t small, std::uint8_t large) {
 }
 
 void haptics_game_audio(const float* frames, unsigned count, float gain) {
-#if defined(BBHOST_HAVE_SDL3)
+#if defined(HELIAS_HAVE_SDL3)
     const Wanted w = wanted();
     std::lock_guard<std::mutex> lock(g_mu);
     if (g_shut) return;
@@ -506,7 +600,7 @@ void haptics_game_audio(const float* frames, unsigned count, float gain) {
             e.attack = follow(1.0f);
             e.release = follow(50.0f);
         }
-        if (std::getenv("BBHOST_HAPTICS_TUNE") || std::getenv("BBHOST_HAPTICS_CHANNELS")) {
+        if (std::getenv("HELIAS_HAPTICS_TUNE") || std::getenv("HELIAS_HAPTICS_CHANNELS")) {
             host_log("haptics: tuning cutoff %.0f Hz, sustain %.2f, floor %.4f, ratio %.2f (front %.2f), slow %.0f ms, expand %.3f, carrier %.2f, gain %.2f, "
                      "rumble %.2f; motors on channels %d,%d",
                      static_cast<double>(g_tune.cutoff), static_cast<double>(g_tune.sustain), static_cast<double>(g_tune.floor),
@@ -523,6 +617,11 @@ void haptics_game_audio(const float* frames, unsigned count, float gain) {
         scan_locked(want_hd);
     }
     if (!g_stream || count == 0) return;
+    static std::chrono::steady_clock::time_point volume_checked{};
+    if (const auto now = std::chrono::steady_clock::now(); now - volume_checked > std::chrono::seconds(2)) {
+        volume_checked = now;
+        max_controller_volume(true);
+    }
     g_out.resize(static_cast<std::size_t>(count) * 4);
     render(frames, count, gain, w, g_out.data());
     // Felt late is felt wrong: past 30 ms queued (the device stalled or the
@@ -540,7 +639,7 @@ void haptics_game_audio(const float* frames, unsigned count, float gain) {
 }
 
 void haptics_shutdown() {
-#if defined(BBHOST_HAVE_SDL3)
+#if defined(HELIAS_HAVE_SDL3)
     std::lock_guard<std::mutex> lock(g_mu);
     g_shut = true;
     close_locked("shutting down");
@@ -637,7 +736,7 @@ TriggerEffects haptics_triggers(std::uint32_t id, float l2, float r2, bool relax
     const auto now = std::chrono::steady_clock::now();
     if (motion != st.motion || category != st.category) {
         static const bool log_anims = [] {
-            const char* e = std::getenv("BBHOST_HAPTICS_ANIM_LOG");
+            const char* e = std::getenv("HELIAS_HAPTICS_ANIM_LOG");
             return e && e[0] == '1';
         }();
         if (log_anims) host_log("haptics: animation %d (category %d, %06d)", anim, category, motion);

@@ -92,7 +92,7 @@ std::atomic<bool> g_request_confirm{false};  // ask to keep it once it is shown
 // left it open (taking the keys meant for the question). It waits this long.
 std::atomic<std::int64_t> g_request_not_before{0};  // steady_clock ns
 constexpr std::int64_t kMenuSettleNs = 1500'000'000;
-// bbhost-vk: and past those 1.5 s, while a pick list is still up on the screen
+// heliasdream-vk: and past those 1.5 s, while a pick list is still up on the screen
 // it came from (option_menu_popup_open) - a slow frame or a held key kept one
 // open longer - up to this long after the request, then it goes regardless.
 constexpr std::int64_t kMenuPopupWaitNs = 10'000'000'000;
@@ -124,12 +124,12 @@ std::atomic<int> g_answer{0};  // 1 keep, 2 go back; taken by the host
 std::atomic<std::uint64_t> g_current{0};  // w << 32 | h once the output entry is set
 std::atomic<std::uint64_t> g_before_asked{0};  // the size before the last change that asks to be kept
 std::atomic<std::uint64_t> g_applied{0};
-// bbhost-vk: the scene's size (engine/scene_split.h), w << 32 | h; the same as
+// heliasdream-vk: the scene's size (engine/scene_split.h), w << 32 | h; the same as
 // g_current unless the scene is split from the output.
 std::atomic<std::uint64_t> g_scene{0};
 std::atomic<bool> g_rescale{false};  // the upscaler preset changed: the scene's size may have
 std::atomic<int> g_yebis_restarts{0};
-// BBHOST_RESIZE_TEST=<flip>:<w>x<h>[,...]: changes at those flips.
+// HELIAS_RESIZE_TEST=<flip>:<w>x<h>[,...]: changes at those flips.
 std::vector<std::pair<std::uint64_t, std::uint64_t>> g_tests;  // flip, size; main thread only
 std::size_t g_next_test = 0;
 
@@ -187,7 +187,7 @@ GUEST_ABI std::int64_t yebis_shutdown_call_hook(std::uint64_t, const std::uint64
     hle_call_guest6(guest_fn(kYebisShutdown), static_cast<std::int64_t>(glue), 0, 0, 0, 0, 0);
     g_dead_hi.store(0);
     g_dead_lo.store(0);
-    // bbhost-vk: every restart in the log, for the test sessions (the plan's
+    // heliasdream-vk: every restart in the log, for the test sessions (the plan's
     // "heap and YEBIS restart" watch): its heap region and the frees into it
     // that were dropped. The listener starts YEBIS again after this.
     host_log("yebis: restart %d - shut down (its heap region 0x%llx, %d bytes; %d frees into it dropped), started again by the listener",
@@ -652,7 +652,7 @@ void set_display_rect(std::uint64_t out, std::uint32_t w, std::uint32_t h) {
 // black with a grey band from x = w * w / 5120. Here both sides must match:
 // the first `je` becomes a `jne` to the not-matching path, so a width that
 // differs goes there and the height decides only when the width matched.
-// BBHOST_SCENE_BOTH_SIDES=0 leaves the game's test.
+// HELIAS_SCENE_BOTH_SIDES=0 leaves the game's test.
 struct BothSidesSite {
     std::uint64_t at;
     std::uint8_t game[2], both[2];
@@ -674,8 +674,8 @@ const char* scene_target_path(std::uint32_t w, std::uint32_t h) {
 
 // All or none, as the rectangle stubs.
 bool install_scene_both_sides() {
-    if (const char* e = std::getenv("BBHOST_SCENE_BOTH_SIDES"); e && e[0] == '0') {
-        host_log("resolution: scene contexts keep the game's either-side size test (BBHOST_SCENE_BOTH_SIDES=0)");
+    if (const char* e = std::getenv("HELIAS_SCENE_BOTH_SIDES"); e && e[0] == '0') {
+        host_log("resolution: scene contexts keep the game's either-side size test (HELIAS_SCENE_BOTH_SIDES=0)");
         return false;
     }
     for (const BothSidesSite& s : kBothSidesSites)
@@ -804,7 +804,7 @@ std::uint64_t manager_scene_size(std::uint64_t gm) {
     return pack(at_<std::uint32_t>(c + 0x18), at_<std::uint32_t>(c + 0x1c));
 }
 
-// The render-target heap, for the log (bbhost-vk: the test sessions watch it).
+// The render-target heap, for the log (heliasdream-vk: the test sessions watch it).
 void log_heap(std::uint64_t dev, const char* when) {
     std::uint64_t largest = 0;
     const std::uint64_t free_mib = target_heap_free_mib(dev, &largest);
@@ -1023,7 +1023,9 @@ GUEST_ABI std::int64_t present_frame_end_hook(std::uint64_t, const std::uint64_t
     const auto w = static_cast<std::uint32_t>(req >> 32), h = static_cast<std::uint32_t>(req);
     std::uint32_t rw = w, rh = h;
     scene_split_wanted(w, h, &rw, &rh);
-    if (req == g_current.load() && pack(rw, rh) == g_scene.load()) {
+    // Native TAA on or off at the same size: the sites change with no size moving.
+    const bool split_wanted = rw != w || rh != h || scene_split_forced();
+    if (req == g_current.load() && pack(rw, rh) == g_scene.load() && split_wanted == scene_split_active()) {
         g_request_confirm.store(false);
         return 1;
     }
@@ -1064,7 +1066,7 @@ GUEST_ABI std::int64_t gx_init_call_hook(std::uint64_t, const std::uint64_t* sav
         const std::uint32_t w = g_res_words[0], h = g_res_words[1];
         // The scene's size at the start (engine/scene_split.h): set at load
         // for the Resolution setting; again here should the res words say
-        // another size (BBHOST_RES).
+        // another size (HELIAS_RES).
         std::uint32_t rw = w, rh = h;
         scene_split_wanted(w, h, &rw, &rh);
         if (!scene_split_apply(rw, rh, w, h)) rw = w, rh = h;  // the same sizes: no write, no line
@@ -1145,7 +1147,7 @@ std::uint64_t gfx_heap_more_mib(std::uint64_t px) {
 void grow_gfx_heap(ElfImage* image, std::uint64_t px) {
     constexpr std::uint64_t kGfxPrivate = 0x4b36d40 + 1 * 0x80 + 3 * 8;
     constexpr std::uint64_t kGfxPrivateStock = 0x8ef00000ull;
-    const char* e = std::getenv("BBHOST_GFX_HEAP_MORE_MIB");
+    const char* e = std::getenv("HELIAS_GFX_HEAP_MORE_MIB");
     const bool given = e && *e;
     std::uint64_t more = given ? std::strtoull(e, nullptr, 10) : gfx_heap_more_mib(px);
     if (!more) {
@@ -1182,9 +1184,11 @@ bool live_resolution_install(ElfImage* image) {
     g_image = image;
     int w = 0, h = 0;
     if (!host_opt_resolution(&w, &h)) w = 1920, h = 1080;
+    // The Live resolution change setting; HELIAS_LIVE_RESOLUTION=0/1 wins.
     const bool live = [] {
-        const char* e = std::getenv("BBHOST_LIVE_RESOLUTION");
-        return !(e && e[0] == '0');
+        const char* e = std::getenv("HELIAS_LIVE_RESOLUTION");
+        if (e && (e[0] == '0' || e[0] == '1')) return e[0] == '1';
+        return host_opt_get("live_resolution");
     }();
     const std::uint64_t start_px = static_cast<std::uint64_t>(w) * static_cast<std::uint32_t>(h);
     const bool tight = live && host_gpu_memory_tight();
@@ -1196,17 +1200,17 @@ bool live_resolution_install(ElfImage* image) {
     // 4 x 42.5 MiB of display buffers, a 5120x2160 depth target, whole-image
     // clears of them every frame and +1,088 MiB of heap on a 1080p screen.
     // A larger entry applies at the next start (live_resolution_can).
-    // BBHOST_LIVE_MAX=<w>x<h> sets the size, =max the Resolution setting's
+    // HELIAS_LIVE_MAX=<w>x<h> sets the size, =max the Resolution setting's
     // largest entries (5120x2160), as before.
     std::uint32_t max_w = kMaxW, max_h = kMaxH;
     const char* max_why = "the Resolution setting's largest entries";
     int desk_w = 0, desk_h = 0;
-    if (const char* e = std::getenv("BBHOST_LIVE_MAX"); e && *e) {
+    if (const char* e = std::getenv("HELIAS_LIVE_MAX"); e && *e) {
         unsigned ew = 0, eh = 0;
         if (std::strcmp(e, "max") != 0 && std::sscanf(e, "%ux%u", &ew, &eh) == 2 && ew && eh) {
             max_w = std::min<std::uint32_t>(ew, kMaxW);
             max_h = std::min<std::uint32_t>(eh, kMaxH);
-            max_why = "BBHOST_LIVE_MAX";
+            max_why = "HELIAS_LIVE_MAX";
         }
     } else if (host_desktop_max_size(&desk_w, &desk_h)) {
         max_w = std::min<std::uint32_t>(static_cast<std::uint32_t>(desk_w), kMaxW);
@@ -1224,7 +1228,7 @@ bool live_resolution_install(ElfImage* image) {
         host_log("resolution: live changes up to %.1f million pixels, the GPU's memory is tight (larger sizes apply at the next start)",
                  static_cast<double>(g_live_max_px) / 1e6);
     if (!live) {
-        host_log("resolution: changes wait for the next run (BBHOST_LIVE_RESOLUTION=0)");
+        host_log("resolution: changes wait for the next run (Live resolution change: Off)");
         return false;
     }
     g_device_slot = static_cast<const std::uint64_t*>(guest_ptr(image->mem, guest(kGxDeviceSlot)));
@@ -1235,10 +1239,10 @@ bool live_resolution_install(ElfImage* image) {
     // test3: a scene split at the start needs display buffers of the output's
     // size (scene_split::display_size_at_start): at 5120x2160 for a 3840x2160
     // output, YEBIS was built at 5120x2160 and test2's picture came out dark
-    // and stretched with a grey band. BBHOST_SPLIT_DISPLAY=max: the largest, as before.
+    // and stretched with a grey band. HELIAS_SPLIT_DISPLAY=max: the largest, as before.
     const bool split_start = scene_split_planned(image, static_cast<std::uint32_t>(w), static_cast<std::uint32_t>(h));
     const bool keep_max = [] {
-        const char* e = std::getenv("BBHOST_SPLIT_DISPLAY");
+        const char* e = std::getenv("HELIAS_SPLIT_DISPLAY");
         return e && std::strcmp(e, "max") == 0;
     }();
     scene_split::display_size_at_start(split_start, keep_max, max_w, max_h, static_cast<std::uint32_t>(w), static_cast<std::uint32_t>(h),
@@ -1246,7 +1250,7 @@ bool live_resolution_install(ElfImage* image) {
     if (split_start && !keep_max)
         host_log("resolution: display buffers %ux%u, the output's: the scene is split (an upscaler preset), and the split needs them at the "
                  "output's size; a larger Resolution applies at the next start, another one live runs unsplit until then "
-                 "(BBHOST_SPLIT_DISPLAY=max: the largest, as before)",
+                 "(HELIAS_SPLIT_DISPLAY=max: the largest, as before)",
                  g_display[0], g_display[1]);
     else
         host_log("resolution: live changes up to %ux%u (%s); larger sizes apply at the next start", g_display[0], g_display[1], max_why);
@@ -1279,7 +1283,7 @@ bool live_resolution_install(ElfImage* image) {
     if (!install_display_rect_stubs())
         host_log("resolution: the render-target viewport code is not as expected; debug draws keep the display buffers' size");
     g_both_sides = install_scene_both_sides();
-    // bbhost-vk: the scene/UI split's sites, after the both-sides test they
+    // heliasdream-vk: the scene/UI split's sites, after the both-sides test they
     // share a site with; the scene's size at the start goes in now, before
     // the graphics manager is built.
     if (scene_split_install(image)) {
@@ -1336,7 +1340,7 @@ bool live_resolution_install(ElfImage* image) {
                       engine_prologue_hook(image, guest(kCameraBlend), blend_pro, sizeof(blend_pro), reinterpret_cast<void*>(&camera_blend_hook));
         if (!g_aspect_ok) host_log("resolution: the camera blend or the plates' code is not as expected; sizes other than 16:9 stretch");
     }
-    for (const char* e = std::getenv("BBHOST_RESIZE_TEST"); e && *e;) {
+    for (const char* e = std::getenv("HELIAS_RESIZE_TEST"); e && *e;) {
         unsigned long long flip = 0;
         unsigned tw = 0, th = 0;
         if (std::sscanf(e, "%llu:%ux%u", &flip, &tw, &th) != 3 || !tw || !th) break;

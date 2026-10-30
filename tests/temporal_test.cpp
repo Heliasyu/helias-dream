@@ -1,4 +1,4 @@
-// bbhost-vk Phase 2: the temporal upscaler's inputs, as pure math -
+// heliasdream-vk Phase 2: the temporal upscaler's inputs, as pure math -
 // Halton jitter (host/temporal/halton.h), the scene constants, camera
 // history and cuts, and the camera motion vectors (host/temporal/camera.h),
 // and the draw classification (host/temporal/motion_classify.h).
@@ -280,7 +280,7 @@ void test_classify() {
     CHECK(g.size() == 0);
 }
 
-// bbhost-vk Phase 3: FSR 3.1's policy (host/temporal/fsr3_policy.h).
+// heliasdream-vk Phase 3: FSR 3.1's policy (host/temporal/fsr3_policy.h).
 void test_fsr3_policy() {
     // Sizes: render <= output <= 3x render (+8 for rounding).
     CHECK(fsr3_sizes_ok({2560, 1440, 3840, 2160}));   // Quality at 4K
@@ -309,7 +309,7 @@ void test_fsr3_policy() {
     CHECK(!fsr3_sharpen(0.0f).enable);
     CHECK(fsr3_sharpen(0.8f).enable && near(fsr3_sharpen(0.8f).sharpness, 0.8, 1e-6));
     CHECK(fsr3_sharpen(3.0f).sharpness == 1.0f && !fsr3_sharpen(-1.0f).enable);
-    // Conventions: bbhost's jitter is FSR's jitterOffset; pixel motion vectors at scale 1.
+    // Conventions: heliasdream's jitter is FSR's jitterOffset; pixel motion vectors at scale 1.
     const Fsr3Conventions c = fsr3_conventions(0.25f, -0.125f);
     CHECK(c.jitter_x == 0.25f && c.jitter_y == -0.125f && c.mv_scale_x == 1.0f && c.mv_scale_y == 1.0f);
     const Fsr3Conventions f = fsr3_conventions(0.25f, -0.125f, -1, 1);
@@ -428,7 +428,7 @@ void test_test4() {
     CHECK(!scene_constants_head(zeros.data()));
     // STORAGE for the output-sized RGBA16F targets only, with the split and FSR 3.1 / 4.1.1.
     CHECK(direct_target_wanted(97, 3840, 2160, 1, 3840, 2160, true, true, false));
-    CHECK(!direct_target_wanted(97, 3840, 2160, 1, 3840, 2160, true, true, true));    // BBHOST_FSR_DIRECT_TARGET=0
+    CHECK(!direct_target_wanted(97, 3840, 2160, 1, 3840, 2160, true, true, true));    // HELIAS_FSR_DIRECT_TARGET=0
     CHECK(!direct_target_wanted(97, 3840, 2160, 1, 3840, 2160, false, true, false));  // not split
     CHECK(!direct_target_wanted(97, 3840, 2160, 1, 3840, 2160, true, false, false));  // FSR 1, bilinear, off
     CHECK(!direct_target_wanted(97, 2560, 1440, 1, 3840, 2160, true, true, false));   // a scene-sized target

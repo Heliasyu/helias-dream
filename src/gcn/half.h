@@ -34,7 +34,7 @@ spv::Id emit_unpack_half16(spv::Module& m, const SpvScalarTypes& t, spv::Id h);
 // differs by less than 2^-24, and the target's own conversion follows.
 spv::Id emit_rtz_half(spv::Module& m, const SpvScalarTypes& t, spv::Id x);
 // Whether compressed exports of a pair the program packed round it with
-// emit_rtz_half (BBHOST_EXPORT_RTZ=0: they decode the pack, as before).
+// emit_rtz_half (HELIAS_EXPORT_RTZ=0: they decode the pack, as before).
 bool export_rtz_on();
 // Half rounding by the device itself (set by the host, off until it is): the
 // device converts f32 to f16 rounding toward zero under the module's
@@ -49,7 +49,7 @@ bool native_half_rtz();  // and export_rtz_on()
 // no 16-bit float buffer stores).
 bool program_allows_native_half_rtz(const struct Program& prog);
 // Whether the legacy multiply's zero rule is written as DXVK writes D3D9's,
-// min(|a|, |b|) == 0 (BBHOST_LEGACY_MUL=select: a == 0 || b == 0, as before).
+// min(|a|, |b|) == 0 (HELIAS_LEGACY_MUL=select: a == 0 || b == 0, as before).
 bool legacy_mul_min_form();
 
 }  // namespace gcn

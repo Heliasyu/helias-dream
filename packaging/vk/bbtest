@@ -1,23 +1,23 @@
 #!/bin/bash
-# bbtest - bbhost-vk's test sessions on the player's PC (docs/vk/TESTING.md).
+# bbtest - heliasdream-vk's test sessions on the player's PC (docs/vk/TESTING.md).
 #
-#   bbtest start <phase> [--record] [--capture] [--detach] [-- bbhost args...]
-#                  launch ./bbhost from the game folder, log everything into a
-#                  new session folder: the bbhost log, MangoHud frame times
+#   bbtest start <phase> [--record] [--capture] [--detach] [-- heliasdream args...]
+#                  launch ./heliasdream from the game folder, log everything into a
+#                  new session folder: the heliasdream log, MangoHud frame times
 #                  (CSV), a screenshot of the game's monitor every few seconds;
 #                  --record keeps a 30 s gpu-screen-recorder replay buffer;
-#                  --capture also lets bbhost dump the presented frame
-#                  (BBHOST_VK_CAPTURE=1) at every mark; --detach returns at once.
+#                  --capture also lets heliasdream dump the presented frame
+#                  (HELIAS_VK_CAPTURE=1) at every mark; --detach returns at once.
 #   bbtest mark [note...]   screenshot + last 30 s clip + a timestamped marker line
 #   bbtest clip             save the last 30 s (with --record)
 #   bbtest shot             one screenshot now
-#   bbtest snap [note...]   rc2: bbhost saves its last 30 s (frame times, drops,
+#   bbtest snap [note...]   rc2: heliasdream saves its last 30 s (frame times, drops,
 #                           GPU passes, compiles, settings, log) into the
 #                           session's snaps/ (the same as F11 in the game);
 #                           prints its summary. Without a session: the game
 #                           folder's snaps/.
 #   bbtest snap --show [file|folder...]   the summaries of saved snapshots
-#   bbtest profile [note] [--record] [--detach] [-- bbhost args...]
+#   bbtest profile [note] [--record] [--detach] [-- heliasdream args...]
 #                           rc2: a session (phase "profile") with RADV's RGP
 #                           tracing armed: each F11 / bbtest snap also writes an
 #                           .rgp of the next frame into the session's rgp/ (one
@@ -33,8 +33,8 @@
 # (finding the game's monitor), ImageMagick (cropping spectacle's shots).
 #
 # Settings (environment):
-#   BBTEST_GAME_DIR    the folder with ./bbhost
-#                      (default: "$HOME/BloodBorne PC/bbhost-linux-v0.2.18")
+#   BBTEST_GAME_DIR    the folder with ./heliasdream
+#                      (default: "$HOME/BloodBorne PC/heliasdream-linux-v0.2.18")
 #   BBTEST_MONITOR     the game's monitor's output name, e.g. DP-1
 #                      (default: the enabled output with the most pixels)
 #   BBTEST_SHOT_EVERY  seconds between screenshots (default 10; 0 = none)
@@ -46,7 +46,7 @@
 set -u
 
 ROOT=${BBTEST_ROOT:-${XDG_DATA_HOME:-$HOME/.local/share}/bbtest}
-GAME_DIR=${BBTEST_GAME_DIR:-$HOME/BloodBorne PC/bbhost-linux-v0.2.18}
+GAME_DIR=${BBTEST_GAME_DIR:-$HOME/BloodBorne PC/heliasdream-linux-v0.2.18}
 STATE=${XDG_RUNTIME_DIR:-/tmp}/bbtest-$(id -u)
 SHOT_EVERY=${BBTEST_SHOT_EVERY:-10}
 REPLAY_SECS=${BBTEST_REPLAY_SECS:-30}
@@ -176,8 +176,8 @@ redacted_toml() {  # the options file without its [account] section (the token)
 }
 
 options_file() {
-    local d=${BBHOST_CONFIG_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/bbhost}
-    echo "$d/bbhost-options.toml"
+    local d=${HELIAS_CONFIG_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/heliasdream}
+    echo "$d/heliasdream-options.toml"
 }
 
 save_clip() {  # $1: a name for the log
@@ -220,7 +220,7 @@ cmd_start() {
         say "a session is running: $(session) (bbtest stop first)"
         exit 1
     fi
-    [ -x "$GAME_DIR/bbhost" ] || { say "no ./bbhost in $GAME_DIR (set BBTEST_GAME_DIR)"; exit 1; }
+    [ -x "$GAME_DIR/heliasdream" ] || { say "no ./heliasdream in $GAME_DIR (set BBTEST_GAME_DIR)"; exit 1; }
     if [ "$detach" = 1 ]; then
         local args=(start "$phase")
         [ "${BBTEST_PROFILE:-0}" = 1 ] && args=(profile "${BBTEST_PROFILE_NOTE:-}")
@@ -247,7 +247,7 @@ cmd_start() {
         echo "game dir: $GAME_DIR"
         echo "options:  record=$record capture=$capture shots-every=${SHOT_EVERY}s"
         echo "monitor:  $(monitor_info || echo '?')"
-        [ -f "$GAME_DIR/bbhost.bin" ] && echo "bbhost.bin sha256: $(sha256sum "$GAME_DIR/bbhost.bin" | cut -d' ' -f1)"
+        [ -f "$GAME_DIR/heliasdream.bin" ] && echo "heliasdream.bin sha256: $(sha256sum "$GAME_DIR/heliasdream.bin" | cut -d' ' -f1)"
         [ -f "$GAME_DIR/BUILDINFO.txt" ] && sed 's/^/build: /' "$GAME_DIR/BUILDINFO.txt"
         echo "kernel:   $(uname -r)"
         have vulkaninfo && vulkaninfo --summary 2> /dev/null | grep -E 'deviceName|driverInfo|apiVersion' | head -6 | sed 's/^ */vulkan:   /'
@@ -267,23 +267,23 @@ cmd_start() {
         unset MANGOHUD
     fi
     # rc2: F11 / bbtest snap snapshots land in the session.
-    export BBHOST_SNAP_DIR="$s/snaps"
+    export HELIAS_SNAP_DIR="$s/snaps"
     # rc2, bbtest profile: RADV's RGP tracing on a trigger file (Mesa:
-    # MESA_VK_TRACE, MESA_VK_TRACE_TRIGGER; the trace goes to /tmp, bbhost
-    # moves it into rgp/), and the shader statistics (BBHOST_SHADER_STATS).
+    # MESA_VK_TRACE, MESA_VK_TRACE_TRIGGER; the trace goes to /tmp, heliasdream
+    # moves it into rgp/), and the shader statistics (HELIAS_SHADER_STATS).
     if [ "${BBTEST_PROFILE:-0}" = 1 ]; then
         mkdir -p "$s/rgp"
         export MESA_VK_TRACE="rgp${MESA_VK_TRACE:+,$MESA_VK_TRACE}"
         export MESA_VK_TRACE_TRIGGER="$s/rgp/trigger"
-        export BBHOST_RGP_DIR="$s/rgp"
-        export BBHOST_SHADER_STATS="$s/shader-stats.tsv"
+        export HELIAS_RGP_DIR="$s/rgp"
+        export HELIAS_SHADER_STATS="$s/shader-stats.tsv"
         rm -f "$s/rgp/trigger"
         echo "profile:  MESA_VK_TRACE=$MESA_VK_TRACE MESA_VK_TRACE_TRIGGER=$MESA_VK_TRACE_TRIGGER note=${BBTEST_PROFILE_NOTE:-}" >> "$s/session.txt"
         say "profile: F11 or bbtest snap also saves an RGP capture of the next frame into $s/rgp (one every 10 s)"
     fi
     if [ "$capture" = 1 ]; then
-        export BBHOST_VK_CAPTURE=1
-        export BBHOST_VK_CAPTURE_DIR="$s/frames"
+        export HELIAS_VK_CAPTURE=1
+        export HELIAS_VK_CAPTURE_DIR="$s/frames"
     fi
 
     # The replay buffer of the game's monitor.
@@ -304,7 +304,7 @@ cmd_start() {
     echo "$(now) START $phase" >> "$s/marks.log"
     say "session: $s"
     # The game, with its output appended to the log (bbtest mark appends too).
-    (cd "$GAME_DIR" && exec ./bbhost "$@") > >(exec tee -a "$s/bbhost.log") 2>&1 &
+    (cd "$GAME_DIR" && exec ./heliasdream "$@") > >(exec tee -a "$s/heliasdream.log") 2>&1 &
     local game=$!
     echo "$game" > "$STATE/game.pid"
     echo "$$" > "$STATE/start.pid"
@@ -342,7 +342,7 @@ finish() {
     if [ -f "$s/options-before.toml" ] && [ -f "$s/options-after.toml" ]; then
         diff -u "$s/options-before.toml" "$s/options-after.toml" > "$s/options.diff" || true
     fi
-    # bbhost's own log files written during the session (logs/ beside it).
+    # heliasdream's own log files written during the session (logs/ beside it).
     local started
     started=$(cat "$STATE/started" 2> /dev/null || echo 0)
     if [ -d "$GAME_DIR/logs" ]; then
@@ -351,7 +351,7 @@ finish() {
         rmdir "$s/game-logs" 2> /dev/null || true
     fi
     rm -f "$s/frames/capture.request" "$s/snaps/snap.request" "$s/rgp/trigger"
-    # bbtest profile: an RGP trace bbhost could not move (or one from Mesa's
+    # bbtest profile: an RGP trace heliasdream could not move (or one from Mesa's
     # own hotkey) still in /tmp from this session.
     if [ -d "$s/rgp" ]; then
         find /tmp -maxdepth 1 -type f -name '*.rgp' -newer "$s/session.txt" -user "$(id -u)" -exec mv -n {} "$s/rgp/" \; 2> /dev/null
@@ -365,33 +365,33 @@ finish() {
         # test6: the words alone matched 65 benign lines in test5 (the
         # occlusion report's "0 lost", "keyboard focus lost", the DL_PANIC
         # patch, MangoHud's own power/battery notes); those are left out.
-        echo "errors in the log: $(grep -iE 'error|fatal|crash|panic|lost' "$s/bbhost.log" 2> /dev/null |
+        echo "errors in the log: $(grep -iE 'error|fatal|crash|panic|lost' "$s/heliasdream.log" 2> /dev/null |
             grep -vcE '; 0 lost\)|keyboard focus lost|patched DL_PANIC|error paths would have dropped|\[MANGOHUD\] \[error\] \[(cpu|battery)\.cpp|render: target 0x[0-9a-f]+ re-created: .*\(contents lost\)|render: targets re-created in another format:' || true)"
         # rc4: a render target the game re-creates in another format (its
         # pixels not carried over) is the renderer following the game, not an
         # error; counted on its own line instead of under errors.
-        echo "render targets re-created (contents lost): $(grep -cE 'render: target 0x[0-9a-f]+ re-created: .*\(contents lost\)' "$s/bbhost.log" 2> /dev/null || true)"
+        echo "render targets re-created (contents lost): $(grep -cE 'render: target 0x[0-9a-f]+ re-created: .*\(contents lost\)' "$s/heliasdream.log" 2> /dev/null || true)"
         # The FPS shown, in game only: the presenter's 300-frame lines after
         # the first in-game frame (loading screens and menus left out).
         echo "in-game fps shown: $(awk '/world: the first in-game frame/ { on = 1; next }
             on && /present: 300 frames in [0-9]+ ms/ { for (i = 1; i <= NF; i++) if ($i == "in") { ms += $(i + 1); n++; break } }
-            END { if (n) printf "%.1f over %.0f s (%d windows of 300)", 300 * n / (ms / 1000), ms / 1000, n; else printf "none" }' "$s/bbhost.log" 2> /dev/null)"
+            END { if (n) printf "%.1f over %.0f s (%d windows of 300)", 300 * n / (ms / 1000), ms / 1000, n; else printf "none" }' "$s/heliasdream.log" 2> /dev/null)"
         # test7: the frame pacing from MangoHud, in game only.
         local skip csv
-        skip=$(sed -n 's/.*world: the first in-game frame, flip [0-9]*, \([0-9.]*\) s after start.*/\1/p' "$s/bbhost.log" 2> /dev/null | head -1)
+        skip=$(sed -n 's/.*world: the first in-game frame, flip [0-9]*, \([0-9.]*\) s after start.*/\1/p' "$s/heliasdream.log" 2> /dev/null | head -1)
         csv=$(find "$s/mangohud" -type f -name '*.csv' 2> /dev/null | head -1)
         local fs
         fs=$(frame_stats "$csv" "${skip:-0}")
         echo "in-game frames (MangoHud): $fs"
         # test8: the one number for a locked 120, on its own line.
         echo "120 LOCK: $(printf '%s' "$fs" | grep -oE '[0-9]+ of [0-9]+ seconds under 120' || echo 'no MangoHud CSV')"
-        # test8/test10: BBHOST_AB_SECONDS halves (post at render on/off) (bbhost's `ab:` lines), averaged per side.
-        echo "a/b (BBHOST_AB_SECONDS): $(awk '/ab: (motion blur skip|post at render|present pace) (on|off) for/ {
+        # test8/test10: HELIAS_AB_SECONDS halves (post at render on/off) (heliasdream's `ab:` lines), averaged per side.
+        echo "a/b (HELIAS_AB_SECONDS): $(awk '/ab: (motion blur skip|post at render|present pace) (on|off) for/ {
                 side = ($0 ~ /(skip|render|pace) on/) ? "on" : "off"
                 for (i = 1; i <= NF; i++) { if ($i == "over" && $(i + 1) == "8.33") o833[side] += $(i - 1); if ($i == "over" && $(i + 1) == "8.5") o85[side] += $(i - 1); if ($i == "over" && $(i + 1) == "9") o9[side] += $(i - 1); if ($i == "1%" && $(i + 1) == "low") { lo[side] += $(i + 2); nlo[side]++ } if ($i == "frames,") fr[side] += $(i - 1); if ($i == "fps,") fps[side] += $(i - 1); if ($i == "max") mx[side] = ($(i + 1) + 0 > mx[side]) ? $(i + 1) + 0 : mx[side]; if ($i == "over" && $(i + 1) == "12") o12[side] += $(i - 1) }
                 n[side]++ }
             END { if (!n["on"] && !n["off"]) { printf "none"; exit }
-                  for (k in n) printf "%s: %.1f fps over %d halves, 1%% low %.1f, %d of %d frames over 8.33 ms, %d over 8.5 ms, %d over 9 ms, max %.1f ms, %d over 12 ms; ", k, fps[k] / n[k], n[k], nlo[k] ? lo[k] / nlo[k] : 0, o833[k], fr[k], o85[k], o9[k], mx[k], o12[k] }' "$s/bbhost.log" 2> /dev/null)"
+                  for (k in n) printf "%s: %.1f fps over %d halves, 1%% low %.1f, %d of %d frames over 8.33 ms, %d over 8.5 ms, %d over 9 ms, max %.1f ms, %d over 12 ms; ", k, fps[k] / n[k], n[k], nlo[k] ? lo[k] / nlo[k] : 0, o833[k], fr[k], o85[k], o9[k], mx[k], o12[k] }' "$s/heliasdream.log" 2> /dev/null)"
         echo "marks:    $(grep -c ' MARK ' "$s/marks.log" 2> /dev/null || true)"
         echo "shots:    $(find "$s/shots" -type f 2> /dev/null | wc -l)"
         echo "clips:    $(find "$s/clips" -type f -name '*.mp4' 2> /dev/null | wc -l)"
@@ -407,7 +407,7 @@ finish() {
 }
 
 # test7: frame-time statistics from MangoHud's per-frame CSV (log_interval=0),
-# the frames after `skip` seconds (bbhost's first in-game frame): average fps;
+# the frames after `skip` seconds (heliasdream's first in-game frame): average fps;
 # 1% and 0.1% lows (1000 over the 99th and 99.9th percentile frame times); the
 # frame times' standard deviation; the frames slower than 120 fps (8.42 ms:
 # 1000/120 and 1% for jitter) and slower than 12 ms (a visible hitch); and
@@ -445,8 +445,8 @@ cmd_mark() {
     local t note=${*:-}
     t=$(date +%H%M%S-%3N)
     echo "$(now) MARK $t ${note}" >> "$s/marks.log"
-    echo "[bbtest] ===== MARK $t $(now) ${note} =====" >> "$s/bbhost.log"
-    # bbhost's own copy of the presented frame (bbtest start --capture).
+    echo "[bbtest] ===== MARK $t $(now) ${note} =====" >> "$s/heliasdream.log"
+    # heliasdream's own copy of the presented frame (bbtest start --capture).
     [ -d "$s/frames" ] && [ -n "$(pid_of game)" ] && grep -q "capture=1" "$s/session.txt" && : > "$s/frames/capture.request"
     screenshot "$s/shots/mark-$t.png" && echo "$(now) SHOT mark-$t.png" >> "$s/marks.log"
     alive "$(pid_of gsr)" && save_clip "mark-$t" > /dev/null 2>&1
@@ -454,7 +454,7 @@ cmd_mark() {
     notify "mark $t"
 }
 
-# rc2: one snapshot's summary (bbhost's snap-*.txt, docs/vk/TESTING.md).
+# rc2: one snapshot's summary (heliasdream's snap-*.txt, docs/vk/TESTING.md).
 snap_summary() {
     local f=$1
     awk -v file="$(basename "$f")" '
@@ -526,7 +526,7 @@ cmd_snap() {
     done
     f=$(find "$dir" -maxdepth 1 -type f -name 'snap-*.txt' -printf '%T@ %p\n' 2> /dev/null | sort -n | tail -1 | cut -d' ' -f2-)
     if [ "$(find "$dir" -maxdepth 1 -type f -name 'snap-*.txt' 2> /dev/null | wc -l)" -le "$n0" ]; then
-        say "asked; no snapshot in 15 s (is bbhost running from $GAME_DIR, rc2 or later, BBHOST_SNAP not 0?). The request waits in $dir/snap.request"
+        say "asked; no snapshot in 15 s (is heliasdream running from $GAME_DIR, rc2 or later, HELIAS_SNAP not 0?). The request waits in $dir/snap.request"
         return 1
     fi
     [ -n "$s" ] && echo "$(now) SNAP-SAVED $(basename "$f")" >> "$s/marks.log"
@@ -582,7 +582,7 @@ cmd_stop() {
     if alive "$game"; then
         kill -TERM "$game" 2> /dev/null
         for _ in $(seq 1 40); do alive "$game" || break; sleep 0.25; done
-        alive "$game" && { say "bbhost did not quit in 10 s; killing it"; kill -KILL "$game" 2> /dev/null; }
+        alive "$game" && { say "heliasdream did not quit in 10 s; killing it"; kill -KILL "$game" 2> /dev/null; }
     fi
     # The start command bundles once the game is gone; wait for it.
     if alive "$start"; then

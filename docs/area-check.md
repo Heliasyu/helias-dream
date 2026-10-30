@@ -22,7 +22,7 @@ draw them, place by place. Two builds can be run against each other.
 | `hunters-nightmare` | Ludwig's arena | the first lamp, then the arena's edge |
 | `laurence-staircase` | The staircase up to the Nightmare Grand Cathedral, Laurence's arena | the first lamp, then the staircase's upper flight |
 
-The last five are The Old Hunters' and need it on (bbhost's default). An
+The last five are The Old Hunters' and need it on (heliasdream's default). An
 arena view stands just outside the boss's fog wall, facing in, where the boss
 rush plugin starts its rounds, without walking in. Two arenas are behind
 doors, which the run opens with the flags the boss rush uses.
@@ -44,7 +44,7 @@ which Continue loads), plays it headless and offline, pinned to one NUMA node
 with `numactl`, with the map-validation probe plugin (`tools/mapval_plugin.c`)
 moving the player. It gets through the title by asking the game for the menus'
 confirm button every 2 s until the world's first frame (the test request
-`menutap confirm`, which bbhost carries out only while one of the game's menus
+`menutap confirm`, which Helia's Dream carries out only while one of the game's menus
 has the input), so it reaches the title whenever the title comes: a build's
 first start compiles its shader caches before it. At each place the probe travels to a lamp the way the
 Hunter's Dream headstones do, moves to the place's view, switches off the
@@ -64,7 +64,7 @@ for byte. Captures stall the GPU, which is why they get a session of their own.
 For each place the report says:
 
 - in the window: fps and the frame-time percentiles from every flip interval,
-  the GPU's busy time (bbhost's busy meter, not `BBHOST_GPU_PROFILE`, which
+  the GPU's busy time (heliasdream's busy meter, not `HELIAS_GPU_PROFILE`, which
   changes how draws are recorded), the main loop's work, the CPU, the draws by
   how their pixel shader ran - lifted, translated, the page-table fallback's
   translation, none - and the draw failures by reason;
@@ -78,7 +78,7 @@ For each place the report says:
 
 ## Running it
 
-It needs a Linux build (`bbhost`, with `gcnlift` and `drawreplay` beside it),
+It needs a Linux build (`heliasdream`, with `gcnlift` and `drawreplay` beside it),
 the game files and the 1.09 eboot, named by a config's `[paths]` or by
 `--app0` and `--eboot`, and a C compiler for the probe. Nothing else of the
 config is used: each pass writes its own (offline, its own P2P port and its own
@@ -86,9 +86,9 @@ config folder), so a run never touches a player's settings or saves.
 
 ```sh
 tools/area_check.py areas --app0 <game folder>       # the places, checked against the game's data
-tools/area_check.py run --dry-run --bbhost build/bbhost --config test.toml --seed <save folder> --out <dir>
-tools/area_check.py run --bbhost build/bbhost --config test.toml --seed <save folder> --out <dir>
-tools/area_check.py ab --a <build A>/bbhost --b <build B>/bbhost --config test.toml --seed <save folder> --out <dir>
+tools/area_check.py run --dry-run --heliasdream build/heliasdream --config test.toml --seed <save folder> --out <dir>
+tools/area_check.py run --heliasdream build/heliasdream --config test.toml --seed <save folder> --out <dir>
+tools/area_check.py ab --a <build A>/heliasdream --b <build B>/heliasdream --config test.toml --seed <save folder> --out <dir>
 tools/area_check.py compare --a <run>... --b <run>... --out <dir>
 tools/area_check.py report <run>                     # the report again from a run's logs
 ```
@@ -124,11 +124,11 @@ These are for test runs and off by default.
 
 | Switch | What it does |
 |---|---|
-| `BBHOST_FRAME_DETAIL=1` | with `BBHOST_FRAME_STATS=1`: after each second's `frames:` line, the second's draws by how their pixel shader ran, its draw failures and every flip interval |
-| `BBHOST_TEST_WARP=1` | lets plugins move the player (the probe) |
-| `BBHOST_TEST_REQUESTS=<dir>` | the game carries out requests a harness leaves there: a frame dump, a capture budget |
-| `BBHOST_CAPTURE_DRAW=*ps` | a draw capture of the first draw of each pixel shader |
-| `BBHOST_CAPTURE_ARMED=1` | captures only while a request has allowed them |
+| `HELIAS_FRAME_DETAIL=1` | with `HELIAS_FRAME_STATS=1`: after each second's `frames:` line, the second's draws by how their pixel shader ran, its draw failures and every flip interval |
+| `HELIAS_TEST_WARP=1` | lets plugins move the player (the probe) |
+| `HELIAS_TEST_REQUESTS=<dir>` | the game carries out requests a harness leaves there: a frame dump, a capture budget |
+| `HELIAS_CAPTURE_DRAW=*ps` | a draw capture of the first draw of each pixel shader |
+| `HELIAS_CAPTURE_ARMED=1` | captures only while a request has allowed them |
 
 The flip log's `pixel shaders:` line, every 300 flips in any run, gives the
 same split of draws by pixel shader.

@@ -20,7 +20,7 @@
 // replaces an earlier one.
 //
 // A player leaves one out with `<name> = false` under [patches] in
-// bbhost.toml, which the setup window's Patches tab writes.
+// HeliasDream.toml, which the setup window's Patches tab writes.
 #pragma once
 
 #include <string>

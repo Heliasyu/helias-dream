@@ -15,18 +15,19 @@
 
 #include <vulkan/vulkan.h>
 
+#include <cstddef>
 #include <cstdint>
 
 // Presenter-owned, for the swapchain's format; safe to call repeatedly.
 bool present_pass_init(VkDevice device, VkPhysicalDevice phys, VkFormat colour_format);
 void present_pass_shutdown(VkDevice device);
 bool present_pass_ready();
-// rc2, BBHOST_SHARPEN_AT_PRESENT=1 (debugging): FSR, having left its own
+// rc2, HELIAS_SHARPEN_AT_PRESENT=1 (debugging): FSR, having left its own
 // sharpening out, asks the presenter to sharpen (RCAS, `sharpness` 0..1).
 // Any thread; good for 100 ms (a frame without FSR shows plain). False when
 // there is no sharpening pipeline: the caller keeps FSR's own pass.
 bool present_pass_set_sharpen(float sharpness);
-bool present_sharpen_at_present();  // BBHOST_SHARPEN_AT_PRESENT=1
+bool present_sharpen_at_present();  // HELIAS_SHARPEN_AT_PRESENT=1
 
 // The game's display image and the region of it shown.
 struct PresentSource {
@@ -46,9 +47,27 @@ struct PresentSource {
 // last frame's view of the source and its descriptor are reused here.
 bool present_pass_begin(VkCommandBuffer cmd, VkImage dst, VkImageView dst_view, VkExtent2D extent, VkRect2D shown,
                         const PresentSource* src, const float clear[4]);
-// bbhost-vk Phase 2, Show Motion Vectors: the scene's motion image (its
+// heliasdream-vk Phase 2, Show Motion Vectors: the scene's motion image (its
 // region `x, y, w, h`) blended over `shown`, inside the open rendering,
 // before the overlay. False when there is nothing to draw it with.
 bool present_pass_motion(VkCommandBuffer cmd, VkRect2D shown, const PresentSource& motion);
+// Helia's Dream: the frosted glass under the overlay's panes - the picture
+// `src` (the one present_pass_begin drew), blurred inside each rounded
+// rectangle (overlay coordinates, mapped onto `area` as the overlay's are).
+// Inside the open rendering, after the picture and before the overlay. False
+// when there is nothing to draw it with.
+struct OverlayGlass;
+bool present_pass_glass(VkCommandBuffer cmd, VkRect2D shown, const PresentSource& src, const OverlayGlass* rects, std::size_t count,
+                        VkRect2D area, float display_w, float display_h);
+// Helia's Dream, set each frame by the presenter: the picture's grade
+// (brightness, contrast: 1 the game's own; hue in degrees), and HDR output
+// (the swapchain is HDR10: compose in an SDR layer and encode it at the end).
+void present_pass_set_grade(float brightness, float contrast, float hue_degrees);
+void present_pass_set_hdr(bool on, float paper_white, float peak, float boost);
+// Helia's Dream, HDR with the UI kept apart (host/hdr_ui.h), set each frame
+// before present_pass_begin: the UI's brightness (times paper white; 0 off),
+// and the display buffer's copy from before its UI (null: none this frame -
+// then only our overlay is told apart).
+void present_pass_set_hdr_ui(float ui_brightness, const PresentSource* before_ui);
 // Ends the rendering and moves `dst` to PRESENT_SRC_KHR.
 void present_pass_end(VkCommandBuffer cmd, VkImage dst);

@@ -1,6 +1,6 @@
 #pragma once
 
-// bbhost-vk Phase 3: FSR 3.1 at the game's scale pass (host/upscaler.h,
+// heliasdream-vk Phase 3: FSR 3.1 at the game's scale pass (host/upscaler.h,
 // ScenePass::Fsr31). The renderer calls it for the pass's draw, after the
 // temporal inputs are made (host/temporal_inputs.h): FSR 3.1.5
 // (host/fsr3_upscaler.h) upscales the frame's scene into an image of its
@@ -25,13 +25,13 @@ struct RtImage;
 // target written.
 // `out`: where in the target the scene goes (fsr3_output_rect_locked): FSR's
 // output size and the copy back, never the target's extent.
-// test10 (BBHOST_POST_AT_RENDER): `color`, when given, is the upscaler's
+// test10 (HELIAS_POST_AT_RENDER): `color`, when given, is the upscaler's
 // colour input instead of the scene's - the post chain's render-size result.
 bool fsr3_scale_pass_locked(RtImage* target, const temporal::OutputRect& out, const UpscalerImage* color = nullptr);
 // test4: whether a colour target being made should take STORAGE usage so FSR
 // 3.1 writes it directly instead of its own image and a copy (0.23 ms a frame
 // at 3840x2160 in test3): RGBA16F, one layer, exactly the display buffers'
-// size with the scene split and FSR 3.1 chosen. BBHOST_FSR_DIRECT_TARGET=0: never.
+// size with the scene split and FSR 3.1 chosen. HELIAS_FSR_DIRECT_TARGET=0: never.
 bool fsr3_target_storage_wanted(int vk_format, std::uint32_t w, std::uint32_t h, std::uint32_t layers);
 // test6: FSR 4.1.1 could not run this session (no assets or device support) and FSR 3.1 stands in.
 bool fsr4_replay_unavailable();

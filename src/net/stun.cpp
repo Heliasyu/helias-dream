@@ -10,7 +10,7 @@ namespace {
 
 constexpr std::uint16_t kBindingRequest = 0x0001, kBindingResponse = 0x0101;
 constexpr std::uint16_t kMappedAddress = 0x0001, kXorMappedAddress = 0x0020, kXorMappedAddressOld = 0x8020;
-constexpr std::uint16_t kBbhostHello = 0x8100, kBbhostRelay = 0x8101;
+constexpr std::uint16_t kHeliasHello = 0x8100, kHeliasRelay = 0x8101;
 constexpr std::uint8_t kRelayVersion[4] = {'b', 'b', 'r', '1'};
 constexpr std::uint32_t kCookie = 0x2112A442u;
 constexpr std::uint8_t kFamilyIpv4 = 0x01;
@@ -47,7 +47,7 @@ std::size_t build_binding_request(std::uint8_t* out, std::uint8_t txid[kTxid], b
     std::memcpy(out + 4, txid, kTxid);
     std::size_t n = kHeader;
     if (hello) {
-        wr16(out + n, kBbhostHello);
+        wr16(out + n, kHeliasHello);
         wr16(out + n + 2, 12);
         std::memcpy(out + n + 4, kRelayVersion, 4);
         if (token) std::memcpy(out + n + 8, token, kTokenLen);
@@ -75,7 +75,7 @@ bool parse_binding_response(const std::uint8_t* d, std::size_t n, const std::uin
         const std::uint16_t type = rd16(d + at), alen = rd16(d + at + 2);
         const std::uint8_t* v = d + at + 4;
         if (at + 4 + alen > kHeader + len) break;
-        if (type == kBbhostRelay && relay && alen >= 20 && std::memcmp(v, kRelayVersion, 4) == 0) {
+        if (type == kHeliasRelay && relay && alen >= 20 && std::memcmp(v, kRelayVersion, 4) == 0) {
             relay->present = true;
             std::memcpy(relay->token, v + 4, kTokenLen);
             relay->vport = rd16(v + 12);

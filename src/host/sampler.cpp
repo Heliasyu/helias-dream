@@ -333,7 +333,7 @@ std::vector<Module> read_modules() {
 }
 
 // A frame as the log shows it: guest code by its Binary Ninja address, ours
-// as bbhost+offset (addr2line -e bbhost takes it), a library's by the export
+// as heliasdream+offset (addr2line -e heliasdream takes it), a library's by the export
 // before it when there is one close by.
 std::string frame_name(std::uint64_t pc, const std::vector<Module>& mods, const Module* self) {
     char buf[256];
@@ -403,15 +403,15 @@ void log_all_threads(const char* why) {
 
 // The Windows watchdog's stall reports and stack dumps, once the game has
 // flipped a while: the start is left alone, where a signal's cut-short call
-// is the one most likely to matter (BBHOST_SAMPLE_FROM_FLIP).
+// is the one most likely to matter (HELIAS_SAMPLE_FROM_FLIP).
 void sampler_watchdog_start(std::uint64_t guest_lo, std::uint64_t guest_hi) {
     if (!g_guest_lo) {
         g_guest_lo = guest_lo;
         g_guest_hi = guest_hi;
     }
-    // BBHOST_WATCHDOG_S (default 15; 0 off): how long without a flip is a stall.
+    // HELIAS_WATCHDOG_S (default 15; 0 off): how long without a flip is a stall.
     static const int stall_s = [] {
-        const char* e = std::getenv("BBHOST_WATCHDOG_S");
+        const char* e = std::getenv("HELIAS_WATCHDOG_S");
         return e ? std::max(0, std::atoi(e)) : 15;
     }();
     if (!stall_s) return;
@@ -441,7 +441,7 @@ void sampler_watchdog_start(std::uint64_t guest_lo, std::uint64_t guest_hi) {
 }
 
 namespace {
-// BBHOST_SAMPLE_PERF=1: the same samples through perf_events instead of
+// HELIAS_SAMPLE_PERF=1: the same samples through perf_events instead of
 // signals - a task-clock event per thread (on-CPU time only) with the user
 // call chain the kernel walks by frame pointer, read from each event's ring.
 // Nothing is delivered to the sampled thread, so a blocking call is never cut
@@ -522,17 +522,17 @@ void perf_drain(PerfRing& r, FILE* f) {
 }  // namespace
 
 void sampler_start(std::uint64_t guest_lo, std::uint64_t guest_hi) {
-    const char* names = std::getenv("BBHOST_SAMPLE");
+    const char* names = std::getenv("HELIAS_SAMPLE");
     if (!names || !*names) return;
     const std::vector<std::string> prefixes = split(names);
-    const char* hz_env = std::getenv("BBHOST_SAMPLE_HZ");
+    const char* hz_env = std::getenv("HELIAS_SAMPLE_HZ");
     const int hz = hz_env ? std::max(10, std::atoi(hz_env)) : 997;
-    const char* out_env = std::getenv("BBHOST_SAMPLE_OUT");
+    const char* out_env = std::getenv("HELIAS_SAMPLE_OUT");
     const std::string out = out_env ? out_env : "build/samples";
 
     g_guest_lo = guest_lo;
     g_guest_hi = guest_hi;
-    if (const char* pe = std::getenv("BBHOST_SAMPLE_PERF"); pe && pe[0] == '1') {
+    if (const char* pe = std::getenv("HELIAS_SAMPLE_PERF"); pe && pe[0] == '1') {
         FILE* f = std::fopen((out + ".txt").c_str(), "w");
         if (!f) return;
         host_log("sampler: %s at %d Hz of on-CPU time through perf_events into %s.txt", names, hz, out.c_str());
@@ -541,7 +541,7 @@ void sampler_start(std::uint64_t guest_lo, std::uint64_t guest_hi) {
             std::vector<PerfRing> rings;
             std::vector<int> named;
             static const std::uint64_t from_flip = [] {
-                const char* e = std::getenv("BBHOST_SAMPLE_FROM_FLIP");
+                const char* e = std::getenv("HELIAS_SAMPLE_FROM_FLIP");
                 return e ? std::strtoull(e, nullptr, 10) : 0ull;
             }();
             auto last_scan = std::chrono::steady_clock::now() - std::chrono::seconds(10), last_maps = last_scan;
@@ -594,12 +594,12 @@ void sampler_start(std::uint64_t guest_lo, std::uint64_t guest_hi) {
         std::uint64_t said_faults = 0, said_dropped = 0;
         std::uint64_t skipped = 0, said_skipped = 0, worst_late_flip = 0;
         double worst_late_ms = 0;
-        // BBHOST_SAMPLE_FROM_FLIP=N: no samples before flip N. A signal cuts a
+        // HELIAS_SAMPLE_FROM_FLIP=N: no samples before flip N. A signal cuts a
         // blocking call short, and the guest's loading code does not always
         // take that well; sampling the main loop from boot kept the world
         // from loading.
         static const std::uint64_t from_flip = [] {
-            const char* e = std::getenv("BBHOST_SAMPLE_FROM_FLIP");
+            const char* e = std::getenv("HELIAS_SAMPLE_FROM_FLIP");
             return e ? std::strtoull(e, nullptr, 10) : 0ull;
         }();
         for (;;) {
@@ -692,7 +692,7 @@ void sampler_start(std::uint64_t guest_lo, std::uint64_t guest_hi) {
 // guest's frames below it are not reached. The output is the Linux one:
 // <out>.txt lines and <out>.maps, the modules in /proc/self/maps shape with
 // the module's link base as the offset, so tools/wallprof.py symbolizes
-// bbhost.exe with addr2line at its link addresses.
+// heliasdream.exe with addr2line at its link addresses.
 
 #include "core/portable.h"
 
@@ -838,7 +838,7 @@ void scan_threads(const std::vector<std::string>& prefixes, std::vector<Watched>
             CloseHandle(h);
             continue;
         }
-        if (name.empty()) name = te.th32ThreadID == g_main_tid.load() ? "main" : "bbhost";
+        if (name.empty()) name = te.th32ThreadID == g_main_tid.load() ? "main" : "heliasdream";
         watched.push_back({te.th32ThreadID, h, name});
         std::fprintf(f, "#thread %lu %s\n", static_cast<unsigned long>(te.th32ThreadID), name.c_str());
     }
@@ -937,9 +937,9 @@ void sampler_watchdog_start(std::uint64_t guest_lo, std::uint64_t guest_hi) {
         g_guest_lo = guest_lo;
         g_guest_hi = guest_hi;
     }
-    // BBHOST_WATCHDOG_S (default 15; 0 off): how long without a flip is a stall.
+    // HELIAS_WATCHDOG_S (default 15; 0 off): how long without a flip is a stall.
     static const int stall_s = [] {
-        const char* e = std::getenv("BBHOST_WATCHDOG_S");
+        const char* e = std::getenv("HELIAS_WATCHDOG_S");
         return e ? std::max(0, std::atoi(e)) : 15;
     }();
     if (!stall_s) return;
@@ -973,17 +973,17 @@ void sampler_watchdog_start(std::uint64_t guest_lo, std::uint64_t guest_hi) {
 }
 
 void sampler_start(std::uint64_t guest_lo, std::uint64_t guest_hi) {
-    const char* names = std::getenv("BBHOST_SAMPLE");
+    const char* names = std::getenv("HELIAS_SAMPLE");
     if (!names || !*names) return;
     const std::vector<std::string> prefixes = split(names);
-    const char* hz_env = std::getenv("BBHOST_SAMPLE_HZ");
+    const char* hz_env = std::getenv("HELIAS_SAMPLE_HZ");
     const int hz = hz_env ? std::max(10, std::atoi(hz_env)) : 997;
-    const char* out_env = std::getenv("BBHOST_SAMPLE_OUT");
+    const char* out_env = std::getenv("HELIAS_SAMPLE_OUT");
     const std::string out = out_env ? out_env : "build/samples";
     g_guest_lo = guest_lo;
     g_guest_hi = guest_hi;
-    if (const char* pe = std::getenv("BBHOST_SAMPLE_PERF"); pe && pe[0] == '1') {
-        host_log("sampler: BBHOST_SAMPLE_PERF is Linux only; sampling by thread contexts instead");
+    if (const char* pe = std::getenv("HELIAS_SAMPLE_PERF"); pe && pe[0] == '1') {
+        host_log("sampler: HELIAS_SAMPLE_PERF is Linux only; sampling by thread contexts instead");
     }
     FILE* f = std::fopen((out + ".txt").c_str(), "w");
     if (!f) {
@@ -998,7 +998,7 @@ void sampler_start(std::uint64_t guest_lo, std::uint64_t guest_hi) {
         auto last_scan = next - std::chrono::seconds(10), last_maps = next - std::chrono::seconds(10);
         std::vector<Watched> watched;
         static const std::uint64_t from_flip = [] {
-            const char* e = std::getenv("BBHOST_SAMPLE_FROM_FLIP");
+            const char* e = std::getenv("HELIAS_SAMPLE_FROM_FLIP");
             return e ? std::strtoull(e, nullptr, 10) : 0ull;
         }();
         Sample s;

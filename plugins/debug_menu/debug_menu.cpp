@@ -1,10 +1,10 @@
-// Debug Menu: an official bbhost plugin (docs/plugins.md) - the developers'
+// Debug Menu: an official heliasdream plugin (docs/plugins.md) - the developers'
 // debug menu, which the game still carries but leaves off.
 //
 //   [plugins]
 //   debug_menu = true
 //
-// With it on, bbhost restores the menu at the next start (engine/debug_menu.h)
+// With it on, heliasdream restores the menu at the next start (engine/debug_menu.h)
 // and the Debug Menu key (`) opens and closes it. The menu draws with a debug
 // font the game does not ship; this plugin makes it (debug_font.hpp) from the
 // public-domain X11 fonts k14 and 7x14 and hands it to the game through its
@@ -20,7 +20,7 @@
 // address and a hash of the game's own text there, and the host points the
 // game's references to that string at the English (replace_text, plugin API
 // 11). A row whose hash does not match the eboot is left out.
-#include "bbhost/sdk.hpp"
+#include "heliasdream/sdk.hpp"
 
 #include "debug_font.hpp"
 
@@ -95,8 +95,8 @@ std::vector<std::uint16_t> utf16(const std::string& field) {
 
 // The table's rows that match this eboot, handed to the host in one call.
 void english() {
-    if (g.api->version < 11 || g.api->size < offsetof(BbHostApi, replace_text) + sizeof(void*)) {
-        g.log("debug_menu: this bbhost has no replace_text (plugin API 11); the menu stays in Japanese");
+    if (g.api->version < 11 || g.api->size < offsetof(HeliasApi, replace_text) + sizeof(void*)) {
+        g.log("debug_menu: this heliasdream has no replace_text (plugin API 11); the menu stays in Japanese");
         return;
     }
     std::vector<std::vector<std::uint16_t>> texts;
@@ -136,7 +136,7 @@ extern "C" BB_PLUGIN_EXPORT const BbPluginInfo bb_plugin_info = {
     "debug_menu",
     "Debug Menu",
     "1.0.0",
-    "bbhost",
+    "heliasdream",
     "The developers' debug menu, still in the game: ` opens and closes it (from the next start). Cheating against "
     "other players with it gets an account banned; trying it out online with friends is fine.",
 };
@@ -152,7 +152,7 @@ extern "C" BB_PLUGIN_EXPORT const BbOption bb_plugin_options[] = {
      "players'."},
     {BB_OPT_END}};
 
-extern "C" BB_PLUGIN_EXPORT int bb_plugin_image(const BbHostApi* api) {
+extern "C" BB_PLUGIN_EXPORT int bb_plugin_image(const HeliasApi* api) {
     if (!g.attach(api, 9)) return 1;
     if (!api->eboot_is_109()) return 1;
     debug_font::Files font;
@@ -166,7 +166,7 @@ extern "C" BB_PLUGIN_EXPORT int bb_plugin_image(const BbHostApi* api) {
         g.log("debug_menu: the debug font could not be written to the overlay");
         return 1;
     }
-    g.log("debug_menu: the debug font made (%d glyphs on %d pages); bbhost restores the menu", font.glyphs, font.pages);
+    g.log("debug_menu: the debug font made (%d glyphs on %d pages); heliasdream restores the menu", font.glyphs, font.pages);
     const char* text = api->config("debug_menu.text");
     if (!text || !*text || std::string(text) == "English") english();
     return 0;

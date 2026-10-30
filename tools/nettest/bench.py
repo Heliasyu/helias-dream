@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""The online test bench: simulated bbhost clients against a private server.
+"""The online test bench: simulated heliasdream clients against a private server.
 
     tools/nettest/bench.py --server-tree <server package dir> [--quirks old] [--only NAME ...]
 
@@ -8,9 +8,9 @@ there with STUN and the relay on, on ports of its own (HTTP 28671, STUN
 23478, relay 24000-24199), so a run never touches a server you have running
 or its data. Each scenario builds a session of simulated clients
 (tools/nettest/simclient.py), drives it, and checks what the server and the
-P2P traffic did. --quirks old replays bbhost's room handling from before
+P2P traffic did. --quirks old replays heliasdream's room handling from before
 2026-10-06 (auto_leave, invite_seed, no_keepalive); without it the clients
-behave as bbhost does now.
+behave as heliasdream does now.
 """
 from __future__ import annotations
 
@@ -44,7 +44,7 @@ class Bench:
         self.http_port = http_port
         self.ssinfo_port = ssinfo_port or http_port + 1
         self.http_base = f"http://127.0.0.1:{http_port}"
-        # The relay must not share the address bbhost reports for itself
+        # The relay must not share the address heliasdream reports for itself
         # (127.0.0.1 without online.p2p_addr): the server would take it for
         # a LAN peer and hand out the local address instead.
         self.relay_ip = "127.0.0.2"
@@ -53,8 +53,8 @@ class Bench:
         self.heartbeat_timeout = heartbeat_timeout
         self.vport_ttl = vport_ttl
         self.extra_env = env or {}
-        self.keepalive = 15.0     # bbhost's STUN keepalive (s)
-        self.heartbeat = 5.0      # bbhost's room heartbeat (s)
+        self.keepalive = 15.0     # heliasdream's STUN keepalive (s)
+        self.heartbeat = 5.0      # heliasdream's room heartbeat (s)
         self.invite_window = 20.0  # how long the host's game keeps inviting
         self.proc = None
         self.lines: list[str] = []

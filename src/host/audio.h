@@ -16,5 +16,5 @@ void host_audio_close(int handle);
 // writes return at once) and shuts the audio subsystem down.
 void host_audio_shutdown();
 // Every output's device paused at once, nothing waited for: the game's sound
-// stops while bbhost says why it has to end.
+// stops while heliasdream says why it has to end.
 void host_audio_pause_all();

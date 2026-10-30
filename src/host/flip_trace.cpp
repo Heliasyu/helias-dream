@@ -1,4 +1,4 @@
-// BBHOST_FLIP_TRACE=1: the per-flip trace of host/flip_trace.h (debug only,
+// HELIAS_FLIP_TRACE=1: the per-flip trace of host/flip_trace.h (debug only,
 // off unless set; the profiling kit's M4 step).
 
 #include "host/flip_trace.h"
@@ -27,11 +27,11 @@ namespace fliptrace {
 namespace {
 
 const bool g_on = [] {
-    const char* e = std::getenv("BBHOST_FLIP_TRACE");
+    const char* e = std::getenv("HELIAS_FLIP_TRACE");
     return e && e[0] == '1';
 }();
 const std::int64_t g_slow_ns = [] {
-    const char* e = std::getenv("BBHOST_FLIP_TRACE_MS");
+    const char* e = std::getenv("HELIAS_FLIP_TRACE_MS");
     const double ms = e ? std::atof(e) : 11.0;
     return static_cast<std::int64_t>((ms > 0 ? ms : 11.0) * 1e6);
 }();
@@ -175,7 +175,7 @@ std::string section() {
     std::string out;
     char b[768];
     std::snprintf(b, sizeof(b),
-                  "# BBHOST_FLIP_TRACE=1 (slow frame >= %.1f ms logged as `fliptrace: slow frame`). One line per presented flip of the last 30 s;\n"
+                  "# HELIAS_FLIP_TRACE=1 (slow frame >= %.1f ms logged as `fliptrace: slow frame`). One line per presented flip of the last 30 s;\n"
                   "# t_ms = present time from base_steady_ns (this section's time - 30 s; CLOCK_MONOTONIC, as perf -k CLOCK_MONOTONIC), so\n"
                   "# align with [frames] by interval. -1 = unknown.\n"
                   "# base_steady_ns=%lld\n"

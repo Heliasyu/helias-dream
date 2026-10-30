@@ -2,15 +2,15 @@
 """The area check: one build visits the same places in the game, stands still
 in each and measures the same things there; two builds' visits are compared.
 
-    tools/area_check.py run --bbhost BUILD/bbhost --config TEST.toml --seed SAVE --out DIR
-    tools/area_check.py ab --a BUILD_A/bbhost --b BUILD_B/bbhost --config TEST.toml --seed SAVE --out DIR
+    tools/area_check.py run --heliasdream BUILD/heliasdream --config TEST.toml --seed SAVE --out DIR
+    tools/area_check.py ab --a BUILD_A/heliasdream --b BUILD_B/heliasdream --config TEST.toml --seed SAVE --out DIR
     tools/area_check.py compare --a RUN [RUN...] --b RUN [RUN...] --out DIR
     tools/area_check.py report RUN          the report again from a run's logs
     tools/area_check.py areas --app0 DIR    the places, checked against the game's data
 
 A run plays a copy of SAVE (the saves of a data folder: a character in the
 world, whose Continue loads it) headless, pinned to one NUMA node, with the
-map-validation probe (tools/mapval_plugin.c, BBHOST_TEST_WARP=1) as its only
+map-validation probe (tools/mapval_plugin.c, HELIAS_TEST_WARP=1) as its only
 driver. For each place in turn the probe travels to a lamp the way the
 Hunter's Dream headstones do, moves the player to the place's view, switches
 off the ordinary enemies within 40 m, puts the camera behind the player and
@@ -27,18 +27,18 @@ boss rush's flags (they stay open for the rest of the run). Two places are
 views with a standpoint of their own, two of the heaviest scenes the game
 draws: Mergo's Loft from the rocks above Mensis's north path, and the
 staircase up to the Nightmare Grand Cathedral. The Old Hunters' places need
-its patch on (bbhost's default; the run's config says so when they are
+its patch on (heliasdream's default; the run's config says so when they are
 listed).
 
 That is the perf pass. The capture pass visits the same places and, after the
-settle, lets BBHOST_CAPTURE_DRAW=*ps take the first draw of up to --captures
+settle, lets HELIAS_CAPTURE_DRAW=*ps take the first draw of up to --captures
 pixel shaders (6) not captured before; tools/lift_verify.py then replays each
 with its lift and with its translation and compares the outputs byte for byte.
 Captures stall the GPU, which is why they get a session of their own.
 
 Per place the report gives, for the window: fps and the exact frame-time
-percentiles (BBHOST_FRAME_DETAIL=1: every flip interval), the GPU busy meter
-(ms of GPU work a second; not BBHOST_GPU_PROFILE, which records in place), the
+percentiles (HELIAS_FRAME_DETAIL=1: every flip interval), the GPU busy meter
+(ms of GPU work a second; not HELIAS_GPU_PROFILE, which records in place), the
 main loop's work, the draws by how their pixel shader ran (lifted, translated,
 the page-table fallback's translation, none) and the draw failures by reason;
 for the arrival (the travel and the settle): the loads, pipeline compiles over
@@ -60,7 +60,7 @@ configs and the command lines. Nothing touches the GPU.
 
 The run's own config: the game paths from --config (or --app0/--eboot), its
 data the seed's copy, offline (NP signed out; online host 127.0.0.1) with its
-own P2P port, its own config folder (BBHOST_CONFIG_DIR) and settings file, the
+own P2P port, its own config folder (HELIAS_CONFIG_DIR) and settings file, the
 sample plugin and visitor plugins off. Each run starts from the same save.
 Exit status: 0 when every place was measured and no lift differed, 1 when
 something did not, 2 for bad arguments.
@@ -84,7 +84,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tools"))
 import world_baseline  # noqa: E402  (launch_argv, file_inventory, digest)
 
-SCHEMA = "bbhost-area-check"
+SCHEMA = "heliasdream-area-check"
 EBOOT_109_SHA256 = "941f887a562aae054fac35af8cc8f27cf075f3d4cc2e029fb5ae2a663aaa5ae7"
 # The ordinary enemies' team (NpcParam teamType 23) within this many metres of
 # the view are switched off at arrival and again before the window.
@@ -98,7 +98,7 @@ FOG_STANDOFF = 1.0
 # the block's own frame instead of the MSB's is hundreds of metres out.
 STAND_REACH = 50.0
 # The way through the title: the menus' confirm button, asked of the host
-# (BBHOST_TEST_REQUESTS "menutap confirm") every TITLE_TAP_EVERY_S seconds from
+# (HELIAS_TEST_REQUESTS "menutap confirm") every TITLE_TAP_EVERY_S seconds from
 # TITLE_TAP_FIRST_S until the world's first frame. The host presses it only
 # while one of the game's menus has the input, so a request that arrives as the
 # world loads presses nothing; and it reaches the title whenever the title
@@ -245,7 +245,7 @@ def tour(areas, opts, kind):
 
 
 def toml_str(s):
-    """A quoted value as bbhost's config reader takes it: everything between
+    """A quoted value as heliasdream's config reader takes it: everything between
     the quotes as it is, no escapes - so no quote, backslash or line break."""
     s = str(s)
     if any(c in s for c in '"\\\n'):
@@ -269,28 +269,28 @@ def run_toml(app0, eboot, data, p2p_port, width, height, old_hunters=False):
 
 
 def pass_settings(pass_dir, areas, opts, kind):
-    """The game's BBHOST_* settings for one pass."""
+    """The game's HELIAS_* settings for one pass."""
     s = {
-        "BBHOST_HEADLESS": "1", "BBHOST_NP_SIGNED_OUT": "1", "BBHOST_SETUP_WINDOW": "0", "BBHOST_SKIP_INTRO": "1",
-        "BBHOST_CONFIG_DIR": str(pass_dir / "cfg"), "BBHOST_OPTIONS_PATH": str(pass_dir / "cfg" / "bbhost-options.toml"),
-        "BBHOST_PIPELINE_CACHE": "1" if opts["pipeline_cache"] else "0",
-        "BBHOST_GAME_FPS": str(opts["fps"]), "BBHOST_FRAME_STATS": "1", "BBHOST_FRAME_DETAIL": "1", "BBHOST_STALL_MS": "40",
-        "BBHOST_TEST_WARP": "1", "BBHOST_TEST_REQUESTS": str(pass_dir / "requests"),
-        "BBHOST_MAPVAL_TOUR": str(pass_dir / "tour.txt"), "BBHOST_MAPVAL_START": "%g" % opts["start"],
-        "BBHOST_MAPVAL_DUMPS": str(pass_dir / "frames"), "BBHOST_MAPVAL_CAPTURES": str(pass_dir / "captures"),
+        "HELIAS_HEADLESS": "1", "HELIAS_NP_SIGNED_OUT": "1", "HELIAS_SETUP_WINDOW": "0", "HELIAS_SKIP_INTRO": "1",
+        "HELIAS_CONFIG_DIR": str(pass_dir / "cfg"), "HELIAS_OPTIONS_PATH": str(pass_dir / "cfg" / "heliasdream-options.toml"),
+        "HELIAS_PIPELINE_CACHE": "1" if opts["pipeline_cache"] else "0",
+        "HELIAS_GAME_FPS": str(opts["fps"]), "HELIAS_FRAME_STATS": "1", "HELIAS_FRAME_DETAIL": "1", "HELIAS_STALL_MS": "40",
+        "HELIAS_TEST_WARP": "1", "HELIAS_TEST_REQUESTS": str(pass_dir / "requests"),
+        "HELIAS_MAPVAL_TOUR": str(pass_dir / "tour.txt"), "HELIAS_MAPVAL_START": "%g" % opts["start"],
+        "HELIAS_MAPVAL_DUMPS": str(pass_dir / "frames"), "HELIAS_MAPVAL_CAPTURES": str(pass_dir / "captures"),
     }
     if kind == "capture":
         # The set cache makes the params block a dynamic (or pushed) uniform
         # buffer, which changes the translated shader and is not in a
         # capture's manifest: gcnlift would rebuild the other variant and
         # every lift check read "not comparable". The perf pass keeps it.
-        s.update({"BBHOST_CAPTURE_DRAW": "*ps", "BBHOST_CAPTURE_ARMED": "1",
-                  "BBHOST_CAPTURE_COUNT": str(max(1, opts["captures"]) * len(areas)),
-                  "BBHOST_CAPTURE_DIR": str(pass_dir / "captures"), "BBHOST_SET_CACHE": "0"})
+        s.update({"HELIAS_CAPTURE_DRAW": "*ps", "HELIAS_CAPTURE_ARMED": "1",
+                  "HELIAS_CAPTURE_COUNT": str(max(1, opts["captures"]) * len(areas)),
+                  "HELIAS_CAPTURE_DIR": str(pass_dir / "captures"), "HELIAS_SET_CACHE": "0"})
     for item in opts.get("env", []):
         name, sep, value = item.partition("=")
-        if not sep or not name.startswith("BBHOST_") or name in s:
-            raise ValueError("--env takes BBHOST_NAME=VALUE and must not override the run's own settings: %s" % item)
+        if not sep or not name.startswith("HELIAS_") or name in s:
+            raise ValueError("--env takes HELIAS_NAME=VALUE and must not override the run's own settings: %s" % item)
         s[name] = value
     return s
 
@@ -322,7 +322,7 @@ GPU_BUSY = re.compile(r"gpu busy ([\d.]+) ms/s")
 DETAIL = re.compile(r"\] frame detail: draws (\d+): pixel shader lifted (\d+), translated (\d+), fallback (\d+), none (\d+); "
                     r"draw failures (\d+)(?: \((.*)\))?")
 INTERVALS = re.compile(r"\] frame intervals ms:((?: [\d.]+)+)\s*$")
-# The probe's lines, as bbhost logs a plugin's ("plugin: <line>", host/plugins.cpp).
+# The probe's lines, as heliasdream logs a plugin's ("plugin: <line>", host/plugins.cpp).
 PROBE = r"\] (?:plugin: )?mapval "
 TRAVEL = re.compile(PROBE + r"step \d+ travel (\S+) ([\d.]+) return point (\d+) block ([0-9a-f]+) -> (\w+)")
 TRAVEL_DONE = re.compile(PROBE + r"travel-done (\S+) ([\d.]+) ([0-9a-f]+) \S+ \S+ \S+ after ([\d.]+) s")
@@ -349,7 +349,7 @@ WORLD = re.compile(r"\] world: the first in-game frame, flip (\d+), ([\d.]+) s a
 TOUR_START = re.compile(PROBE + r"tour-start ")
 PROBE_LINE = re.compile(PROBE)
 TOUR_DONE = re.compile(PROBE + r"tour-done ")
-VERSION = re.compile(r"\] bbhost (v\S+) \(")
+VERSION = re.compile(r"\] heliasdream (v\S+) \(")
 RENDERING = re.compile(r"\] resolution: display buffers \d+x\d+, rendering (\d+)x(\d+)")
 FATAL = re.compile(r"SIGSEGV pc=|dumped core|Segmentation fault|the device is lost|VK_ERROR_DEVICE_LOST|\] DL_PANIC ")
 PROBLEM = re.compile(r"HLE stub #|descriptor set allocation failed|wait timed out|capture: .*abandoned")
@@ -513,7 +513,7 @@ def summarize_values(values):
 
 def window_stats(seconds):
     """What a window of per-second records says. Frame times are exact when
-    every second carried its intervals (BBHOST_FRAME_DETAIL=1); otherwise fps
+    every second carried its intervals (HELIAS_FRAME_DETAIL=1); otherwise fps
     and the worst second's p95 and max stand in, marked approximate."""
     if not seconds:
         return None
@@ -1056,7 +1056,7 @@ def summary_text(report):
     """The run's report to read."""
     run = report.get("run", {})
     out = ["area check: %s" % report.get("dir", ""),
-           "build %s (%s), sha256 %s" % (run.get("version") or "?", run.get("bbhost"), (run.get("bbhost_sha256") or "?")[:16]),
+           "build %s (%s), sha256 %s" % (run.get("version") or "?", run.get("heliasdream"), (run.get("heliasdream_sha256") or "?")[:16]),
            "pinned to NUMA node %s; %s fps; pipeline cache %s; started %s" % (
                run.get("numa_node"), run.get("fps"), "seed's" if run.get("pipeline_cache") else "off", run.get("started_utc"))]
     for kind in ("perf", "capture"):
@@ -1232,8 +1232,8 @@ def check_note(c):
     return "; ".join(out)
 
 
-def tool_paths(bbhost):
-    d = Path(bbhost).resolve().parent
+def tool_paths(heliasdream):
+    d = Path(heliasdream).resolve().parent
     return {"gcnlift": d / "gcnlift", "drawreplay": d / "drawreplay"}
 
 
@@ -1263,10 +1263,10 @@ def prepare_pass(pass_dir, kind, areas, opts, paths):
     shutil.copy2(opts["probe"], pass_dir / "data" / "plugins" / "mapval.so")
     toml = run_toml(paths["app0"], paths["eboot"], pass_dir / "data", opts["p2p_port"], opts["width"], opts["height"],
                     old_hunters=any(a.dlc for a in areas))
-    (pass_dir / "cfg" / "bbhost.toml").write_text(toml)
+    (pass_dir / "cfg" / "HeliasDream.toml").write_text(toml)
     (pass_dir / "tour.txt").write_text(tour(areas, opts, kind))
     settings = pass_settings(pass_dir, areas, opts, kind)
-    argv = world_baseline.launch_argv([str(Path(opts["bbhost"]).resolve()), "--config", str(pass_dir / "cfg" / "bbhost.toml")],
+    argv = world_baseline.launch_argv([str(Path(opts["heliasdream"]).resolve()), "--config", str(pass_dir / "cfg" / "HeliasDream.toml")],
                                       opts["numa_node"])
     plan = {"kind": kind, "argv": argv, "cwd": str(pass_dir), "settings": settings, "budget_s": pass_budget(areas, opts, kind),
             "estimate_s": estimate(areas, opts, kind)}
@@ -1275,7 +1275,7 @@ def prepare_pass(pass_dir, kind, areas, opts, paths):
 
 
 def game_env(settings):
-    env = {k: v for k, v in os.environ.items() if not k.startswith(("BBHOST_", "GCN2SPV_"))}
+    env = {k: v for k, v in os.environ.items() if not k.startswith(("HELIAS_", "GCN2SPV_"))}
     env.update(settings)
     env["SDL_AUDIO_DRIVER"] = "dummy"  # a test run makes no sound on the machine it runs on
     return env
@@ -1293,7 +1293,7 @@ def launch(pass_dir, plan, say):
     with its log in run.log. Until the world's first frame it presses confirm
     in the title's menus (TITLE_TAP_EVERY_S)."""
     env = game_env(plan["settings"])
-    requests = Path(plan["settings"]["BBHOST_TEST_REQUESTS"])
+    requests = Path(plan["settings"]["HELIAS_TEST_REQUESTS"])
     started = time.monotonic()
     deadline = started + plan["budget_s"]
     world_deadline = started + 300
@@ -1361,7 +1361,7 @@ def launch(pass_dir, plan, say):
 def verify_lifts(pass_dir, areas, opts, say):
     """tools/lift_verify.py over each place's captures: lifted against
     translated, byte for byte (drawreplay; this needs the GPU)."""
-    tools = tool_paths(opts["bbhost"])
+    tools = tool_paths(opts["heliasdream"])
     out = {}
     for a in areas:
         cap = pass_dir / "captures" / a.id
@@ -1491,24 +1491,24 @@ def start_out(out):
     return out
 
 
-def do_run(args, bbhost=None, out=None, captures=True, say=print):
+def do_run(args, heliasdream=None, out=None, captures=True, say=print):
     """One build: the perf pass, the capture pass and its lift checks, the
     report. With --dry-run, everything up to starting the game."""
     areas, paths, opts = resolve_options(args)
-    opts["bbhost"] = str(Path(bbhost or args.bbhost).resolve())
+    opts["heliasdream"] = str(Path(heliasdream or args.heliasdream).resolve())
     out = start_out(out or args.out)
     seed = Path(opts["seed"])
     if out.is_relative_to(seed) or seed.is_relative_to(out):
         raise ValueError("--out and the seed must not contain each other")
     problems = []
-    if not os.access(opts["bbhost"], os.X_OK):
-        problems.append("%s is not an executable" % opts["bbhost"])
+    if not os.access(opts["heliasdream"], os.X_OK):
+        problems.append("%s is not an executable" % opts["heliasdream"])
     eboot_sha = sha256_file(paths["eboot"])
     if eboot_sha != EBOOT_109_SHA256:
         problems.append("the eboot is not the 1.09 build (sha256 %s): the probe and the warps need it" % eboot_sha)
     do_captures = captures and opts["captures"] > 0
     if do_captures:
-        for name, p in tool_paths(opts["bbhost"]).items():
+        for name, p in tool_paths(opts["heliasdream"]).items():
             if not os.access(p, os.X_OK):
                 problems.append("no %s beside the build (%s): the lift checks need it (or --captures 0)" % (name, p))
     if problems:
@@ -1522,7 +1522,7 @@ def do_run(args, bbhost=None, out=None, captures=True, say=print):
     checks = check_areas(areas, paths["app0"])
     plan = {"schema": SCHEMA + "-plan", "areas": [a.as_dict() for a in areas], "area_checks": checks,
             "options": {k: v for k, v in opts.items() if k not in ("seed_files", "probe")}, "paths": paths,
-            "bbhost_sha256": world_baseline.digest(Path(opts["bbhost"])), "passes": plans}
+            "heliasdream_sha256": world_baseline.digest(Path(opts["heliasdream"])), "passes": plans}
     (out / "plan.json").write_text(json.dumps(plan, indent=2, default=str) + "\n")
     bad = [c for c in checks if c["problems"]]
     for c in checks:
@@ -1540,7 +1540,7 @@ def do_run(args, bbhost=None, out=None, captures=True, say=print):
     if bad:
         raise ValueError("places with problems: " + "; ".join("%s: %s" % (c["id"], ", ".join(c["problems"])) for c in bad))
     report = {"schema": SCHEMA, "version": 1, "dir": str(out), "run": {
-        "bbhost": opts["bbhost"], "bbhost_sha256": plan["bbhost_sha256"], "numa_node": opts["numa_node"], "fps": opts["fps"],
+        "heliasdream": opts["heliasdream"], "heliasdream_sha256": plan["heliasdream_sha256"], "numa_node": opts["numa_node"], "fps": opts["fps"],
         "pipeline_cache": opts["pipeline_cache"], "started_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         "platform": platform.platform(), "load_before": os.getloadavg() if hasattr(os, "getloadavg") else None,
         "settle_s": opts["settle"], "measure_s": opts["measure"], "size": [opts["width"], opts["height"]]}, "passes": {}}
@@ -1633,7 +1633,7 @@ def do_ab(args):
         for arm, binary, dirs in (("a", args.a, a_dirs), ("b", args.b, b_dirs)):
             d = out / ("%s%d" % (arm, r))
             print("=== %s round %d: %s" % (arm.upper(), r, binary), flush=True)
-            rc = do_run(args, bbhost=binary, out=d, captures=(r == 1), say=lambda m: print(m, flush=True))
+            rc = do_run(args, heliasdream=binary, out=d, captures=(r == 1), say=lambda m: print(m, flush=True))
             status |= rc
             dirs.append(d)
         if args.dry_run:
@@ -1671,15 +1671,15 @@ def add_run_options(p):
     p.add_argument("--capture-window", type=float, default=DEFAULTS["capture_window"], help="seconds the captures may take at a place")
     p.add_argument("--quiet", type=float, default=QUIET_RADIUS, help="metres around the view whose enemies are switched off; 0: none")
     p.add_argument("--start", type=float, default=DEFAULTS["start"], help="seconds in the world before the first travel")
-    p.add_argument("--fps", type=int, default=DEFAULTS["fps"], choices=(30, 60, 90), help="the game's frame rate (BBHOST_GAME_FPS)")
+    p.add_argument("--fps", type=int, default=DEFAULTS["fps"], choices=(30, 60, 90), help="the game's frame rate (HELIAS_GAME_FPS)")
     p.add_argument("--pipeline-cache", choices=("seed", "off"), default="seed",
                    help="seed: the seed's shader caches and stage manifest, as a player's after an update (default); "
-                        "off: BBHOST_PIPELINE_CACHE=0, every shader compiled when first met")
+                        "off: HELIAS_PIPELINE_CACHE=0, every shader compiled when first met")
     p.add_argument("--numa-node", default="auto", help="pin the game to this NUMA node (numactl); auto: node 0 when numactl exists; none")
     p.add_argument("--p2p-port", type=int, default=9446, help="the run's own P2P port (never the one a player's game uses)")
     p.add_argument("--width", type=int, default=1920)
     p.add_argument("--height", type=int, default=1080)
-    p.add_argument("--env", action="append", default=[], metavar="BBHOST_NAME=VALUE", help="another setting for the game (repeatable)")
+    p.add_argument("--env", action="append", default=[], metavar="HELIAS_NAME=VALUE", help="another setting for the game (repeatable)")
     p.add_argument("--keep-data", action="store_true", help="keep each pass's copy of the seed")
     p.add_argument("--keep-captures", action="store_true", help="keep captures whose lift was shown identical (~50 MB each)")
     p.add_argument("--dry-run", action="store_true", help="check and prepare everything, start nothing")
@@ -1689,11 +1689,11 @@ def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = ap.add_subparsers(dest="cmd", required=True)
     p = sub.add_parser("run", help="one build")
-    p.add_argument("--bbhost", required=True, help="the build's bbhost (gcnlift and drawreplay beside it)")
+    p.add_argument("--heliasdream", required=True, help="the build's heliasdream (gcnlift and drawreplay beside it)")
     add_run_options(p)
     p = sub.add_parser("ab", help="two builds, alternately, then compared")
-    p.add_argument("--a", required=True, help="build A's bbhost")
-    p.add_argument("--b", required=True, help="build B's bbhost")
+    p.add_argument("--a", required=True, help="build A's heliasdream")
+    p.add_argument("--b", required=True, help="build B's heliasdream")
     p.add_argument("--rounds", type=int, default=2, help="runs of each build (2+: a noise floor)")
     add_run_options(p)
     p = sub.add_parser("compare", help="compare finished runs")

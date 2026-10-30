@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Symbolize the watchdog's thread dumps in a bbhost log (src/host/sampler.cpp).
+"""Symbolize the watchdog's thread dumps in a heliasdream log (src/host/sampler.cpp).
 
-    tools/hang_stacks.py build/bbhost-run.log [--exe build/bbhost] [--all]
+    tools/hang_stacks.py build/heliasdream-run.log [--exe build/heliasdream] [--all]
 
 A stalled run logs "watchdog: no flip for N s ... threads" and a line per
-thread: guest frames as Binary Ninja addresses (g...), ours as bbhost+offset,
+thread: guest frames as Binary Ninja addresses (g...), ours as heliasdream+offset,
 a library's as module!export+offset. This names our frames with addr2line
 against the binary that ran (--exe; a Deck or Windows run's own copy, not a
 newer build) and folds threads whose stacks are the same into one line with a
@@ -19,7 +19,7 @@ import subprocess
 
 ap = argparse.ArgumentParser()
 ap.add_argument('log')
-ap.add_argument('--exe', default='build/bbhost', help='the binary that wrote the log')
+ap.add_argument('--exe', default='build/heliasdream', help='the binary that wrote the log')
 ap.add_argument('--all', action='store_true', help='one line per thread, no folding')
 a = ap.parse_args()
 
@@ -35,7 +35,7 @@ for line in open(a.log, errors='replace'):
     if cur is None:
         continue
     # "  TID NAME: frames" - a name may hold colons of its own (GXWorker:1).
-    m = re.match(r'^\[bbhost\]\s{3}(\d+) (.*)$', line)
+    m = re.match(r'^\[heliasdream\]\s{3}(\d+) (.*)$', line)
     if not m or ': ' not in m[2]:
         cur = None
         continue
@@ -58,7 +58,7 @@ def strip_params(fn):
 
 
 ours = sorted({int(f.split('+0x')[1], 16) for _, threads in dumps for _, _, frames in threads
-               for f in frames if f.startswith('bbhost+0x')})
+               for f in frames if f.startswith('heliasdream+0x')})
 names = {}
 if ours:
     # Return addresses: the call is the byte before.
@@ -67,11 +67,11 @@ if ours:
     for i, x in enumerate(ours):
         fn = out[2 * i] if 2 * i < len(out) else '??'
         fn = strip_params(fn)
-        names[x] = fn if fn != '??' else 'bbhost+%x' % x
+        names[x] = fn if fn != '??' else 'heliasdream+%x' % x
 
 
 def show(f):
-    if f.startswith('bbhost+0x'):
+    if f.startswith('heliasdream+0x'):
         return names.get(int(f.split('+0x')[1], 16), f)
     if f.startswith('libc.so.6+') or f.startswith('libpthread'):
         return None  # the futex and syscall frames under a named wait

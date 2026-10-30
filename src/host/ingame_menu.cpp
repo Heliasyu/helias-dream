@@ -1,6 +1,6 @@
 #include "host/ingame_menu.h"
 
-#if defined(BBHOST_HAVE_SDL3)
+#if defined(HELIAS_HAVE_SDL3)
 #include "host/gpu.h"
 #include "host/plugin_ui.h"
 #include "host/settings.h"

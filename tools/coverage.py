@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Summarise a bbhost run log: unbound imports hit, flips, exit reason.
+"""Summarise a heliasdream run log: unbound imports hit, flips, exit reason.
 
-usage: tools/coverage.py build/bbhost-run.log
+usage: tools/coverage.py build/heliasdream-run.log
 """
 import collections
 import re
@@ -40,4 +40,4 @@ def main(path):
 
 
 if __name__ == "__main__":
-    sys.exit(main(sys.argv[1] if len(sys.argv) > 1 else "build/bbhost-run.log"))
+    sys.exit(main(sys.argv[1] if len(sys.argv) > 1 else "build/heliasdream-run.log"))

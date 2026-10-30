@@ -1,5 +1,5 @@
 // Profiling kit: the PGO-instrumented build's profile writer (host/pgo_dump.h).
-// Only compiled with -DBBHOST_PGO_GENERATE=ON.
+// Only compiled with -DHELIAS_PGO_GENERATE=ON.
 
 #include "host/pgo_dump.h"
 
@@ -50,17 +50,17 @@ void write_now(const char* why) {
 
 void pgo_dump_start() {
     if (g_started.exchange(true)) return;
-    const char* d = std::getenv("BBHOST_PGO_DIR");
+    const char* d = std::getenv("HELIAS_PGO_DIR");
     std::string dir = d && *d ? d : "pgo";
     std::error_code ec;
     std::filesystem::create_directories(dir, ec);
     const std::filesystem::path abs = std::filesystem::absolute(dir, ec);
     if (!ec) dir = abs.string();
     const long pid = static_cast<long>(::getpid());
-    g_final_path = dir + "/bbhost-" + std::to_string(pid) + ".profraw";
+    g_final_path = dir + "/heliasdream-" + std::to_string(pid) + ".profraw";
     g_tmp_path = g_final_path + ".tmp";
     __llvm_profile_set_filename(g_final_path.c_str());
-    const char* p = std::getenv("BBHOST_PGO_DUMP_S");
+    const char* p = std::getenv("HELIAS_PGO_DUMP_S");
     const int period_s = p ? std::max(5, std::atoi(p)) : 30;
     host_log("pgo: PGO-instrumented build (not for play: the CPU side runs slower); profile every %d s and at exit -> %s", period_s,
              g_final_path.c_str());

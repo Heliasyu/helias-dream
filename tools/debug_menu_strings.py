@@ -15,7 +15,7 @@ check fails on a row whose address does not hold the string its hash names,
 whose English drops, adds or reorders a printf conversion (%s, %d, %.1f...),
 or uses a character the debug font does not have. The eboot is the 1.09
 one, decrypted (default: eboot-109-decrypted.bin in the checkout; the
-BBHOST_EBOOT environment variable also names it).
+HELIAS_EBOOT environment variable also names it).
 
 The strings are the UTF-16 ones with Japanese in them that the game's code
 loads with a lea or that a relocated pointer in its data names.
@@ -260,11 +260,11 @@ def in_font(ch):
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split('\n')[0])
     ap.add_argument('mode', choices=('list', 'missing', 'check'))
-    ap.add_argument('--eboot', default=os.environ.get('BBHOST_EBOOT', os.path.join(ROOT, 'eboot-109-decrypted.bin')))
+    ap.add_argument('--eboot', default=os.environ.get('HELIAS_EBOOT', os.path.join(ROOT, 'eboot-109-decrypted.bin')))
     ap.add_argument('--tsv', default=os.path.join(ROOT, 'plugins', 'debug_menu', 'strings_en.tsv'))
     a = ap.parse_args()
     if not os.path.exists(a.eboot):
-        print('no eboot at %s (--eboot or BBHOST_EBOOT)' % a.eboot)
+        print('no eboot at %s (--eboot or HELIAS_EBOOT)' % a.eboot)
         if a.mode != 'check':
             return 1
         # A row for a kept string is wrong whatever the eboot, so a check

@@ -163,7 +163,7 @@ int g_forced_count = 0;
 
 void yebis_poll() {
     static const bool parsed = [] {
-        const char* e = std::getenv("BBHOST_YEBIS_SET");
+        const char* e = std::getenv("HELIAS_YEBIS_SET");
         while (e && *e && g_forced_count < 16) {
             char* end = nullptr;
             const unsigned long off = std::strtoul(e, &end, 0);
@@ -187,11 +187,11 @@ void yebis_poll() {
     if (!yebis_settings() || !g_forced_count) {
         return;
     }
-    // BBHOST_YEBIS_AT_FLIP=N holds off until then, so one run can dump a frame
+    // HELIAS_YEBIS_AT_FLIP=N holds off until then, so one run can dump a frame
     // before and after the change - the same scene either side, which a pair
     // of runs cannot give.
     static const std::uint64_t at_flip = [] {
-        const char* e = std::getenv("BBHOST_YEBIS_AT_FLIP");
+        const char* e = std::getenv("HELIAS_YEBIS_AT_FLIP");
         return e ? std::strtoull(e, nullptr, 0) : 0ull;
     }();
     if (at_flip && hle_video_flip_count() < at_flip) {

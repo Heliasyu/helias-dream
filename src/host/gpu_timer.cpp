@@ -1,4 +1,4 @@
-// bbhost-vk's per-pass GPU timer (host/gpu_timer.h).
+// heliasdream-vk's per-pass GPU timer (host/gpu_timer.h).
 #include "host/gpu_timer.h"
 
 #include "log.h"

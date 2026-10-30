@@ -2,7 +2,7 @@
 // code (tests/decomp/eboot_kit.h): sub_2cce7b0 and sub_2cceec0 run in the loaded
 // eboot on the same random strips as ours, every byte of the vertices
 // compared, under the console's floating-point mode. Skips without the 1.09
-// eboot (BBHOST_EBOOT, or eboot-109-decrypted.bin in the checkout).
+// eboot (HELIAS_EBOOT, or eboot-109-decrypted.bin in the checkout).
 #include "decomp/sfx/ribbons.cpp"
 
 #include "eboot_kit.h"

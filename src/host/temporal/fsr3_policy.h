@@ -1,9 +1,9 @@
 #pragma once
 
-// bbhost-vk Phase 3: the rules of the FSR 3.1 pass (host/fsr3_pass.cpp), as
+// heliasdream-vk Phase 3: the rules of the FSR 3.1 pass (host/fsr3_pass.cpp), as
 // plain data with no Vulkan, so tests/fsr3_policy_test.cpp takes them as
 // they are: when a context fits, when the history resets, what sharpening
-// the setting asks for, and how bbhost's conventions (host/upscaler_inputs.h)
+// the setting asks for, and how heliasdream's conventions (host/upscaler_inputs.h)
 // map to FSR's.
 
 #include <cstdint>
@@ -129,12 +129,12 @@ inline Fsr3Sharpen fsr3_sharpen(float setting) {
     return {s > 0.0f, s};
 }
 
-// bbhost's jitter is the viewport shift of the scene's draws in render
+// heliasdream's jitter is the viewport shift of the scene's draws in render
 // pixels, +x right, +y down (host/upscaler_inputs.h): the picture's content
 // moved by (+x, +y). FSR's jitterOffset is the same quantity - the offset its
 // samples add to the projection, 2x/w and -2y/h in D3D clip space, which
 // moves content right and down in texture space. So it is passed as it is;
-// `sign_x` / `sign_y` (BBHOST_FSR_JITTER_SIGN for a test session) flip it
+// `sign_x` / `sign_y` (HELIAS_FSR_JITTER_SIGN for a test session) flip it
 // should a hardware test show the picture wobbling in step with the jitter.
 // Motion vectors are render pixels, current to previous, +y down - FSR's
 // own convention once scaled by motionVectorScale / renderSize: the scale is 1.

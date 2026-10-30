@@ -56,12 +56,12 @@ void summon_invite_install(ElfImage* image) {
     // the bare ConnectionArea - and sends it over its P2P socket once the
     // signaling connection to the guest is active (4.4). An item of ours
     // first would set the guest entry's sessionData and make the game's own
-    // arrive as "already have" (reply 2). BBHOST_SUMMON_INVITE=1 keeps the
+    // arrive as "already have" (reply 2). HELIAS_SUMMON_INVITE=1 keeps the
     // old delivery for experiments.
     g_enabled = false;
-    if (const char* e = std::getenv("BBHOST_SUMMON_INVITE"); e && e[0] == '1') {
+    if (const char* e = std::getenv("HELIAS_SUMMON_INVITE"); e && e[0] == '1') {
         g_enabled = true;
-        host_log("summon invite: our own type-1 delivery on (BBHOST_SUMMON_INVITE=1)");
+        host_log("summon invite: our own type-1 delivery on (HELIAS_SUMMON_INVITE=1)");
     }
     g_slide = image->mem.slide;
     g_size = image->mem.size;

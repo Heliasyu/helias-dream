@@ -22,7 +22,7 @@ static int g_failures = 0;
 
 static void test_json_round_trip() {
     json::Value root = json::Value::make_object();
-    root.set("schema", "bbhost-draw-capture");
+    root.set("schema", "heliasdream-draw-capture");
     root.set("version", 1);
     root.set("address", json::hex(0x1438ad910ull));
     root.set("text", "quote \" backslash \\ newline \n tab \t");

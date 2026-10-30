@@ -330,9 +330,9 @@ double sysv_va_fp(SysvVaList* ap) {
     return from_stack<double>(ap);
 }
 
-// BBHOST_PRINTF_LOG=1: every guest printf-family call, format and result.
+// HELIAS_PRINTF_LOG=1: every guest printf-family call, format and result.
 const bool g_printf_log = [] {
-    const char* e = std::getenv("BBHOST_PRINTF_LOG");
+    const char* e = std::getenv("HELIAS_PRINTF_LOG");
     return e && e[0] == '1';
 }();
 

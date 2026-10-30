@@ -48,12 +48,12 @@ std::atomic<std::uint64_t> g_changes{0};
 std::atomic<std::uint64_t> g_arms{0}, g_faults{0}, g_releases{0}, g_forgets{0}, g_refused{0}, g_ahead_pages{0};
 
 const bool g_enabled = [] {
-    const char* e = std::getenv("BBHOST_WRITE_WATCH");
+    const char* e = std::getenv("HELIAS_WRITE_WATCH");
     return !e || e[0] != '0';
 }();
-// BBHOST_WATCH_AHEAD=0: a write fault releases its own page only.
+// HELIAS_WATCH_AHEAD=0: a write fault releases its own page only.
 const bool g_ahead_on = [] {
-    const char* e = std::getenv("BBHOST_WATCH_AHEAD");
+    const char* e = std::getenv("HELIAS_WATCH_AHEAD");
     return !e || e[0] != '0';
 }();
 constexpr std::uint64_t kAheadPages = 16;  // 64 KiB: what a fault may release past its own page
@@ -388,7 +388,7 @@ int write_watch_recent_faults(std::uint64_t va, std::size_t len, std::uint64_t* 
 
 #if defined(_WIN32)
 namespace {
-// bbhost.exe's own addresses, which are not the game's: the census takes the
+// heliasdream.exe's own addresses, which are not the game's: the census takes the
 // first guest address of a frame for the writer, and on Linux the host's
 // addresses lie above the guest's range anyway.
 std::uint64_t g_host_lo = 0, g_host_hi = 0;

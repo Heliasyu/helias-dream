@@ -1,5 +1,5 @@
 """tools/lift_verify.py with stand-ins for gcnlift and drawreplay: a captured
-translation is replayed against the lift, a captured lift (BBHOST_DECOMP)
+translation is replayed against the lift, a captured lift (HELIAS_DECOMP)
 against the translation - never against itself."""
 
 import json

@@ -1,6 +1,6 @@
-# bbhost-vk: development plan (revision 2, 2026-10-21)
+# heliasdream-vk: development plan (revision 2, 2026-10-21)
 
-**bbhost-vk** is a GPLv3 fork of droogie's bbhost (v0.2.18 + the 120 fps patch) with temporal FSR 3.1 and FSR 4.1.1, a sharp native-resolution UI, and a better launcher, for an RX 9070 XT + Ryzen 9 5950X at 4K.
+**heliasdream-vk** is a GPLv3 fork of droogie's Helia's Dream (v0.2.18 + the 120 fps patch) with temporal FSR 3.1 and FSR 4.1.1, a sharp native-resolution UI, and a better launcher, for an RX 9070 XT + Ryzen 9 5950X at 4K.
 
 **End goal:** 1920x1080 render → 3840x2160 output with FSR 4.1.1 Performance, a **locked 120 fps** on the 165 Hz VRR monitor, including the heavy areas (Old Yharnam smoke, Forbidden Woods, Yahar'gul). Quality or Balanced at 120 is a stretch goal, not a requirement.
 
@@ -14,10 +14,10 @@ This revision replaces the 2026-10-18 plan. What changed and why:
 ---
 
 ## Hard rule: online play (paramount)
-Online play must work exactly as in upstream bbhost. bbhost uses thehuntersdream.com (partnered with bbhost), and bbhost-vk uses the same servers, the same auth server, the same account/sign-in flow (Discord, recovery code, website code) and the same networking code, unchanged.
-- No phase may modify `src/net/`, the HLE network/HTTP/NP code, the account flow, or the server defaults (`online.host`, `auth_server`, STUN), except by merging upstream bbhost changes.
-- The client keeps upstream's user agent format (`bbhost/<version>`); bbhost-vk versions keep the upstream base version first (e.g. `v0.2.18-vk.N`) so any server-side version handling sees the same bbhost release.
-- When upstream bbhost updates its online code or server requirements, bbhost-vk merges that before anything else.
+Online play must work exactly as in upstream heliasdream. Helia's Dream uses thehuntersdream.com (partnered with Helia's Dream), and heliasdream-vk uses the same servers, the same auth server, the same account/sign-in flow (Discord, recovery code, website code) and the same networking code, unchanged.
+- No phase may modify `src/net/`, the HLE network/HTTP/NP code, the account flow, or the server defaults (`online.host`, `auth_server`, STUN), except by merging upstream Helia's Dream changes.
+- The client keeps upstream's user agent format (`heliasdream/<version>`); heliasdream-vk versions keep the upstream base version first (e.g. `v0.2.18-vk.N`) so any server-side version handling sees the same Helia's Dream release.
+- When upstream Helia's Dream updates its online code or server requirements, heliasdream-vk merges that before anything else.
 - Every test session checks sign-in and an online action (messages/bloodstains visible, summon sign or bell) before the session passes.
 - All rendering, upscaling, launcher and extras work is client-side only.
 
@@ -67,8 +67,8 @@ Rules that apply to every phase:
 
 ## R: Release hygiene (1-2 days)
 1. ~~Merge `phase-5-test-release` into `main`~~ (done 2026-10-21, `15564b9`; the stacked phase PRs #1-#6 are merged or closed). Publish the `v0.2.18-vk.1` tag (`3ef28ff`) as a GitHub Release with its package and a SHA256SUMS, so the in-game updater has something to find. rc7 is newer than that tag; it ships as `vk.2` from Phase 6, not under the `vk.1` name.
-2. **Fix the 5120x2160 display-buffer bug.** Reproduce it by starting the game at the size in `bbhost.toml` (`width = 1920`, `height = 1080`, fullscreen on the 4K monitor, which uses 150% scaling) and then switching to 3840x2160. Find where the display buffers get 5120 wide; the suspect is the logical width of both monitors combined (2560 + 2560). Make the fullscreen start size follow `bbhost-options.toml`'s `resolution`, not the old `[window]` width and height.
-3. **Make the frame cap come from one place.** `bbhost.toml` has `fps_cap = 30` and `bbhost-options.toml` has `frame_cap = "90"`. Log which one wins, and have the launcher write only one of them.
+2. **Fix the 5120x2160 display-buffer bug.** Reproduce it by starting the game at the size in `heliasdream.toml` (`width = 1920`, `height = 1080`, fullscreen on the 4K monitor, which uses 150% scaling) and then switching to 3840x2160. Find where the display buffers get 5120 wide; the suspect is the logical width of both monitors combined (2560 + 2560). Make the fullscreen start size follow `heliasdream-options.toml`'s `resolution`, not the old `[window]` width and height.
+3. **Make the frame cap come from one place.** `heliasdream.toml` has `fps_cap = 30` and `heliasdream-options.toml` has `frame_cap = "90"`. Log which one wins, and have the launcher write only one of them.
 4. Bring the README's "`main` is the playable build" in line with reality. Keep `upstream-sync` (droogie is still at v0.2.18; nothing to merge yet).
 - **Done when:** a fresh start at 4K Performance logs `scene-split: ... split` (not refused), the updater finds `vk.1`, and `main` = the published build.
 - **User test (5 min):** start, check the log line, open F10 > Upscaling, quit.
@@ -91,12 +91,12 @@ Phase 5 ends at the **first** of these:
 - **Record the result here.** It decides the order of the steps below.
 
 ### Step 5.1: Cheap GPU tests (2-3 days, no new code, environment switches only)
-1. **Lazy pass barriers on RDNA4** (`BBHOST_PASS_BARRIERS=lazy`).
+1. **Lazy pass barriers on RDNA4** (`HELIAS_PASS_BARRIERS=lazy`).
    - **Today:** every render-pass end (~37 a frame) inserts a full ALL_GRAPHICS → ALL_COMMANDS memory barrier (`render.cpp` `record_pass_barrier`). The lazy mode was turned off only because of corruption on a Steam Deck with compressed targets, and was never tested on RDNA4.
    - **Test:** A/B it.
-   - **If you see white blocks:** retry with `BBHOST_RT_DCC=0` as well. If it's clean and faster, turn it on by default for RDNA4 only.
+   - **If you see white blocks:** retry with `HELIAS_RT_DCC=0` as well. If it's clean and faster, turn it on by default for RDNA4 only.
 2. **Glare pass `8747a367+d92266b9`:** 186-286 µs per draw for 2-71 µs of work, which means the GPU is waiting, not shading. Find which barrier or layout change between its draws causes it, with an RGP capture (`bbtest profile`).
-3. **FSR 4.1.1's 29 dispatches** each end with a compute→compute barrier, including the small `*_post` border clears. Leave out the barriers between passes that don't depend on each other (from the replay's resource names), then check the output is unchanged against the current one with `BBHOST_FSR_DUMP`.
+3. **FSR 4.1.1's 29 dispatches** each end with a compute→compute barrier, including the small `*_post` border clears. Leave out the barriers between passes that don't depend on each other (from the replay's resource names), then check the output is unchanged against the current one with `HELIAS_FSR_DUMP`.
 
 ### Step 5.2: A draw-path replay harness (4-6 days)
 The prerequisite for touching `bb-cp0` safely; the rc6/rc7 DEVLOG already calls for it.
@@ -143,9 +143,9 @@ Build the mockups in `docs/vk/mock/` in ImGui, in the existing `launcher.cpp`, a
 ## Phase 6: Polish and release `v0.2.18-vk.2` (3-5 days)
 - **FSR 4.1.1 check (Phase 4's open item):** compare the replay's output with the DLL's on the same captured inputs (tools/fsr4cap already records the D3D12 frames) for a few frames, and record the largest difference per channel. "Close enough to be invisible" is acceptable if it's measured and written down.
 - **Edge cases:** debug camera, cutscenes, loading screens, alt-tab, resolution changes in game (KNOWN_ISSUES' Settings-menu bug, fixed on the branch but not yet confirmed in game), summons and invasions, Chalice Dungeons.
-- **Upscaler off** behaves exactly like stock bbhost.
+- **Upscaler off** behaves exactly like stock heliasdream.
 - **Docs:** README, CHANGELOG, KNOWN_ISSUES, release notes; DEVLOG trimmed to decisions and measurements.
-- **Package:** a patch set that can be reapplied to a new bbhost release, and the Release on GitHub.
+- **Package:** a patch set that can be reapplied to a new Helia's Dream release, and the Release on GitHub.
 - **Done when:** a normal one-hour session (online, a summon, a Chalice Dungeon, alt-tab, a resolution change) has no crash or visual bug.
 - **User test:** play normally with `bbtest start p6` running; F11 or `bbtest mark` at anything odd.
 
@@ -161,7 +161,7 @@ All reuse the Phase 1-2 inputs, so each is mostly an adapter behind the upscaler
 - **Testing:** the 9070 XT covers INT8 and XeSS; DLSS and the Deck need community testers.
 
 ## Phase 8: Windows (after 7)
-- **Scope:** upstream bbhost already builds for Windows (`tools/ci_windows.sh`, `.github/workflows/release.yml`). The work is making bbhost-vk's additions build and run there: the upscalers, the FSR 4.1.1 builder (the capture needs vkd3d-proton on Linux; on Windows it may run the DLL's D3D12 passes natively), the launcher, and a Windows equivalent of `bbtest`.
+- **Scope:** upstream Helia's Dream already builds for Windows (`tools/ci_windows.sh`, `.github/workflows/release.yml`). The work is making heliasdream-vk's additions build and run there: the upscalers, the FSR 4.1.1 builder (the capture needs vkd3d-proton on Linux; on Windows it may run the DLL's D3D12 passes natively), the launcher, and a Windows equivalent of `bbtest`.
 - **CI:** a Windows build in CI and a Windows test pass.
 - **Done when:** the Windows build matches Linux in features, image quality and performance.
 
@@ -175,7 +175,7 @@ None of these touch rendering or online play; each can slot in any time after Ph
    - audio-driven haptics: gunshots, parries, impacts, footsteps and rain routed as waveforms (the "HD haptics" feel). Needs USB on Linux; Bluetooth may not be possible;
    - adaptive triggers: resistance for the pistol, charged attacks and similar, through SDL3.
 2. **DualSense lightbar:** follows HP from pale blue `#a9bfe3` to blood red `#8e1b2a`, with flashes on Insight gained and visceral/parry hits. USB and Bluetooth.
-3. **Discord Rich Presence:** "Playing Bloodborne (bbhost-vk)", area or boss, playtime, online/offline, through Discord's local IPC. Nothing is sent to bbhost's servers.
+3. **Discord Rich Presence:** "Playing Bloodborne (heliasdream-vk)", area or boss, playtime, online/offline, through Discord's local IPC. Nothing is sent to heliasdream's servers.
 4. **Trophies:** an in-game unlock popup, a Trophies page in the launcher (earned/missing, dates, platinum progress) and platinum awarding. Upstream already records unlocks in `/data/trophies.txt`. Names and icons need a user-provided trophy key, with names only otherwise.
 5. **ReShade compatibility:**
    - (a) document the vkBasalt / native ReShade layer route as it works today;
@@ -189,7 +189,7 @@ All are off by default and are ignored for other controllers or when Discord isn
 ---
 
 ## Testing: how it actually works
-- **Sessions:** the user runs `bbtest start <phase>` (it logs the bbhost log, MangoHud CSV, screenshots, optional recording) and `bbtest stop` bundles the session in `~/.local/share/bbtest/sessions/`. The user hands the bundle over; it is analysed afterwards. Nothing is watched live.
+- **Sessions:** the user runs `bbtest start <phase>` (it logs the Helia's Dream log, MangoHud CSV, screenshots, optional recording) and `bbtest stop` bundles the session in `~/.local/share/bbtest/sessions/`. The user hands the bundle over; it is analysed afterwards. Nothing is watched live.
 - **F11 snapshots:** F11 in the game (or `bbtest snap`) saves the last 30 s: frame times, GPU time per pass, CPU per thread, compiles, settings and the log tail. **These are the main performance evidence.** Take them *during* a drop, not after. `bbtest snap --show` prints their summaries.
 - **Other tools:** `bbtest profile` adds an RGP capture of the next frame per F11 and shader statistics.
 - **Per phase:** one session per phase, plus short re-runs of just what failed. A phase closes only when its test passes.
@@ -199,12 +199,12 @@ All are off by default and are ignored for other controllers or when Discord isn
 - **The `bb-cp0` split** is the most invasive change since Phase 1. Draw order and resource lifetimes must stay exact; that's why the replay harness comes first.
 - **Lazy barriers / DCC:** a missed read shows as corruption (white blocks). It needs a long visual test, not just a frame-time A/B.
 - **FSR 4.1.1 assets** must be built from the user's own DLL and are never shared. A newer DLL may need fsr4cap changes.
-- **Upstream updates:** each new bbhost release needs the patch set reapplied; online-code changes are merged first.
+- **Upstream updates:** each new Helia's Dream release needs the patch set reapplied; online-code changes are merged first.
 - **DLSS/XeSS licensing:** checked before any code; the fallback is user-provided runtimes.
-- **Windows:** the risk is only in bbhost-vk's own Linux-only parts.
+- **Windows:** the risk is only in heliasdream-vk's own Linux-only parts.
 - **Online play:** unaffected (hard rule above).
 
 ## Repo housekeeping
-- **History:** keeps droogie's full history; the `upstream` remote points at `droogie/bbhost`; `upstream-sync` takes new bbhost releases first.
+- **History:** keeps droogie's full history; the `upstream` remote points at `droogie/bbhost`; `upstream-sync` takes new Helia's Dream releases first.
 - **Versions:** `<upstream version>-vk.<n>`, a tag and a GitHub Release per playable build.
 - **`.gitignore`:** keeps out game dumps, saves, built FSR 4.1.1 assets, logs and account files such as recovery codes.

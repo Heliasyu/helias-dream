@@ -1,20 +1,20 @@
-# Running bbhost
+# Running Helia's Dream
 
 ## What you need
 
-bbhost contains no game data. You bring:
+Helia's Dream contains no game data. You bring:
 
 1. **The game files**: a dump of Bloodborne with the 1.09 update's files copied
    over it - the folder that contains `dvdroot_ps4`. Its
    `sce_sys/param.sfo` says `APP_VER 01.09`. The update can also stay in a
    folder of its own beside the game's, named after it with `-UPDATE` (or
    `-patch`) appended - `CUSA00900` and `CUSA00900-UPDATE`, the way shadPS4
-   keeps a game library. bbhost then reads every file the update has from
+   keeps a game library. Helia's Dream then reads every file the update has from
    there and the rest from the game folder, as the console applies an update;
    the log names the folder (`FS update=`).
 2. **The 1.09 eboot**, decrypted to an ELF. Its SHA-256 must be
    `941f887a562aae054fac35af8cc8f27cf075f3d4cc2e029fb5ae2a663aaa5ae7`. Every
-   patch, hook and engine layout in bbhost is an address in that build, so any
+   patch, hook and engine layout in Helia's Dream is an address in that build, so any
    other eboot stops at start with its hash and the version its dump reports.
    A dump without the update carries the 1.00 eboot, which will not do. When
    `paths.eboot` is not set, the game's own `eboot.bin` is used if it is
@@ -30,23 +30,26 @@ And a PC with:
 
 ## First run
 
-Started without a configuration, bbhost opens its setup window: pick the game
-folder and the eboot (both are checked as you go), choose the online server
-and account if you want to play online, and press Play. The window writes the
-per-user `bbhost.toml` and starts the game. `bbhost --setup` opens it again.
+Start the launcher, `HeliasDream.exe` on Windows or `./HeliasDream` on Linux. On its
+**Setup** page, pick the game folder and the eboot (both are checked as you go), set the
+display and graphics options, link your account on the **Online** page if you want to
+play online, and press **Play**. The launcher writes the per-user `HeliasDream.toml`
+and starts the engine.
 
-Without a display (a headless run) bbhost writes a template config instead and
-tells you which paths to fill in.
+The engine can also be started on its own (`HeliasDream-engine.exe`, `run-engine.bat`
+or `./run-heliasdream.sh`). Without a configuration it opens its own setup window, and
+`--setup` opens that again. Without a display (a headless run) it writes a template
+config instead and tells you which paths to fill in.
 
 ## Configuration
 
-`bbhost.example.toml` lists every setting with its default. The configuration
+`heliasdream.example.toml` lists every setting with its default. The configuration
 is read in layers, each overriding only the keys it sets:
 
-1. the per-user `bbhost.toml`: `%APPDATA%\bbhost` on Windows,
-   `$XDG_CONFIG_HOME/bbhost` or `~/.config/bbhost` on Linux
-   (`BBHOST_CONFIG_DIR` replaces the folder);
-2. `bbhost.toml` in the working directory, or next to the executable;
+1. the per-user `HeliasDream.toml`: `%APPDATA%\HeliasDream` on Windows,
+   `$XDG_CONFIG_HOME/heliasdream` or `~/.config/HeliasDream` on Linux
+   (`HELIAS_CONFIG_DIR` replaces the folder);
+2. `HeliasDream.toml` in the working directory, or next to the executable;
 3. `--config <file>`;
 4. the command line: `--app0 <dir>`, `--data <dir>`, `--eboot <file>`, or the
    eboot as the last argument.
@@ -56,24 +59,24 @@ relative path is taken from the folder of the file it is in.
 
 The in-game settings (F10, or the PC Settings, PC Graphics and Key Bindings
 entries the game's own System menu gains) are saved beside the per-user config
-in `bbhost-options.toml`.
+in `HeliasDream-options.toml`.
 
 ## Saves
 
 Saves are in `<data>/saves/SPRJ0005`, where `<data>` defaults to
-`%LOCALAPPDATA%\bbhost\data` or `~/.local/share/bbhost/data`. Each time the
+`%LOCALAPPDATA%\Helia's Dream\data` or `~/.local/share/HeliasDream/data`. Each time the
 game writes a save (at most every five minutes) a copy goes to
 `<data>/save-backups/`, and the newest eight are kept. To restore one, quit and
 copy its files over `<data>/saves/SPRJ0005`.
 
-The shader caches in `<data>/bbhost` (`translation-cache.bin`,
+The shader caches in `<data>/heliasdream` (`translation-cache.bin`,
 `vulkan-pipeline-cache.bin`) belong to the shader translator that made them,
 which `shader-cache-build.txt` names. An update that leaves the translator
 alone keeps them, so it starts as fast as the build before it; one that
 changed the translator throws both away (`gpu: shader caches made by
 translator ..., this is translator ...: cleared`) and builds them again while
 the title and the loading screens are up, from `stage-manifest.bin`, the list
-of the game's shaders, which is kept. `BBHOST_KEEP_SHADER_CACHE=1` keeps them
+of the game's shaders, which is kept. `HELIAS_KEEP_SHADER_CACHE=1` keeps them
 anyway. The files are safe to delete: the next start builds them again.
 
 ## Controls
@@ -84,7 +87,7 @@ in the menus, and every action can be rebound (F10 or the game's Key Bindings
 menu) - to a key, any of five mouse buttons, or the wheel turned up or down
 (each notch a press). Hold Left Alt with the movement keys to walk, and two
 opposite keys held together cancel, both as in Dark Souls III. F9 opens the
-plugin menu and F10 bbhost's own settings.
+plugin menu and F10 heliasdream's own settings.
 
 The mouse turns the camera the way Dark Souls III's PC version does: by an
 angle for each count the mouse reports, 0.25 degrees at the default
@@ -117,8 +120,8 @@ name box starts from `[player] name`, which the first key typed replaces;
 
 ## Logs
 
-bbhost logs to standard error. The packages' `run-bbhost.bat` (Windows) and
-`run-bbhost.sh` (Linux) write each session's log to `logs/`. A bug report is
+Helia's Dream logs to standard error. The packages' `run-heliasdream.bat` (Windows) and
+`run-heliasdream.sh` (Linux) write each session's log to `logs/`. A bug report is
 most useful with that log attached.
 
 ## Troubleshooting
@@ -133,36 +136,36 @@ most useful with that log attached.
 log's `change appearance: off - not the 1.09 m21_00_00_00 layout` says the
 same. Copy the update's files over the game folder again, replacing the ones
 there, or keep the update in a `-UPDATE` folder beside it (above). Until The
-Old Hunters' own files are there, bbhost leaves the game as the edition
+Old Hunters' own files are there, Helia's Dream leaves the game as the edition
 without it: its title screen would otherwise be a flat green picture.
 
 **The graphics card stops responding.** When the GPU hangs and the system
-resets it, nothing can be drawn again in that session; bbhost stops the sound,
+resets it, nothing can be drawn again in that session; Helia's Dream stops the sound,
 says so in a box and exits. The next three starts run with the GPU's progress
 markers enabled, so the log of a second hang names the draw that hung - send
 that log. Overlays that hook Vulkan are a common cause: OBS's game capture is
 kept out automatically on AMD cards (`[video] obs_capture` changes that), and
-OBS's Window Capture records bbhost without any hook.
+OBS's Window Capture records Helia's Dream without any hook.
 
 **Wrong picture.** Wrong colours, a green or black screen, missing parts:
-press F12 in the game while it shows. bbhost writes that frame, every render
+press F12 in the game while it shows. Helia's Dream writes that frame, every render
 target the last draws wrote and the draw list into a folder of its own beside
 the logs, `logs/f12-<date>-<time>/` (`build/` when there is no `logs/`
-folder, `BBHOST_CAPTURE_DIR` to choose), and the log names the folder. Zip it
+folder, `HELIAS_CAPTURE_DIR` to choose), and the log names the folder. Zip it
 and send it with the log; `tools/f12_check.py <folder> <log>` checks it for
 the rendering bugs found so far. The images are PPM, which costs nothing to
-write; `BBHOST_F12_PNG=1` writes PNG instead, which any image viewer opens, a
+write; `HELIAS_F12_PNG=1` writes PNG instead, which any image viewer opens, a
 fifth of the size on disk, written over a few seconds in the background.
-`BBHOST_F12_TEXTURES=1` adds every texture the frame sampled, and the game
+`HELIAS_F12_TEXTURES=1` adds every texture the frame sampled, and the game
 pauses while it writes them.
 
 **Black or broken image in the world.** On cards with little video memory,
-check the log for `video memory is full`. bbhost sizes its own buffers to the
+check the log for `video memory is full`. Helia's Dream sizes its own buffers to the
 card's budget and falls back to system memory rather than failing, but other
 programs holding video memory reduce what is left.
 
 **AMD on Linux, no picture.** AMD's kernel driver only imports anonymous
-memory, so bbhost passes the game's memory to the GPU through `/dev/udmabuf`.
+memory, so Helia's Dream passes the game's memory to the GPU through `/dev/udmabuf`.
 If that device is not accessible to your user, the log says so; this udev rule
 fixes it:
 
@@ -180,7 +183,7 @@ uncapped in a window against 161 in fullscreen, and at 60 fps the GPU 55% busy
 against 37%. The log's `occlusion:` line, every 300 flips, then says `0 dumps`
 or `left not ready (N queries unavailable)`.
 
-**Steam Deck.** Start bbhost from Steam (as a non-Steam game), in Game Mode or
+**Steam Deck.** Start Helia's Dream from Steam (as a non-Steam game), in Game Mode or
 Desktop Mode; otherwise Steam's desktop controls send keys alongside the pad
 and every press acts twice. `tools/steamdeck/STEAMDECK.md` has the setup.
 
@@ -188,7 +191,7 @@ and every press acts twice. `tools/steamdeck/STEAMDECK.md` has the setup.
 
 The picture keeps its aspect ratio, with ultrawide resolutions (21:9, 32:9)
 available in the settings. The resolution can be changed while playing.
-bbhost paces the game to the refresh rate of the display its window is on;
+Helia's Dream paces the game to the refresh rate of the display its window is on;
 `[video] vblank_hz` overrides a display that reports the wrong rate.
 
 The frame rate is the game's own speed, chosen when it starts (a change
@@ -202,9 +205,9 @@ say), with 120's values for
 what cannot follow the frame time. At 90, 120 and Uncapped the game paces
 itself and its frames are shown as they come, so 90 on a 60 Hz display shows
 60 of them a second.
-`BBHOST_GAME_FPS=30|60|90|120|0` overrides the setting for a run (0 is uncapped),
-`BBHOST_UNCAPPED_FPS=N` sets the uncapped limit (30-240) whatever V-Sync says,
-and `BBHOST_UNCAPPED_LOG=1` logs once a second the frame time uncapped steps
+`HELIAS_GAME_FPS=30|60|90|120|0` overrides the setting for a run (0 is uncapped),
+`HELIAS_UNCAPPED_FPS=N` sets the uncapped limit (30-240) whatever V-Sync says,
+and `HELIAS_UNCAPPED_LOG=1` logs once a second the frame time uncapped steps
 by and the values it wrote. The start of the log says which rate runs and how
 many values and code sites were converted (`frame rate:` lines), and names
 any site whose bytes were not the expected ones (that rate is then refused:
@@ -212,16 +215,16 @@ any site whose bytes were not the expected ones (that rate is then refused:
 A frame goes to the screen as soon as the game has finished it; only its flip,
 which the game paces itself on, waits for the next tick of that clock. The game
 keeps two flips queued, and showing each frame at the tick that completed it
-held every frame two refreshes behind (`BBHOST_PRESENT_ON_ARRIVAL=0` brings that
+held every frame two refreshes behind (`HELIAS_PRESENT_ON_ARRIVAL=0` brings that
 back, to compare). Every 300 flips the log's `pacing:` line says how late the
 clock's ticks woke and how long flips took from queued to shown and to
 completed.
 
 ## Online
 
-bbhost implements the PlayStation Network calls the game makes against a
+Helia's Dream implements the PlayStation Network calls the game makes against a
 private server, so co-op, invasions, messages and bloodstains work between
-bbhost players. The setup window picks the server and links an account; see
+Helia's Dream players. The setup window picks the server and links an account; see
 [online.md](online.md).
 
 ## The debug menu

@@ -1,17 +1,17 @@
 #pragma once
 
-// bbhost-vk test3: the FSR stage dump - one frame's upscaler inputs, its
+// heliasdream-vk test3: the FSR stage dump - one frame's upscaler inputs, its
 // output and the scale pass's target before and after, written as PNGs with
 // a text file of their sizes and numbers, so a hardware run shows each
 // stage of the picture.
 //
-// Off unless BBHOST_FSR_DUMP=1 (or bbhost.toml [debug] fsr_dump = true).
+// Off unless HELIAS_FSR_DUMP=1 (or HeliasDream.toml [debug] fsr_dump = true).
 // Then a frame is dumped:
 //   - when a file `fsr-dump.request` appears in the capture folder,
 //   - at every `bbtest mark` (its capture.request; with bbtest --capture
-//     the presented frame is captured too), Shift+F12 with BBHOST_VK_CAPTURE=1,
-//   - once by itself at the 600th upscaled frame (BBHOST_FSR_DUMP_AUTO=0: not).
-// The folder: BBHOST_VK_CAPTURE_DIR, else logs/captures (captures/ without a
+//     the presented frame is captured too), Shift+F12 with HELIAS_VK_CAPTURE=1,
+//   - once by itself at the 600th upscaled frame (HELIAS_FSR_DUMP_AUTO=0: not).
+// The folder: HELIAS_VK_CAPTURE_DIR, else logs/captures (captures/ without a
 // logs folder), one fsr-<date>-<time>-flip<n>/ per dump. A dump waits for the
 // GPU once (a hitch of some tens of ms); the files are written on a thread
 // of their own.
@@ -46,5 +46,5 @@ void fsr_dump_finish_locked(std::uint64_t flip);
 }  // namespace gpu
 
 // Any thread: the next upscaled frame is dumped (frame_capture's request,
-// Shift+F12 / capture.request with BBHOST_VK_CAPTURE=1). Nothing when off.
+// Shift+F12 / capture.request with HELIAS_VK_CAPTURE=1). Nothing when off.
 void host_fsr_dump_request(const char* why);

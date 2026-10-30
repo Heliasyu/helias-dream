@@ -1,6 +1,6 @@
 // Pixel shaders at wave32 (gcn/wave.h): which programs may run in a 32-lane
 // subgroup, and the spill cells that make SGPR spills exact at any width.
-// Hand-encoded programs, then - when the dump is there (BBHOST_APP0) - every
+// Hand-encoded programs, then - when the dump is there (HELIAS_APP0) - every
 // pixel shader of the game: each must run at wave32 with cells, and every
 // constant-lane v_readlane_b32 must read a cell.
 #include "test_app0.h"

@@ -1,9 +1,9 @@
-// The plugin SDK (include/bbhost) as one translation unit: every engine
+// The plugin SDK (include/heliasdream) as one translation unit: every engine
 // layout's static_asserts, the generated param rows', and a few run-time
 // checks of the symbol table plugins resolve names through.
-#include "bbhost/engine/engine.hpp"
-#include "bbhost/params.hpp"
-#include "bbhost/sdk.hpp"
+#include "heliasdream/engine/engine.hpp"
+#include "heliasdream/params.hpp"
+#include "heliasdream/sdk.hpp"
 
 #include <cstdio>
 #include <cstring>

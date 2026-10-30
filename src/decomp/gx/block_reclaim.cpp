@@ -53,10 +53,10 @@ constexpr std::uint64_t kFromAllocator = 0x2aade27, kFromAllocator2 = 0x2ad0d97;
 // How long the command processor may take to walk what it has been given.
 constexpr auto kCpBudget = std::chrono::milliseconds(100);
 
-// BBHOST_GX_RECLAIM_WAIT=0: count the empty pools and do the game's walk
+// HELIAS_GX_RECLAIM_WAIT=0: count the empty pools and do the game's walk
 // only, as before (a measurement's baseline).
 const bool g_wait = [] {
-    const char* e = std::getenv("BBHOST_GX_RECLAIM_WAIT");
+    const char* e = std::getenv("HELIAS_GX_RECLAIM_WAIT");
     return !(e && e[0] == '0');
 }();
 
@@ -130,7 +130,7 @@ void report() {
              "once the GPU caught up, %llu once the command processor and the GPU had, %llu still not (the allocation failed); "
              "%llu ms waited in all, the longest %llu ms",
              static_cast<ull>(g_calls.load()), static_cast<ull>(g_stuck.load()),
-             g_wait ? "" : " (BBHOST_GX_RECLAIM_WAIT=0: each an allocation that failed)", static_cast<ull>(g_freed_by_gpu.load()),
+             g_wait ? "" : " (HELIAS_GX_RECLAIM_WAIT=0: each an allocation that failed)", static_cast<ull>(g_freed_by_gpu.load()),
              static_cast<ull>(g_freed_by_cp.load()), static_cast<ull>(g_still.load()), static_cast<ull>(g_waited_us.load() / 1000),
              static_cast<ull>(g_longest_us.load() / 1000));
 }

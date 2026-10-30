@@ -54,7 +54,7 @@ const char* op_name(Op op);
 
 struct Header {
     Op kind;
-    std::uint16_t site;   // 0, or an index into the census table (BBHOST_CMD_CENSUS)
+    std::uint16_t site;   // 0, or an index into the census table (HELIAS_CMD_CENSUS)
     std::uint32_t bytes;  // the whole record, this header included; a multiple of 8
 };
 static_assert(sizeof(Header) == 8, "a record's header is one word");

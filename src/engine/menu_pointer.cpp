@@ -150,7 +150,7 @@ constexpr std::size_t kGetBounds = 0x1f0;
 
 std::uint64_t g_slide = 0;
 bool g_log = false;
-// BBHOST_POINTER=0: the hook stays in and still reports focus (the camera
+// HELIAS_POINTER=0: the hook stays in and still reports focus (the camera
 // needs it) but never moves a cursor - for telling the game's own behaviour
 // from the pointer's.
 bool g_passive = false;
@@ -755,7 +755,7 @@ GUEST_ABI void pc_list_update(std::uint8_t* comp, std::uint8_t* input) {
     // A cursor the game's update moved (the pad or a key, not the pointer,
     // which moved it above): a light tap (host/haptics.h).
     if (cursor_of(comp) != before) haptics_menu_tick(0);
-    // BBHOST_POINTER_LOG=1: a cursor the game's own update moved (the pad,
+    // HELIAS_POINTER_LOG=1: a cursor the game's own update moved (the pad,
     // the wheel's Down, a key), so a scripted run can count rows per press.
     if (g_log) {
         const int after = cursor_of(comp);
@@ -772,11 +772,11 @@ GUEST_ABI void pc_list_update(std::uint8_t* comp, std::uint8_t* input) {
 void menu_pointer_install(ElfImage* image) {
     g_slide = image->mem.slide;
     g_log = [] {
-        const char* e = std::getenv("BBHOST_POINTER_LOG");
+        const char* e = std::getenv("HELIAS_POINTER_LOG");
         return e && e[0] == '1';
     }();
     g_passive = [] {
-        const char* e = std::getenv("BBHOST_POINTER");
+        const char* e = std::getenv("HELIAS_POINTER");
         return e && e[0] == '0';
     }();
     const std::uint64_t slot = guest(kListVTable) + kListUpdateSlot * 8;

@@ -10,27 +10,27 @@ GCN machine code. A PC has neither a GCN command processor nor a way to run
 GCN shaders directly.
 
 An emulator would answer this at the lowest level: decode every packet,
-keep the GPU's registers, and reconstruct each draw from them. bbhost started
+keep the GPU's registers, and reconstruct each draw from them. Helia's Dream started
 there and is moving up a level, to where the engine's intent is still visible.
 Dark Souls III on PC, built on the same engine, puts Direct3D 11 under the
-same GX layer; bbhost does the equivalent with Vulkan.
+same GX layer; Helia's Dream does the equivalent with Vulkan.
 
 ## How a frame is drawn today
 
-**GX hooks.** bbhost hooks GX's draw, dispatch, resource-creation and state
-methods. When the game draws, bbhost records the draw's inputs from the
+**GX hooks.** Helia's Dream hooks GX's draw, dispatch, resource-creation and state
+methods. When the game draws, Helia's Dream records the draw's inputs from the
 engine's own objects - its shaders, vertex layout, state descriptions,
 textures and constant buffers - and leaves a small token in the command
 buffer. When the command processor reaches the token, the draw is built from
 those inputs. No packet is decoded and no register file is consulted for a
 draw.
 
-**The command processor.** bbhost still walks the game's command buffers, for
+**The command processor.** Helia's Dream still walks the game's command buffers, for
 what has not moved to tokens: compute dispatches, labels and fences the game
 waits on, and some clears and copies recognised from their packets. Compute
 dispatches go through an emulated register file, by decision for now: they
 are tightly interleaved with the constant engine's memory traffic, and most
-of them are fills and copies that never run a shader, which bbhost recognises
+of them are fills and copies that never run a shader, which Helia's Dream recognises
 and performs directly.
 
 **Recording.** The command processor leaves the Vulkan calls to a thread of
@@ -39,7 +39,7 @@ commands - barriers, fills, copies and the like - into the same ordered
 stream as typed records (`src/host/recorder.cpp`, `src/host/stream_ops.h`).
 `bb-record` replays the stream into command buffers, begins and ends each one
 and hands it to the thread that submits, while the command processor goes on
-to the next draw. With `BBHOST_STREAM_SUBMIT=0` the command processor begins,
+to the next draw. With `HELIAS_STREAM_SUBMIT=0` the command processor begins,
 ends and submits the command buffers itself, to compare.
 
 **Shaders.** GCN shaders are converted to SPIR-V when the game creates them
@@ -64,7 +64,7 @@ in use.
 
 **Textures and memory.** The game's memory is shared with the GPU, as on the
 PS4: its GPU-visible parts (about 5 GB) are imported into Vulkan, because
-shaders that cannot be fully resolved read memory through a page table. Textures are detiled on the GPU, and bbhost notices when the game
+shaders that cannot be fully resolved read memory through a page table. Textures are detiled on the GPU, and Helia's Dream notices when the game
 rewrites one by write-protecting its pages. Render targets are Vulkan images
 sized from the engine's own views, and can be re-created at any resolution
 while the game runs, the way the PC engine's GX device resizes.
@@ -73,10 +73,10 @@ while the game runs, the way the PC engine's GX device resizes.
 path at all:
 
 - YEBIS, the post-processing library (bloom, glare, depth of field, tone
-  mapping): every stage's resources and constants are built by bbhost.
+  mapping): every stage's resources and constants are built by heliasdream.
 - Scaleform, the menu renderer: its draws are taken from its hardware
   abstraction layer.
-- Depth snapshots, the on-screen overlay and FSR 1 upscaling are bbhost's
+- Depth snapshots, the on-screen overlay and FSR 1 upscaling are heliasdream's
   own.
 
 ## Native or emulated
@@ -111,9 +111,9 @@ path at all:
 |---|---|
 | `gcn2spv` | translates and validates every shader in the game's bundles |
 | `gcndis` | disassembles GCN programs |
-| F12 in game | dumps the frame, every render target and the draw list into a folder of its own (`tools/f12_check.py` reads it; `BBHOST_F12_PNG=1` for PNG) |
-| `BBHOST_CAPTURE_DRAW` + `drawreplay` | captures one draw with its inputs and replays it outside the game |
+| F12 in game | dumps the frame, every render target and the draw list into a folder of its own (`tools/f12_check.py` reads it; `HELIAS_F12_PNG=1` for PNG) |
+| `HELIAS_CAPTURE_DRAW` + `drawreplay` | captures one draw with its inputs and replays it outside the game |
 | `tools/area_check.py` | ten places in the game measured the same way every time - frame times, GPU time, draws by how their pixel shader ran, compiles, frames and lift checks - and two builds compared against their own noise ([area-check.md](area-check.md)) |
-| `BBHOST_VK_VALIDATE=1` | runs with the Vulkan validation layer |
-| `BBHOST_GPU_PROFILE=1` | per-pass GPU timings |
-| `bbhost --stream-selftest[=N]` | checks the command stream headless against a CPU model, N rounds (16 by default), and exits with 0 when it matched; run it with `BBHOST_VK_VALIDATE=1` too |
+| `HELIAS_VK_VALIDATE=1` | runs with the Vulkan validation layer |
+| `HELIAS_GPU_PROFILE=1` | per-pass GPU timings |
+| `heliasdream --stream-selftest[=N]` | checks the command stream headless against a CPU model, N rounds (16 by default), and exits with 0 when it matched; run it with `HELIAS_VK_VALIDATE=1` too |

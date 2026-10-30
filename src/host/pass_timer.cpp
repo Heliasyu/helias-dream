@@ -1,4 +1,4 @@
-// bbhost-vk Phase 5: the renderer passes' GPU time (host/pass_timer.h).
+// heliasdream-vk Phase 5: the renderer passes' GPU time (host/pass_timer.h).
 #include "host/pass_timer.h"
 
 #include "host/gpu_internal.h"
@@ -29,7 +29,7 @@ std::uint32_t g_next = 0;
 double g_sum[kPasses] = {}, g_log_sum[kPasses] = {};
 int g_n[kPasses] = {}, g_log_n[kPasses] = {};
 std::chrono::steady_clock::time_point g_shown_at{}, g_logged_at{};
-std::atomic<bool> g_fsr4{false};
+std::atomic<const char*> g_upscaler_name{"FSR 3.1"};  // a string literal
 
 std::mutex g_text_mu;
 std::string g_text;  // under g_text_mu: the overlay's line
@@ -62,7 +62,7 @@ std::string line(const double* sum, const int* n, const char* sep) {
     char buf[48];
     for (int p = 0; p < kPasses; ++p) {
         if (!n[p]) continue;
-        const char* name = p == static_cast<int>(TimedPass::Upscale) ? (g_fsr4.load() ? "FSR 4.1.1" : "FSR 3.1") : kNames[p];
+        const char* name = p == static_cast<int>(TimedPass::Upscale) ? g_upscaler_name.load() : kNames[p];
         std::snprintf(buf, sizeof(buf), "%s%s %.2f", out.empty() ? "" : sep, name, sum[p] / n[p]);
         out += buf;
     }
@@ -154,7 +154,7 @@ void pass_timer_collect_locked() {
     }
 }
 
-void pass_timer_upscaler_is_fsr4(bool fsr4) { g_fsr4.store(fsr4); }
+void pass_timer_upscaler_name(const char* name) { g_upscaler_name.store(name); }
 
 }  // namespace gpu
 

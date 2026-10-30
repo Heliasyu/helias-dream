@@ -86,3 +86,14 @@ Phase 4: built on the player's own PC from their own copy).
     FidelityFX API headers (MIT, licence at the top of each file).
   Nothing of AMD's 4.1.1 DLL or the assets built from it is in the repository
   or the package.
+
+## The launcher (launcher/HeliasDream)
+
+- **Avalonia** (MIT), the UI framework: https://github.com/AvaloniaUI/Avalonia
+- **Cormorant Garamond** and **Manrope** (SIL Open Font License 1.1), bundled in
+  `launcher/HeliasDream/Assets/Fonts/` with their licenses.
+- **The trophy table** (`Core/Trophies.cs`: ids, names, descriptions, grades) follows Lantern
+  Engine's launcher (https://github.com/Awakenchan/LanternEngine, GPL-2.0-or-later), built on
+  pyL1nx/bloodborne_pc's trophy research. Its idea of reading the trophy pictures and the key
+  art from the player's own dump at run time comes from there too. Nothing of the game is
+  shipped.

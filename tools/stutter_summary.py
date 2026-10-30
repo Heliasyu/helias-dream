@@ -6,7 +6,7 @@
 Per log:
   frames       frames over 33 ms (the per-second lines), the worst, mean fps
   main loop    long frames (> 33 ms: `main loop:` lines), their time and how
-               much of it the main loop waited, and - with BBHOST_HLE_COUNT=1 -
+               much of it the main loop waited, and - with HELIAS_HLE_COUNT=1 -
                that wait by the call site it waited at (the innermost caller,
                Binary Ninja addresses): 0x2599365 the render thread at frame
                end, 0x2157d38 the parallel copy of a streamed resource (gone
@@ -15,7 +15,7 @@ Per log:
                pipeline creation on the command processor), texture work,
                lock waits, the command processor busy with draws, or idle
                (the main loop or the game was the slow one)
-  settle       with BBHOST_GX_RATE=1: seconds from each warp until GX
+  settle       with HELIAS_GX_RATE=1: seconds from each warp until GX
                resources stop being made (20 or more a second) - how long
                what a warp brings in takes to arrive
 """
@@ -35,7 +35,7 @@ def summary(path):
     seg = window(lines)
     secs, longs, stalls = [], [], []
     for l in seg:
-        if l.startswith('[bbhost] frames:'):
+        if l.startswith('[heliasdream] frames:'):
             m = re.search(r'\(([0-9.]+)/s\).*max ([0-9.]+) ms, \d+ over 16.7, (\d+) over 33.3', l)
             if m:
                 secs.append((float(m.group(1)), float(m.group(2)), int(m.group(3))))
@@ -43,7 +43,7 @@ def summary(path):
             m = re.search(r'a ([0-9.]+) ms frame before flip (\d+), ([0-9.]+) ms of it waiting(.*)', l)
             if m:
                 longs.append((float(m.group(1)), float(m.group(3)), m.group(4)))
-        elif l.startswith('[bbhost] stall:'):
+        elif l.startswith('[heliasdream] stall:'):
             d = {k: int(v) for k, v in re.findall(r'(\w[\w-]*)=(\d+)', l)}
             d['gap'] = int(re.search(r'came (\d+) ms', l).group(1))
             for key, pat in (('hash', r'texture hashes \d+ in (\d+) ms'), ('pl', r'pipeline ms: translate (\d+), modules (\d+), create (\d+)'),

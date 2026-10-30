@@ -1,23 +1,23 @@
 # Plugins
 
-A plugin is a shared library (`.so` on Linux, `.dll` on Windows) that bbhost
-loads at start. Because the game runs natively inside bbhost's process, a
+A plugin is a shared library (`.so` on Linux, `.dll` on Windows) that Helia's Dream
+loads at start. Because the game runs natively inside heliasdream's process, a
 plugin can read and write game objects directly, hook game functions, call
-them, and use the services bbhost builds on top of the engine (params, event
+them, and use the services Helia's Dream builds on top of the engine (params, event
 flags, the player, warps, characters, settings, file overlays).
 
-Like the rest of bbhost, the plugin API (`include/bbhost_plugin.h`,
-`include/bbhost/`) is licensed under the GNU GPL, version 3 or later. A
+Like the rest of Helia's Dream, the plugin API (`include/heliasdream_plugin.h`,
+`include/heliasdream/`) is licensed under the GNU GPL, version 3 or later. A
 plugin built against it is a derivative work: if you distribute one, it must
 be under a GPL-compatible license, with its source.
 
 ## Where plugins live
 
-bbhost loads every plugin in `<exe dir>/plugins` and `<data>/plugins`. A file
+Helia's Dream loads every plugin in `<exe dir>/plugins` and `<data>/plugins`. A file
 in a later directory replaces one with the same name in an earlier one.
-`BBHOST_PLUGINS=0` loads none.
+`HELIAS_PLUGINS=0` loads none.
 
-Plugins are enabled and disabled by name under `[plugins]` in `bbhost.toml`:
+Plugins are enabled and disabled by name under `[plugins]` in `HeliasDream.toml`:
 
 ```toml
 [plugins]
@@ -31,22 +31,22 @@ settings. In game, F9 opens the plugin menu over the game.
 
 ## A first plugin
 
-`plugins/hello/hello.c` is the example. bbhost's own build produces it as
+`plugins/hello/hello.c` is the example. heliasdream's own build produces it as
 `build/plugins/hello.so` (or `hello.dll`). A plugin needs only the header:
 
 ```sh
 # Linux
-cc -shared -fPIC -I<bbhost>/include -o plugins/mine.so mine.c
+cc -shared -fPIC -I<heliasdream>/include -o plugins/mine.so mine.c
 # Windows, cross-compiled with Clang
-clang --target=x86_64-w64-mingw32 -shared -I<bbhost>/include -o plugins/mine.dll mine.c
+clang --target=x86_64-w64-mingw32 -shared -I<heliasdream>/include -o plugins/mine.dll mine.c
 ```
 
 The smallest useful plugin counts frames:
 
 ```c
-#include "bbhost_plugin.h"
+#include "heliasdream_plugin.h"
 
-static const BbHostApi* g_api;
+static const HeliasApi* g_api;
 static unsigned g_frames;
 
 static void on_frame(void* user) {
@@ -57,7 +57,7 @@ static void on_frame(void* user) {
 BB_PLUGIN_EXPORT const BbPluginInfo bb_plugin_info = {
     BB_PLUGIN_API_VERSION, 0, "mine", "My plugin", "1.0.0", "me", "Counts frames."};
 
-BB_PLUGIN_EXPORT int bb_plugin_image(const BbHostApi* api) {
+BB_PLUGIN_EXPORT int bb_plugin_image(const HeliasApi* api) {
     if (api->version < 2) return 1;  /* on_frame arrived in version 2 */
     g_api = api;
     api->on_frame(on_frame, 0);
@@ -71,8 +71,8 @@ BB_PLUGIN_EXPORT int bb_plugin_image(const BbHostApi* api) {
 |---|---|---|
 | `bb_plugin_info` (data, optional) | read before anything else, also by the setup window | name, title, version, flags |
 | `bb_plugin_options` (data, optional) | read without starting the plugin | the settings the menus draw |
-| `int bb_plugin_init(const BbHostApi*)` | before the eboot is loaded | `log`, `config`, `register_hle` |
-| `int bb_plugin_image(const BbHostApi*)` | after the eboot is loaded and bbhost's patches are in | everything else |
+| `int bb_plugin_init(const HeliasApi*)` | before the eboot is loaded | `log`, `config`, `register_hle` |
+| `int bb_plugin_image(const HeliasApi*)` | after the eboot is loaded and heliasdream's patches are in | everything else |
 
 Either entry point may be missing. Returning nonzero unloads the plugin with a
 log line. Everything a plugin logs is prefixed with `plugin:`.
@@ -114,8 +114,8 @@ gives the Binary Ninja address.
   arguments, eight float registers and four stack arguments; returns rax and
   xmm0. Call it from the main thread.
 - `symbol(name)` (v8): the address of a named engine symbol from
-  `bbhost/engine/symbols.hpp`.
-- `register_hle(name, fn)`: replaces bbhost's implementation of a PS4 system
+  `heliasdream/engine/symbols.hpp`.
+- `register_hle(name, fn)`: replaces heliasdream's implementation of a PS4 system
   function by its export name. Only from `bb_plugin_init`. The game calls `fn`
   with the SysV ABI, so it must be declared `BB_GUEST_ABI` (Clang or GCC; not
   possible with MSVC).
@@ -147,7 +147,7 @@ gives the Binary Ninja address.
 
 - `bb_plugin_options` (v9): a table of headings, switches, numbers, choices,
   text fields and action buttons. Values are stored under `[<plugin name>]` in
-  the per-user `bbhost.toml` and read back with `config("<name>.<key>")`.
+  the per-user `HeliasDream.toml` and read back with `config("<name>.<key>")`.
 - `on_option`, `on_action` (v9): callbacks for changes and button presses made
   in the in-game menu.
 - `show_message(text, seconds)` (v8): a banner over the game.
@@ -176,20 +176,20 @@ into another player's modded world.
 
 ## The C++ SDK
 
-C++ plugins can use `include/bbhost/`:
+C++ plugins can use `include/heliasdream/`:
 
 | Header | Contents |
 |---|---|
-| `bbhost/sdk.hpp` | `bb::Plugin`: the API with lambdas (`every_frame`, `on_world_load`, `on_event_flag`), typed params, characters, flags, stats, messages, `gravity()`, `call("SYMBOL", args...)`; `bb::Rng` |
-| `bbhost/params.hpp` | a struct for every param row type and a tag for every table, generated from the game's own paramdefs, with offsets checked by `static_assert` |
-| `bbhost/engine/` | engine layouts and addresses for 1.09: characters, the world, matchmaking and sessions, GX, YEBIS and more |
+| `heliasdream/sdk.hpp` | `bb::Plugin`: the API with lambdas (`every_frame`, `on_world_load`, `on_event_flag`), typed params, characters, flags, stats, messages, `gravity()`, `call("SYMBOL", args...)`; `bb::Rng` |
+| `heliasdream/params.hpp` | a struct for every param row type and a tag for every table, generated from the game's own paramdefs, with offsets checked by `static_assert` |
+| `heliasdream/engine/` | engine layouts and addresses for 1.09: characters, the world, matchmaking and sessions, GX, YEBIS and more |
 
 ```cpp
-#include "bbhost/sdk.hpp"
+#include "heliasdream/sdk.hpp"
 
 static bb::Plugin g;
 
-extern "C" BB_PLUGIN_EXPORT int bb_plugin_image(const BbHostApi* api) {
+extern "C" BB_PLUGIN_EXPORT int bb_plugin_image(const HeliasApi* api) {
     if (!g.attach(api, 8)) return 1;
     g.every_frame([] {
         // The Saw Cleaver weighs nothing.
@@ -216,8 +216,8 @@ extern "C" BB_PLUGIN_EXPORT int bb_plugin_image(const BbHostApi* api) {
 
 ## Official plugins
 
-The plugins in `plugins/` are built with bbhost and shipped in its packages,
-each with a `.sig` file: an Ed25519 signature by the release key. bbhost checks
+The plugins in `plugins/` are built with Helia's Dream and shipped in its packages,
+each with a `.sig` file: an Ed25519 signature by the release key. Helia's Dream checks
 it before loading; a plugin whose signature does not match is refused. The
 setup window can download the latest signed plugins from the newest release.
 

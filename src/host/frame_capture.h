@@ -1,21 +1,21 @@
 #pragma once
 
-// bbhost-vk's presented-frame capture (docs/vk/PLAN.md, Phase 0 debug
+// heliasdream-vk's presented-frame capture (docs/vk/PLAN.md, Phase 0 debug
 // tooling): the swapchain image exactly as it goes to the display - after the
 // upscale, with whatever overlay is up - written as a PNG, for side-by-side
 // comparisons of upscalers and settings. (F12's capture is the game's display
 // buffer at the render size, before any upscale, plus every render target;
 // host_gpu_request_dump.)
 //
-// Off unless BBHOST_VK_CAPTURE=1: then the swapchain images also take
+// Off unless HELIAS_VK_CAPTURE=1: then the swapchain images also take
 // transfer reads (the one change to the presenter's resources), and
 //   - Shift+F12 captures the next presented frame,
 //   - a file named capture.request appearing in the capture folder captures
 //     one (bbtest mark / bbtest shot touch it; it is removed when taken),
-//   - BBHOST_VK_CAPTURE_EVERY=<seconds> captures one that often.
-// The folder is BBHOST_VK_CAPTURE_DIR, else logs/captures (or captures/ when
+//   - HELIAS_VK_CAPTURE_EVERY=<seconds> captures one that often.
+// The folder is HELIAS_VK_CAPTURE_DIR, else logs/captures (or captures/ when
 // there is no logs folder). Files: frame-<date>-<time>-<ms>-<upscaler>.png.
-// Without BBHOST_VK_CAPTURE=1 Shift+F12 is F12, as before.
+// Without HELIAS_VK_CAPTURE=1 Shift+F12 is F12, as before.
 
 #include <vulkan/vulkan.h>
 
@@ -23,14 +23,14 @@
 
 namespace frame_capture {
 
-bool enabled();  // BBHOST_VK_CAPTURE=1
+bool enabled();  // HELIAS_VK_CAPTURE=1
 
 // What the swapchain's images need besides their own usage: transfer source
 // when enabled and the surface allows it (`supported`, the surface's
 // supportedUsageFlags). Remembers whether it was granted.
 VkImageUsageFlags swapchain_usage(VkImageUsageFlags supported);
 
-// Asks for the next presented frame. Any thread. With BBHOST_FSR_DUMP=1 it
+// Asks for the next presented frame. Any thread. With HELIAS_FSR_DUMP=1 it
 // also asks for the FSR stage dump (host/fsr_dump.h).
 void request(const char* why);
 

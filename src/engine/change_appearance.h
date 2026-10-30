@@ -6,9 +6,9 @@
 // enabled (engine/dream_mirror_layout.h): standing at it shows "Put on
 // Disguise", the first time "Wear clothing to change appearance.", and opens
 // the game's appearance editor - the character creation's Appearance list,
-// in the world. world.change_appearance (BBHOST_CHANGE_APPEARANCE=0|1, on by
+// in the world. world.change_appearance (HELIAS_CHANGE_APPEARANCE=0|1, on by
 // default) makes the Dream's layout with that character live: the dump's
-// m21_00_00_00.msb.dcx rewritten into <data>/bbhost/world-assets at start,
+// m21_00_00_00.msb.dcx rewritten into <data>/heliasdream/world-assets at start,
 // again only when the generator changes, and served behind the player's own
 // overlay (paths.mods) like the menu assets (engine/menu_assets.h). Off, the
 // directory is not served and the Dream is the game's.

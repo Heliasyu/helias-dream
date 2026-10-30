@@ -2,9 +2,9 @@
 // list's differentials (docs/decomp.md, "How one is checked") - the game's
 // function and ours on the same inputs, compared - and anything else that
 // wants the game's bytes. A test using it skips (exit 77) where there is no
-// eboot: BBHOST_EBOOT, or eboot-109-decrypted.bin in the checkout.
+// eboot: HELIAS_EBOOT, or eboot-109-decrypted.bin in the checkout.
 //
-// load() maps the image the way bbhost does (core/elf.cpp: at 0x400000,
+// load() maps the image the way heliasdream does (core/elf.cpp: at 0x400000,
 // relocated, its TLS reads moved to GS), with every import a trap that
 // names itself if called - but the C library's memory and string functions
 // (memset, memcpy, memmove, memcmp, strlen, strcmp, strncmp, strcpy), which
@@ -66,7 +66,7 @@ void* tcb();
 // cannot set up (a param lookup, a heap search).
 void stub(std::uint64_t bn, const void* host);
 // An import the game's code calls, given a function of the test's (by the
-// name bbhost binds it as, core/plt_names.inc) in place of its trap; false
+// name heliasdream binds it as, core/plt_names.inc) in place of its trap; false
 // when there is none. After load().
 bool bind(const char* name, const void* fn);
 // A Binary Ninja address in the loaded image.

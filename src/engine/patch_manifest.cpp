@@ -243,7 +243,7 @@ bool patch_manifest_off(const std::string& name) {
     const std::string v = config_value("patches." + name);
     if (!v.empty()) return v == "false" || v == "0";
     // The Old Hunters was a PC enhancement in v0.2.9, `old_hunters` under
-    // [world]: a bbhost.toml (a package's, a player's) that turned it off there
+    // [world]: a HeliasDream.toml (a package's, a player's) that turned it off there
     // keeps it off until [patches] says otherwise.
     if (name == "old-hunters") {
         const std::string w = config_value("world.old_hunters");
@@ -273,8 +273,8 @@ std::vector<PatchListing> patch_manifests_list(const std::string& mods) {
 }
 
 void patch_manifests_apply(ElfImage* image) {
-    if (const char* e = std::getenv("BBHOST_PATCHES"); e && e[0] == '0') {
-        host_log("patch: manifests off (BBHOST_PATCHES=0)");
+    if (const char* e = std::getenv("HELIAS_PATCHES"); e && e[0] == '0') {
+        host_log("patch: manifests off (HELIAS_PATCHES=0)");
         return;
     }
     const char* mods = hle_fs_mods_root();
@@ -299,7 +299,7 @@ void patch_manifests_apply(ElfImage* image) {
         }
         if (!m.enabled) continue;
         if (patch_manifest_off(m.name)) {
-            host_log("patch: %s off ([patches] in bbhost.toml: the setup window's Patches tab)", m.name.c_str());
+            host_log("patch: %s off ([patches] in HeliasDream.toml: the setup window's Patches tab)", m.name.c_str());
             continue;
         }
         if (!m.option.empty()) {

@@ -1,4 +1,4 @@
-// bbhost-vk Phase 3: host/fsr3_upscaler.cpp - FSR 3.1.5 through
+// heliasdream-vk Phase 3: host/fsr3_upscaler.cpp - FSR 3.1.5 through
 // FSR-Vulkan - on whatever Vulkan device there is (lavapipe is enough):
 //   - a context is made at every quality preset's render size for a 720p
 //     and a 4K output, and its shared images are what the sizes ask;

@@ -1,4 +1,4 @@
-// sceAvPlayer: movie playback. With ffmpeg (BBHOST_HAVE_FFMPEG) the mp4 is
+// sceAvPlayer: movie playback. With ffmpeg (HELIAS_HAVE_FFMPEG) the mp4 is
 // demuxed and decoded on a host thread; video frames are delivered as NV12
 // in buffers obtained from the game's allocateTexture callback (so they are
 // GPU-visible and become textures through the normal T# path), audio as
@@ -22,7 +22,7 @@
 #include <unordered_map>
 #include <vector>
 
-#if defined(BBHOST_HAVE_FFMPEG)
+#if defined(HELIAS_HAVE_FFMPEG)
 extern "C" {
 #include <libavcodec/avcodec.h>
 #include <libavformat/avformat.h>
@@ -176,12 +176,12 @@ void av_trace(const char* what, std::uintptr_t h) {
 // attract movie opens, whenever a thread is slow to start. So READY waits
 // until a thread made after the source was added has reached its entry: at
 // most a second, for an owner that makes none, and no longer than the player
-// stays open (a close joins this thread). BBHOST_MOVIE_READY_NOW=1
+// stays open (a close joins this thread). HELIAS_MOVIE_READY_NOW=1
 // reports it at once, as before (an A/B switch for the race, which
-// BBHOST_TEST_THREAD_START_MS brings about on demand).
+// HELIAS_TEST_THREAD_START_MS brings about on demand).
 void hold_ready(Player& p) {
     static const bool now = [] {
-        const char* e = std::getenv("BBHOST_MOVIE_READY_NOW");
+        const char* e = std::getenv("HELIAS_MOVIE_READY_NOW");
         return e && e[0] == '1';
     }();
     if (now) return;
@@ -272,7 +272,7 @@ void guest_free(const InitData& init, bool texture, void* mem) {
     hle_call_guest6(fn, reinterpret_cast<std::int64_t>(init.mem_object), reinterpret_cast<std::int64_t>(mem), 0, 0, 0, 0);
 }
 
-#if defined(BBHOST_HAVE_FFMPEG)
+#if defined(HELIAS_HAVE_FFMPEG)
 // Half a second of video, and enough audio that the audio queue never gates the
 // single demux thread: the game only takes audio a few hundred ms ahead of the
 // clock, so a short audio queue blocked decode_thread in push_audio and video
@@ -467,7 +467,7 @@ void release_buffers(Player& p) {
 // let go over the calls and taken again. The player again by its handle, or
 // null when it was closed meanwhile.
 Player* ensure_buffers(std::unique_lock<std::mutex>& lk, std::uintptr_t h, Player* p) {
-#if defined(BBHOST_HAVE_FFMPEG)
+#if defined(HELIAS_HAVE_FFMPEG)
     if (!p->has_media || !p->video_buffers.empty()) return p;
     const InitData init = p->init;
     const int n = init.num_video_buffers > 0 ? init.num_video_buffers : 3;
@@ -507,7 +507,7 @@ Player* ensure_buffers(std::unique_lock<std::mutex>& lk, std::uintptr_t h, Playe
 
 // Under g_mu, the buffers already made (ensure_buffers).
 void begin_playback(Player& p) {
-#if defined(BBHOST_HAVE_FFMPEG)
+#if defined(HELIAS_HAVE_FFMPEG)
     if (!p.has_media) return;
     stop_thread(p);
     p.start_time = std::chrono::steady_clock::now();
@@ -553,18 +553,18 @@ GUEST_ABI int hle_av_add_source(std::uintptr_t h, const char* path) {
         return kErrInvalidHandle;
     }
     p->source = path ? path : "";
-    // BBHOST_NO_MOVIE=1 mirrors shadPS4 (AvPlayer stubbed): accept the source
+    // HELIAS_NO_MOVIE=1 mirrors shadPS4 (AvPlayer stubbed): accept the source
     // but never decode or signal READY, so the game skips the movie and
     // proceeds. Diagnostic for the menu-preload divergence.
     static const bool no_movie = [] {
-        const char* e = std::getenv("BBHOST_NO_MOVIE");
+        const char* e = std::getenv("HELIAS_NO_MOVIE");
         return e && e[0] == '1';
     }();
     if (no_movie) {
-        host_log("HLE fake: sceAvPlayerAddSource %s (BBHOST_NO_MOVIE: movie skipped)", p->source.c_str());
+        host_log("HLE fake: sceAvPlayerAddSource %s (HELIAS_NO_MOVIE: movie skipped)", p->source.c_str());
         return 0;
     }
-#if defined(BBHOST_HAVE_FFMPEG)
+#if defined(HELIAS_HAVE_FFMPEG)
     const std::string host = hle_fs_map_path(p->source.c_str());
     if (!probe_media(*p, host)) {
         host_log("HLE fake: sceAvPlayerAddSource %s (cannot decode; movie skipped)", p->source.c_str());

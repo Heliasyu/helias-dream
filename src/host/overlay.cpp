@@ -4,13 +4,18 @@
 // with the swapchain.
 
 #include "host/overlay.h"
+#include "host/trophies.h"
 #include "host/gpu.h"
 
 #include "host/overlay_font.h"
+#include "host/overlay_ui_font.h"
 #include "host/overlay_spv.h"
 #include "log.h"
 
+#include <algorithm>
 #include <atomic>
+#include <cmath>
+#include <utility>
 #include <cstring>
 #include <mutex>
 #include <vector>
@@ -33,6 +38,7 @@ std::mutex g_mu;
 std::vector<Vertex> g_verts;  // being built by the pump (under g_mu)
 std::vector<Vertex> g_shown;  // what presents draw (under g_mu)
 std::atomic<std::size_t> g_shown_count{0};
+std::vector<OverlayGlass> g_glass, g_glass_shown;  // frosted panes, built and shown with the lists (under g_mu)
 
 // Presenter-owned, created once for the swapchain's format.
 VkDevice g_device = VK_NULL_HANDLE;
@@ -43,6 +49,14 @@ VkImage g_atlas = VK_NULL_HANDLE;
 VkDeviceMemory g_atlas_mem = VK_NULL_HANDLE;
 VkImageView g_atlas_view = VK_NULL_HANDLE;
 VkSampler g_sampler = VK_NULL_HANDLE;
+// Colour pictures (the trophies' icons, host/trophies.h) beside the font
+// atlas: a vertex whose u is 2 or more samples them at (u - 2, v). A 1x1
+// clear texel stands in when there are none.
+VkImage g_pics = VK_NULL_HANDLE;
+VkDeviceMemory g_pics_mem = VK_NULL_HANDLE;
+VkImageView g_pics_view = VK_NULL_HANDLE;
+int g_pics_w = 1, g_pics_h = 1, g_pics_cell = 0, g_pics_cols = 0;  // set before g_pics_ready
+std::atomic<bool> g_pics_ready{false};
 VkDescriptorSetLayout g_dsl = VK_NULL_HANDLE;
 VkDescriptorPool g_dpool = VK_NULL_HANDLE;
 VkDescriptorSet g_dset = VK_NULL_HANDLE;
@@ -60,8 +74,13 @@ constexpr VkDeviceSize kVboBytes = 1024u * 1024u;
 
 // The atlas texel that is fully lit: a plain rectangle points every corner at
 // it, so one pipeline draws rectangles and glyphs alike.
-constexpr float kSolidU = (overlay_font::kSolidX + 0.5f) / overlay_font::kAtlasW;
-constexpr float kSolidV = (overlay_font::kSolidY + 0.5f) / overlay_font::kAtlasH;
+// The texture is overlay_ui_font's atlas: the monospace one (overlay_font) in its
+// top-left corner, the menus' proportional fonts below it.
+constexpr float kAtlasWf = static_cast<float>(overlay_ui_font::kAtlasW);
+constexpr float kAtlasHf = static_cast<float>(overlay_ui_font::kAtlasH);
+constexpr float kSolidU = (overlay_ui_font::kSolidX + 0.5f) / kAtlasWf;
+constexpr float kSolidV = (overlay_ui_font::kSolidY + 0.5f) / kAtlasHf;
+static_assert(overlay_ui_font::kSolidX == overlay_font::kSolidX && overlay_ui_font::kSolidY == overlay_font::kSolidY);
 
 void push(float x, float y, std::uint32_t rgba, float u = kSolidU, float vv = kSolidV) {
     Vertex v;
@@ -98,11 +117,25 @@ VkShaderModule make_module(VkDevice device, const std::uint32_t* words, std::siz
 void host_overlay_reset() {
     std::lock_guard<std::mutex> lk(g_mu);
     g_verts.clear();
+    g_glass.clear();
+}
+
+void host_overlay_glass(float x, float y, float w, float h, float radius, float blur, float brightness) {
+    std::lock_guard<std::mutex> lk(g_mu);
+    if (g_glass.size() < 16) g_glass.push_back({x, y, w, h, radius, blur, brightness});
+}
+
+std::size_t host_overlay_glass_shown(OverlayGlass* out, std::size_t max) {
+    std::lock_guard<std::mutex> lk(g_mu);
+    const std::size_t n = std::min(max, g_glass_shown.size());
+    for (std::size_t i = 0; i < n; ++i) out[i] = g_glass_shown[i];
+    return n;
 }
 
 void host_overlay_commit() {
     std::lock_guard<std::mutex> lk(g_mu);
     g_shown.swap(g_verts);
+    g_glass_shown.swap(g_glass);
     g_shown_count.store(g_shown.size(), std::memory_order_release);
 }
 
@@ -142,32 +175,33 @@ void host_overlay_cursor(float x, float y) {
     host_overlay_tri(x, y, x + edge.dx * s, y + edge.dy * s, x + tail.dx * s, y + tail.dy * s, 0xffffffffu);
 }
 
-// Uploads the font atlas and builds the descriptor that samples it. One-shot
-// command buffer: this runs once, when the swapchain's format is first known.
-bool upload_atlas(VkDevice device, VkPhysicalDevice phys, VkQueue queue, std::uint32_t family) {
+// One sampled image, its pixels uploaded through a one-shot command buffer:
+// this runs when the swapchain's format is first known.
+bool upload_image(VkDevice device, VkPhysicalDevice phys, VkQueue queue, std::uint32_t family, VkFormat format, std::uint32_t w,
+                  std::uint32_t h, const void* pixels, std::size_t bytes, VkImage& image, VkDeviceMemory& memory, VkImageView& view) {
     VkImageCreateInfo ici{VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO};
     ici.imageType = VK_IMAGE_TYPE_2D;
-    ici.format = VK_FORMAT_R8_UNORM;
-    ici.extent = {overlay_font::kAtlasW, overlay_font::kAtlasH, 1};
+    ici.format = format;
+    ici.extent = {w, h, 1};
     ici.mipLevels = 1;
     ici.arrayLayers = 1;
     ici.samples = VK_SAMPLE_COUNT_1_BIT;
     ici.tiling = VK_IMAGE_TILING_OPTIMAL;
     ici.usage = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
     ici.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-    if (vkCreateImage(device, &ici, nullptr, &g_atlas) != VK_SUCCESS) return false;
+    if (vkCreateImage(device, &ici, nullptr, &image) != VK_SUCCESS) return false;
     VkMemoryRequirements ireq{};
-    vkGetImageMemoryRequirements(device, g_atlas, &ireq);
+    vkGetImageMemoryRequirements(device, image, &ireq);
     VkMemoryAllocateInfo imai{VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO};
     imai.allocationSize = ireq.size;
     imai.memoryTypeIndex = memory_type(phys, ireq.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-    if (imai.memoryTypeIndex == UINT32_MAX || vkAllocateMemory(device, &imai, nullptr, &g_atlas_mem) != VK_SUCCESS) return false;
-    vkBindImageMemory(device, g_atlas, g_atlas_mem, 0);
+    if (imai.memoryTypeIndex == UINT32_MAX || vkAllocateMemory(device, &imai, nullptr, &memory) != VK_SUCCESS) return false;
+    vkBindImageMemory(device, image, memory, 0);
 
     VkBuffer staging = VK_NULL_HANDLE;
     VkDeviceMemory staging_mem = VK_NULL_HANDLE;
     VkBufferCreateInfo sbci{VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
-    sbci.size = sizeof(overlay_font::kAtlas);
+    sbci.size = bytes;
     sbci.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
     if (vkCreateBuffer(device, &sbci, nullptr, &staging) != VK_SUCCESS) return false;
     VkMemoryRequirements sreq{};
@@ -180,7 +214,7 @@ bool upload_atlas(VkDevice device, VkPhysicalDevice phys, VkQueue queue, std::ui
     vkBindBufferMemory(device, staging, staging_mem, 0);
     void* map = nullptr;
     if (vkMapMemory(device, staging_mem, 0, sreq.size, 0, &map) != VK_SUCCESS) return false;
-    std::memcpy(map, overlay_font::kAtlas, sizeof(overlay_font::kAtlas));
+    std::memcpy(map, pixels, bytes);
     vkUnmapMemory(device, staging_mem);
 
     VkCommandPoolCreateInfo cpci{VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO};
@@ -200,14 +234,14 @@ bool upload_atlas(VkDevice device, VkPhysicalDevice phys, VkQueue queue, std::ui
     b.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
     b.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
     b.srcQueueFamilyIndex = b.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-    b.image = g_atlas;
+    b.image = image;
     b.subresourceRange = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1};
     b.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
     vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, 0, nullptr, 1, &b);
     VkBufferImageCopy region{};
     region.imageSubresource = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1};
-    region.imageExtent = {overlay_font::kAtlasW, overlay_font::kAtlasH, 1};
-    vkCmdCopyBufferToImage(cmd, staging, g_atlas, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
+    region.imageExtent = {w, h, 1};
+    vkCmdCopyBufferToImage(cmd, staging, image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
     b.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
     b.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
     b.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
@@ -226,17 +260,42 @@ bool upload_atlas(VkDevice device, VkPhysicalDevice phys, VkQueue queue, std::ui
     vkFreeMemory(device, staging_mem, nullptr);
 
     VkImageViewCreateInfo ivci{VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO};
-    ivci.image = g_atlas;
+    ivci.image = image;
     ivci.viewType = VK_IMAGE_VIEW_TYPE_2D;
-    ivci.format = VK_FORMAT_R8_UNORM;
+    ivci.format = format;
     ivci.subresourceRange = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1};
-    if (vkCreateImageView(device, &ivci, nullptr, &g_atlas_view) != VK_SUCCESS) return false;
+    if (vkCreateImageView(device, &ivci, nullptr, &view) != VK_SUCCESS) return false;
+    return true;
+}
+
+// Uploads the font atlas and the pictures, and builds the descriptor that
+// samples them.
+bool upload_atlas(VkDevice device, VkPhysicalDevice phys, VkQueue queue, std::uint32_t family) {
+    if (!upload_image(device, phys, queue, family, VK_FORMAT_R8_UNORM, overlay_ui_font::kAtlasW, overlay_ui_font::kAtlasH,
+                      overlay_ui_font::kAtlas, sizeof(overlay_ui_font::kAtlas), g_atlas, g_atlas_mem, g_atlas_view))
+        return false;
+    const std::uint8_t* pics = nullptr;
+    int pw = 0, ph = 0, cell = 0, cols = 0;
+    static const std::uint8_t kClear[4] = {0, 0, 0, 0};
+    const bool have = trophy_icon_sheet(&pics, &pw, &ph, &cell, &cols);
+    if (!have) {
+        pics = kClear;
+        pw = ph = 1;
+    }
+    if (!upload_image(device, phys, queue, family, VK_FORMAT_R8G8B8A8_UNORM, static_cast<std::uint32_t>(pw), static_cast<std::uint32_t>(ph),
+                      pics, static_cast<std::size_t>(pw) * ph * 4, g_pics, g_pics_mem, g_pics_view))
+        return false;
+    g_pics_w = pw;
+    g_pics_h = ph;
+    g_pics_cell = have ? cell : 0;
+    g_pics_cols = have ? cols : 0;
+    g_pics_ready.store(have, std::memory_order_release);
     VkSamplerCreateInfo sci{VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO};
     sci.magFilter = sci.minFilter = VK_FILTER_LINEAR;
     sci.addressModeU = sci.addressModeV = sci.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
     if (vkCreateSampler(device, &sci, nullptr, &g_sampler) != VK_SUCCESS) return false;
 
-    VkDescriptorPoolSize ps{VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1};
+    VkDescriptorPoolSize ps{VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 2};
     VkDescriptorPoolCreateInfo dpci{VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO};
     dpci.maxSets = 1;
     dpci.poolSizeCount = 1;
@@ -247,13 +306,35 @@ bool upload_atlas(VkDevice device, VkPhysicalDevice phys, VkQueue queue, std::ui
     dsai.descriptorSetCount = 1;
     dsai.pSetLayouts = &g_dsl;
     if (vkAllocateDescriptorSets(device, &dsai, &g_dset) != VK_SUCCESS) return false;
-    VkDescriptorImageInfo dii{g_sampler, g_atlas_view, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL};
-    VkWriteDescriptorSet w{VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
-    w.dstSet = g_dset;
-    w.descriptorCount = 1;
-    w.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    w.pImageInfo = &dii;
-    vkUpdateDescriptorSets(device, 1, &w, 0, nullptr);
+    const VkDescriptorImageInfo dii[2] = {{g_sampler, g_atlas_view, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL},
+                                          {g_sampler, g_pics_view, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL}};
+    VkWriteDescriptorSet w[2]{};
+    for (std::uint32_t i = 0; i < 2; ++i) {
+        w[i] = {VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
+        w[i].dstSet = g_dset;
+        w[i].dstBinding = i;
+        w[i].descriptorCount = 1;
+        w[i].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        w[i].pImageInfo = &dii[i];
+    }
+    vkUpdateDescriptorSets(device, 2, w, 0, nullptr);
+    return true;
+}
+
+bool host_overlay_picture(float x, float y, float w, float h, int index, std::uint32_t rgba) {
+    if (!g_pics_ready.load(std::memory_order_acquire) || index < 0 || g_pics_cols <= 0) return false;
+    const int col = index % g_pics_cols, row = index / g_pics_cols;
+    if ((row + 1) * g_pics_cell > g_pics_h) return false;
+    // Half a texel in from the cell's edge, so filtering never reaches the next icon.
+    const float u0 = 2.0f + (col * g_pics_cell + 0.5f) / g_pics_w, u1 = 2.0f + ((col + 1) * g_pics_cell - 0.5f) / g_pics_w;
+    const float v0 = (row * g_pics_cell + 0.5f) / g_pics_h, v1 = ((row + 1) * g_pics_cell - 0.5f) / g_pics_h;
+    std::lock_guard<std::mutex> lk(g_mu);
+    push(x, y, rgba, u0, v0);
+    push(x + w, y, rgba, u1, v0);
+    push(x, y + h, rgba, u0, v1);
+    push(x + w, y, rgba, u1, v0);
+    push(x + w, y + h, rgba, u1, v1);
+    push(x, y + h, rgba, u0, v1);
     return true;
 }
 
@@ -279,10 +360,10 @@ float host_overlay_text(float x, float y, float scale, std::uint32_t rgba, const
         const unsigned ch_code = static_cast<unsigned char>(*c);
         if (ch_code < overlay_font::kFirst || ch_code > overlay_font::kLast) continue;  // space included, just blank
         const int idx = static_cast<int>(ch_code) - overlay_font::kFirst;
-        const float u0 = static_cast<float>((idx % overlay_font::kCols) * overlay_font::kCellW) / overlay_font::kAtlasW;
-        const float v0 = static_cast<float>((idx / overlay_font::kCols) * overlay_font::kCellH) / overlay_font::kAtlasH;
-        const float u1 = u0 + static_cast<float>(overlay_font::kCellW) / overlay_font::kAtlasW;
-        const float v1 = v0 + static_cast<float>(overlay_font::kCellH) / overlay_font::kAtlasH;
+        const float u0 = static_cast<float>((idx % overlay_font::kCols) * overlay_font::kCellW) / kAtlasWf;
+        const float v0 = static_cast<float>((idx / overlay_font::kCols) * overlay_font::kCellH) / kAtlasHf;
+        const float u1 = u0 + static_cast<float>(overlay_font::kCellW) / kAtlasWf;
+        const float v1 = v0 + static_cast<float>(overlay_font::kCellH) / kAtlasHf;
         const float gx = pen - ox, gy = y - oy;
         push(gx, gy, rgba, u0, v0);
         push(gx + cw, gy, rgba, u1, v0);
@@ -294,20 +375,151 @@ float host_overlay_text(float x, float y, float scale, std::uint32_t rgba, const
     return pen - x;
 }
 
+// ---- Helia's Dream's shapes and fonts (the menus' glass look) ----
+
+namespace {
+
+std::uint32_t lerp_rgba(std::uint32_t a, std::uint32_t b, float t) {
+    t = std::clamp(t, 0.0f, 1.0f);
+    std::uint32_t out = 0;
+    for (int sh = 0; sh < 32; sh += 8) {
+        const float ca = static_cast<float>((a >> sh) & 0xff), cb = static_cast<float>((b >> sh) & 0xff);
+        out |= static_cast<std::uint32_t>(std::lround(ca + (cb - ca) * t)) << sh;
+    }
+    return out;
+}
+
+// The outline of a rounded rectangle, clockwise from the top-left corner's
+// top end: 7 points a corner.
+void round_outline(float x, float y, float w, float h, float r, std::vector<std::pair<float, float>>& pts) {
+    r = std::max(0.0f, std::min(r, std::min(w, h) * 0.5f));
+    constexpr int kSeg = 6;
+    const float cx[4] = {x + r, x + w - r, x + w - r, x + r};
+    const float cy[4] = {y + r, y + r, y + h - r, y + h - r};
+    const float start[4] = {3.14159265f, 4.71238898f, 0.0f, 1.57079633f};
+    pts.clear();
+    for (int c = 0; c < 4; ++c)
+        for (int i = 0; i <= kSeg; ++i) {
+            const float a = start[c] + 1.57079633f * static_cast<float>(i) / kSeg;
+            pts.emplace_back(cx[c] + std::cos(a) * r, cy[c] + std::sin(a) * r);
+        }
+}
+
+// The next code point of UTF-8 text, moving `c` past it; a malformed byte is
+// itself (and has no glyph).
+unsigned next_code(const char*& c) {
+    const auto* p = reinterpret_cast<const unsigned char*>(c);
+    unsigned code = p[0];
+    int more = 0;
+    if (code >= 0xf0 && p[1] && p[2] && p[3]) { code &= 0x07; more = 3; }
+    else if (code >= 0xe0 && p[1] && p[2]) { code &= 0x0f; more = 2; }
+    else if (code >= 0xc0 && p[1]) { code &= 0x1f; more = 1; }
+    for (int i = 1; i <= more; ++i) code = (code << 6) | (p[i] & 0x3f);
+    c += 1 + more;
+    return code;
+}
+
+const overlay_ui_font::Face& face_of(int face) {
+    switch (face) {
+        case kOverlayFontBold: return overlay_ui_font::kBold;
+        case kOverlayFontTitle: return overlay_ui_font::kTitle;
+        default: return overlay_ui_font::kBody;
+    }
+}
+
+}  // namespace
+
+void host_overlay_round_rect(float x, float y, float w, float h, float r, std::uint32_t top, std::uint32_t bottom) {
+    if (w <= 0.0f || h <= 0.0f) return;
+    std::vector<std::pair<float, float>> pts;
+    round_outline(x, y, w, h, r, pts);
+    const auto col = [&](float py) { return lerp_rgba(top, bottom, (py - y) / h); };
+    const float mx = x + w * 0.5f, my = y + h * 0.5f;
+    const std::uint32_t mc = col(my);
+    std::lock_guard<std::mutex> lk(g_mu);
+    for (std::size_t i = 0; i < pts.size(); ++i) {
+        const auto& a = pts[i];
+        const auto& b = pts[(i + 1) % pts.size()];
+        push(mx, my, mc);
+        push(a.first, a.second, col(a.second));
+        push(b.first, b.second, col(b.second));
+    }
+}
+
+void host_overlay_round_frame(float x, float y, float w, float h, float r, float t, std::uint32_t top, std::uint32_t bottom) {
+    if (w <= 2 * t || h <= 2 * t) return;
+    std::vector<std::pair<float, float>> outer, inner;
+    round_outline(x, y, w, h, r, outer);
+    round_outline(x + t, y + t, w - 2 * t, h - 2 * t, std::max(0.0f, r - t), inner);
+    const auto col = [&](float py) { return lerp_rgba(top, bottom, (py - y) / h); };
+    std::lock_guard<std::mutex> lk(g_mu);
+    for (std::size_t i = 0; i < outer.size(); ++i) {
+        const std::size_t j = (i + 1) % outer.size();
+        const auto &o0 = outer[i], &o1 = outer[j], &i0 = inner[i], &i1 = inner[j];
+        push(o0.first, o0.second, col(o0.second));
+        push(o1.first, o1.second, col(o1.second));
+        push(i0.first, i0.second, col(i0.second));
+        push(o1.first, o1.second, col(o1.second));
+        push(i1.first, i1.second, col(i1.second));
+        push(i0.first, i0.second, col(i0.second));
+    }
+}
+
+float host_overlay_ui_text_width(int face, float size, const char* text) {
+    if (!text) return 0.0f;
+    const auto& f = face_of(face);
+    const float scale = size / static_cast<float>(f.size);
+    float w = 0.0f;
+    for (const char* c = text; *c;) {
+        const int i = overlay_ui_font::glyph_index(next_code(c));
+        if (i >= 0) w += f.glyphs[i].advance * scale;
+    }
+    return w;
+}
+
+float host_overlay_ui_text(int face, float x, float y, float size, std::uint32_t rgba, const char* text) {
+    if (!text) return 0.0f;
+    const auto& f = face_of(face);
+    const float scale = size / static_cast<float>(f.size);
+    float pen = x;
+    std::lock_guard<std::mutex> lk(g_mu);
+    for (const char* c = text; *c;) {
+        const int i = overlay_ui_font::glyph_index(next_code(c));
+        if (i < 0) continue;
+        const auto& g = f.glyphs[i];
+        if (g.w && g.h) {
+            const float gx = pen + static_cast<float>(g.ox) * scale, gy = y + static_cast<float>(g.oy) * scale;
+            const float gw = static_cast<float>(g.w) * scale, gh = static_cast<float>(g.h) * scale;
+            const float u0 = static_cast<float>(g.x) / kAtlasWf, v0 = static_cast<float>(g.y) / kAtlasHf;
+            const float u1 = static_cast<float>(g.x + g.w) / kAtlasWf, v1 = static_cast<float>(g.y + g.h) / kAtlasHf;
+            push(gx, gy, rgba, u0, v0);
+            push(gx + gw, gy, rgba, u1, v0);
+            push(gx, gy + gh, rgba, u0, v1);
+            push(gx + gw, gy, rgba, u1, v0);
+            push(gx + gw, gy + gh, rgba, u1, v1);
+            push(gx, gy + gh, rgba, u0, v1);
+        }
+        pen += g.advance * scale;
+    }
+    return pen - x;
+}
+
 bool host_overlay_init(VkDevice device, VkPhysicalDevice phys, VkFormat colour_format, VkQueue queue, std::uint32_t family) {
     if (g_pipeline != VK_NULL_HANDLE && g_format == colour_format && g_device == device) return true;
     host_overlay_shutdown(g_device ? g_device : device);
     g_device = device;
     g_format = colour_format;
 
-    VkDescriptorSetLayoutBinding dslb{};
-    dslb.binding = 0;
-    dslb.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    dslb.descriptorCount = 1;
-    dslb.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+    VkDescriptorSetLayoutBinding dslb[2]{};
+    for (std::uint32_t i = 0; i < 2; ++i) {  // the font atlas, the pictures
+        dslb[i].binding = i;
+        dslb[i].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        dslb[i].descriptorCount = 1;
+        dslb[i].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+    }
     VkDescriptorSetLayoutCreateInfo dslci{VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO};
-    dslci.bindingCount = 1;
-    dslci.pBindings = &dslb;
+    dslci.bindingCount = 2;
+    dslci.pBindings = dslb;
     if (vkCreateDescriptorSetLayout(device, &dslci, nullptr, &g_dsl) != VK_SUCCESS) return false;
 
     VkPushConstantRange pcr{VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(float) * 2};
@@ -359,8 +571,10 @@ bool host_overlay_init(VkDevice device, VkPhysicalDevice phys, VkFormat colour_f
     cba.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
     cba.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
     cba.colorBlendOp = VK_BLEND_OP_ADD;
-    cba.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
-    cba.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
+    // The target's alpha falls where the overlay covers it (dst * (1 - a)):
+    // the HDR encode keeps those pixels apart as UI (host/hdr_ui.h).
+    cba.srcAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
+    cba.dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
     cba.alphaBlendOp = VK_BLEND_OP_ADD;
     cba.colorWriteMask = 0xf;
     VkPipelineColorBlendStateCreateInfo cb{VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO};
@@ -420,6 +634,13 @@ void host_overlay_shutdown(VkDevice device) {
     if (g_atlas_view) vkDestroyImageView(device, g_atlas_view, nullptr);
     if (g_atlas) vkDestroyImage(device, g_atlas, nullptr);
     if (g_atlas_mem) vkFreeMemory(device, g_atlas_mem, nullptr);
+    if (g_pics_view) vkDestroyImageView(device, g_pics_view, nullptr);
+    if (g_pics) vkDestroyImage(device, g_pics, nullptr);
+    if (g_pics_mem) vkFreeMemory(device, g_pics_mem, nullptr);
+    g_pics_ready.store(false, std::memory_order_release);
+    g_pics_view = VK_NULL_HANDLE;
+    g_pics = VK_NULL_HANDLE;
+    g_pics_mem = VK_NULL_HANDLE;
     if (g_pipeline) vkDestroyPipeline(device, g_pipeline, nullptr);
     if (g_layout) vkDestroyPipelineLayout(device, g_layout, nullptr);
     g_vbo_map = nullptr;

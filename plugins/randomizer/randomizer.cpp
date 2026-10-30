@@ -1,4 +1,4 @@
-// Randomizer: an official bbhost plugin (docs/plugins.md).
+// Randomizer: an official heliasdream plugin (docs/plugins.md).
 //
 // Every one-time pickup in the world - the items lying in Yharnam, on corpses,
 // in chests, the ones bosses leave - gets another pickup's item, from a seed,
@@ -26,7 +26,7 @@
 //
 // <data>/plugins/randomizer/spoiler.txt lists where everything went, and
 // enemies.txt what each area's enemies became.
-#include "bbhost/sdk.hpp"
+#include "heliasdream/sdk.hpp"
 
 #include <algorithm>
 #include <chrono>
@@ -45,7 +45,7 @@ extern "C" BB_PLUGIN_EXPORT const BbPluginInfo bb_plugin_info = {
     "randomizer",
     "Randomizer",
     "1.1.0",
-    "bbhost",
+    "heliasdream",
     "Shuffles item pickups, shop stock and enemies, based on a seed. Key items never move, so every run can still be finished.",
 };
 
@@ -212,7 +212,7 @@ void write_spoiler() {
     const std::string dir = g.api->plugin_dir("randomizer");
     if (dir.empty()) return;
     std::ofstream f(dir + "/spoiler.txt");
-    f << "bbhost randomizer " << bb_plugin_info.version << " - seed \"" << g_seed << "\"\n\n";
+    f << "heliasdream randomizer " << bb_plugin_info.version << " - seed \"" << g_seed << "\"\n\n";
     f << "# pickups: lot (its pickup flag) -> what it now gives\n";
     for (const auto& [row, it] : g_lot_plan) {
         const auto* r = g.param<ItemLotParam>(row);
@@ -1273,7 +1273,7 @@ int randomize_layout(std::vector<std::uint8_t>& b, const std::string& map, const
 
 // Writes every story layout into the plugin's overlay for world `w` - or as
 // the game has it, for an empty token - for the next load of each map
-// (bbhost makes a load of a rewritten layout read it again, the map the
+// (heliasdream makes a load of a rewritten layout read it again, the map the
 // player stands in too), and the AI bundles the world needs. With
 // g_layout_mu held.
 void write_layouts_locked(const World& w) {
@@ -1339,7 +1339,7 @@ void write_layouts_locked(const World& w) {
     g.log("randomizer: %d enemies in %d map layouts%s", enemies, maps, shuffle ? (" (seed " + w.token + ")").c_str() : " (as the game has them)");
 }
 
-// A seed token as bbhost sends it (bb::seed_token: [a-z0-9_.-], up to 40):
+// A seed token as heliasdream sends it (bb::seed_token: [a-z0-9_.-], up to 40):
 // the host's comes from the server, so anything else is not a world to build.
 bool plain_token(const std::string& t) {
     if (t.empty() || t.size() > 40) return false;
@@ -1451,7 +1451,7 @@ void reseed() {
 
 }  // namespace
 
-extern "C" BB_PLUGIN_EXPORT int bb_plugin_image(const BbHostApi* api) {
+extern "C" BB_PLUGIN_EXPORT int bb_plugin_image(const HeliasApi* api) {
     if (!g.attach(api, 10)) return 1;
     if (!api->eboot_is_109()) {
         g.log("randomizer: not the 1.09 eboot; off");

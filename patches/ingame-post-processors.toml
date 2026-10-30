@@ -10,7 +10,7 @@
 # running in play: the store of 0 becomes a store of 2, the state the loading
 # screen left it in (it was started and signalled then, so it needs no
 # wake-up). Off unless `all_post_processors = true` under [streaming] in
-# bbhost.toml (BBHOST_ALL_POST_PROCESSORS=0 or 1 overrides).
+# heliasdream.toml (HELIAS_ALL_POST_PROCESSORS=0 or 1 overrides).
 [patch]
 name = "ingame-post-processors"
 eboot = "941f887a562aae054fac35af8cc8f27cf075f3d4cc2e029fb5ae2a663aaa5ae7"

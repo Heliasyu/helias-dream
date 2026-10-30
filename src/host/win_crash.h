@@ -8,9 +8,9 @@
 // wine, an auto-attached winedbg that hangs an unattended run).
 //
 // Host addresses print as "module+offset (link 0x...)": the link address is
-// the module's preferred image base plus the offset, which for bbhost.exe
+// the module's preferred image base plus the offset, which for heliasdream.exe
 // (linked at 0x600000000 with dynamic relocation off) is the runtime address,
-// and what `addr2line -e build-win/bbhost.exe` and llvm-symbolizer take.
+// and what `addr2line -e build-win/heliasdream.exe` and llvm-symbolizer take.
 #pragma once
 
 #include <cstddef>

@@ -10,8 +10,8 @@
 // Key Bindings screen lists them in: pages of seven
 // (engine/option_menu.cpp), the last one short.
 //
-// Sources, weakest first: the defaults here, `bbhost.toml`'s [keys], then the
-// [keys] section of `bbhost-options.toml`, which is what the in-game screen
+// Sources, weakest first: the defaults here, `HeliasDream.toml`'s [keys], then the
+// [keys] section of `HeliasDream-options.toml`, which is what the in-game screen
 // writes. A value names the whole binding: "E", "Mouse2", "X, Mouse2", or
 // "none". Mouse1..Mouse5 are the left, right and middle buttons and the two
 // side buttons; WheelUp and WheelDown the wheel, each notch a short press.
@@ -49,7 +49,7 @@ struct BindingInfo {
 };
 const BindingInfo& host_binding_info(int action);
 
-// Called by host_options_load(): the defaults, then bbhost.toml's [keys].
+// Called by host_options_load(): the defaults, then HeliasDream.toml's [keys].
 void host_bindings_load_defaults();
 // One `name = value` line from the options file's [keys]. False when the name
 // is not an action.

@@ -30,7 +30,7 @@
 // writes its own dumps. A predicate (always the last item of its resolve:
 // occlusion.cpp resolves at once after pushing one) is taken by lane 0 after
 // every dump is written and visible. The pair statistics (how a Gnm block's
-// second dump reads) only with flags bit 1 (BBHOST_OCCLUSION_STATS=1).
+// second dump reads) only with flags bit 1 (HELIAS_OCCLUSION_STATS=1).
 // T and the open interval live in a small buffer of their own, so they
 // carry across command buffers on the one queue.
 //

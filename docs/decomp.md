@@ -1,6 +1,6 @@
 # Decompilation
 
-bbhost runs the game's own code, so nothing has to be decompiled for the game
+Helia's Dream runs the game's own code, so nothing has to be decompiled for the game
 to work. Decompilation is how parts of the engine become changeable: a game
 function rewritten as C++ in `src/decomp/` runs in the original's place, and
 can then be read, fixed and extended like any other source - which is where
@@ -18,7 +18,7 @@ The 1.09 executable has about 169,000 functions. In a default run today:
 | | Functions |
 |---|---|
 | Rewritten as source, on the decomp list (`src/decomp/`) | 30 |
-| Replaced by bbhost code outside the list (written before the list existed) | 4, and the YEBIS resource builder bypassed |
+| Replaced by Helia's Dream code outside the list (written before the list existed) | 4, and the YEBIS resource builder bypassed |
 | Hooked at the entry or at call sites (GX methods, the resource registry, live resolution, settings, key prompts, menus) | 117 |
 | **Taken over in all** | **151** |
 | With any code byte changed (including byte patches and redirected calls) | 173; 255 at 60 fps |
@@ -57,7 +57,7 @@ ours (below, "How one is checked").
 The four flag functions (`flag_store.cpp`) are every read and write the game
 makes through its flag store - event scripts, Lua, talk scripts, the online
 session. With them as source every flag change is visible:
-`BBHOST_EVENT_FLAG_LOG=1` logs each one, and plugins get a callback for each.
+`HELIAS_EVENT_FLAG_LOG=1` logs each one, and plugins get a callback for each.
 
 The eight `SprjEmk` functions (`interpreter.cpp`) are the event-script (EMEVD)
 interpreter: the loop every map's event scripts run in, the dispatcher that
@@ -216,7 +216,7 @@ skips the red zone when it delivers a signal, so only Windows crashed.
 ### The game's file formats
 
 The same standard - reproduce the game's own bytes before changing anything -
-applies to the data formats bbhost edits:
+applies to the data formats Helia's Dream edits:
 
 | Format | Where | Checked |
 |---|---|---|
@@ -262,14 +262,14 @@ Switches for a run:
 
 | | |
 |---|---|
-| `BBHOST_DECOMP=0` | the game's code throughout |
-| `BBHOST_DECOMP_OFF=name,...` | these functions stay the game's |
-| `BBHOST_DECOMP_COMPARE=1` | functions with a compare mode run it instead |
+| `HELIAS_DECOMP=0` | the game's code throughout |
+| `HELIAS_DECOMP_OFF=name,...` | these functions stay the game's |
+| `HELIAS_DECOMP_COMPARE=1` | functions with a compare mode run it instead |
 
 ## How one is checked
 
 **Without the game.** `tests/decomp/eboot_kit.h` loads the executable into a
-test the way bbhost does (relocated, its thread-local reads moved, the
+test the way Helia's Dream does (relocated, its thread-local reads moved, the
 console's floating-point mode, every system call a trap that names itself), so
 the original runs there on generated inputs beside the replacement, bit for
 bit. Synthetic objects live in test memory, the game's singletons point at
@@ -304,10 +304,10 @@ argument bits the original tests, the floating-point operations in their order
 2. Read its disassembly as well as a decompile, and list its callers.
 3. Write it in `src/decomp/<area>/<name>.cpp` (a new area gets a folder) with
    its entry bytes, `decomp/guest.h` for the game's memory, and a compare mode;
-   add the file to `BBHOST_DECOMP_SOURCES` in `CMakeLists.txt`.
+   add the file to `HELIAS_DECOMP_SOURCES` in `CMakeLists.txt`.
 4. Add its `decomp_<name>_add()` to `src/decomp/areas.cpp`.
 5. Write `tests/decomp/<name>_test.cpp` against the game's code on the eboot
-   kit, with `bbhost_decomp_test(<name>)` in `CMakeLists.txt`.
+   kit, with `heliasdream_decomp_test(<name>)` in `CMakeLists.txt`.
 6. Run a compare session (zero differences) and a performance session (within
    noise).
 

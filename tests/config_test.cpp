@@ -1,4 +1,4 @@
-// core/config.cpp: a per-user bbhost.toml as older releases left it, loaded
+// core/config.cpp: a per-user heliasdream.toml as older releases left it (renamed to HeliasDream.toml), loaded
 // by this one - notes after quoted values, the live server's move to https,
 // and servers of the player's own left as they are. And the game folder with
 // its update in a folder of its own beside it, as shadPS4 keeps one.
@@ -39,10 +39,10 @@ std::string read(const fs::path& p) {
     return s.str();
 }
 
-// The file as the player's config, loaded the way bbhost starts.
+// The file as the player's config, loaded the way heliasdream starts.
 HostConfig load(const std::string& toml) {
     {
-        std::ofstream out(g_dir / "config" / "bbhost.toml", std::ios::trunc);
+        std::ofstream out(g_dir / "config" / "HeliasDream.toml", std::ios::trunc);
         out << toml;
     }
     char arg0[] = "config_test";
@@ -88,19 +88,19 @@ bool is_live_https(const HostConfig& c) {
 }  // namespace
 
 int main() {
-    char tmpl[] = "/tmp/bbhost-config-test-XXXXXX";
+    char tmpl[] = "/tmp/heliasdream-config-test-XXXXXX";
     if (!mkdtemp(tmpl)) return 1;
     g_dir = tmpl;
     fs::create_directories(g_dir / "config");
     fs::create_directories(g_dir / "work");
-    setenv("BBHOST_CONFIG_DIR", (g_dir / "config").c_str(), 1);
+    setenv("HELIAS_CONFIG_DIR", (g_dir / "config").c_str(), 1);
     setenv("XDG_DATA_HOME", (g_dir / "data").c_str(), 1);
-    // No bbhost.toml in the working directory to layer over the user's.
+    // No heliasdream.toml in the working directory to layer over the user's.
     if (chdir((g_dir / "work").c_str()) != 0) return 1;
 
     // A note after a quoted value is not part of it.
     {
-        HostConfig c = load("[online]\nhost = \"192.168.1.50\"  # added by bbhost v0.2.0: the server\n"
+        HostConfig c = load("[online]\nhost = \"192.168.1.50\"  # added by heliasdream v0.2.0: the server\n"
                             "scheme = \"http\" # a comment\n");
         CHECK(c.online_host == "192.168.1.50");
         CHECK(c.online_scheme == "http");
@@ -115,7 +115,7 @@ int main() {
         HostConfig c = load("[online]\nhost = \"thehuntersdream.com\"\nscheme = \"http\"\nverify_tls = false\n"
                             "require_account = false\n# auth_server = \"https://thehuntersdream.com\"\n");
         CHECK(is_live_https(c));
-        const std::string f = read(g_dir / "config" / "bbhost.toml");
+        const std::string f = read(g_dir / "config" / "HeliasDream.toml");
         CHECK(f.find("scheme = \"https\"") != std::string::npos);
         CHECK(f.find("verify_tls = true") != std::string::npos);
         CHECK(f.find("require_account = true") != std::string::npos);
@@ -124,10 +124,10 @@ int main() {
     // Saved by an older setup window's "Live server".
     {
         HostConfig c = load("[online]\nhost = \"thehuntersdream.com\"\nscheme = \"http\"\nverify_tls = false\n"
-                            "require_account = false\nauth_server = \"\"\n\n[bbhost]\nconfig_version = 2\n");
+                            "require_account = false\nauth_server = \"\"\n\n[heliasdream]\nconfig_version = 2\n");
         CHECK(is_live_https(c));
     }
-    // No online section at all: the keys bbhost adds, then the live server's.
+    // No online section at all: the keys heliasdream adds, then the live server's.
     {
         HostConfig c = load("[paths]\napp0 = \"PATH-TO-THE-GAME-DUMP\"\n");
         CHECK(is_live_https(c));
@@ -138,7 +138,7 @@ int main() {
         CHECK(c.online_host == "192.168.1.50" && c.online_scheme == "http" && !c.online_verify_tls);
         c = load("[online]\nhost = \"192.168.1.50\"\n");
         CHECK(c.online_scheme == "http");
-        CHECK(read(g_dir / "config" / "bbhost.toml").find("scheme = \"http\"") != std::string::npos);
+        CHECK(read(g_dir / "config" / "HeliasDream.toml").find("scheme = \"http\"") != std::string::npos);
     }
     // The playtest server keeps its own settings.
     {
@@ -148,7 +148,7 @@ int main() {
     }
     // Saved by this release's setup window: a choice, not rewritten.
     {
-        HostConfig c = load("[online]\nhost = \"thehuntersdream.com\"\nscheme = \"http\"\n\n[bbhost]\nconfig_version = 3\n");
+        HostConfig c = load("[online]\nhost = \"thehuntersdream.com\"\nscheme = \"http\"\n\n[heliasdream]\nconfig_version = 3\n");
         CHECK(c.online_scheme == "http");
     }
 
@@ -158,19 +158,19 @@ int main() {
     {
         HostConfig c = load("[player]\nname = \"Hunter\"\n# auto: the dialog is answered with `name` at once.\nime = \"auto\"\n");
         CHECK(c.ime_mode == "type");
-        std::string f = read(g_dir / "config" / "bbhost.toml");
+        std::string f = read(g_dir / "config" / "HeliasDream.toml");
         CHECK(f.find("ime = \"type\"") != std::string::npos && f.find("ime = \"auto\"") == std::string::npos);
         CHECK(f.find("# auto: the dialog is answered") != std::string::npos);  // the rest of the file as it was
-        c = load("[player]\nime = \"auto\"\n\n[bbhost]\nconfig_version = 3\n");
+        c = load("[player]\nime = \"auto\"\n\n[heliasdream]\nconfig_version = 3\n");
         CHECK(c.ime_mode == "type");
         // From version 4 on, "auto" was set by the player: kept.
-        c = load("[player]\nime = \"auto\"\n\n[bbhost]\nconfig_version = 4\n");
+        c = load("[player]\nime = \"auto\"\n\n[heliasdream]\nconfig_version = 4\n");
         CHECK(c.ime_mode == "auto");
         // And a harness keeps its own either way.
-        setenv("BBHOST_IME", "auto", 1);
+        setenv("HELIAS_IME", "auto", 1);
         c = load("[player]\nime = \"type\"\n");
         CHECK(c.ime_mode == "auto");
-        unsetenv("BBHOST_IME");
+        unsetenv("HELIAS_IME");
     }
     // The template a first start writes types in the window.
     {

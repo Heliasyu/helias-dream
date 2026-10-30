@@ -1,4 +1,4 @@
-// bbhost-vk test3: the FSR stage dump (host/fsr_dump.h).
+// heliasdream-vk test3: the FSR stage dump (host/fsr_dump.h).
 #include "host/fsr_dump.h"
 
 #include "core/image_file.h"
@@ -33,12 +33,12 @@ namespace {
 // frame_capture's folder and switch (host/frame_capture.h), read the same
 // way here: that file is only built with the window.
 std::string capture_folder() {
-    if (const char* e = std::getenv("BBHOST_VK_CAPTURE_DIR"); e && e[0]) return e;
+    if (const char* e = std::getenv("HELIAS_VK_CAPTURE_DIR"); e && e[0]) return e;
     std::error_code ec;
     return std::filesystem::is_directory("logs", ec) ? "logs/captures" : "captures";
 }
 bool presented_capture_on() {
-    const char* e = std::getenv("BBHOST_VK_CAPTURE");
+    const char* e = std::getenv("HELIAS_VK_CAPTURE");
     return e && e[0] == '1';
 }
 
@@ -110,7 +110,7 @@ void write_one(const std::string& dir, const Staged& s, std::string* info) {
 
 bool fsr_dump_enabled() {
     static const bool on = [] {
-        const char* e = std::getenv("BBHOST_FSR_DUMP");
+        const char* e = std::getenv("HELIAS_FSR_DUMP");
         return e && e[0] == '1';
     }();
     return on;
@@ -121,8 +121,8 @@ bool fsr_dump_wanted_locked(std::uint64_t flip, std::uint64_t upscaled) {
     static bool said = false;
     if (!said) {
         said = true;
-        host_log("fsr-dump: BBHOST_FSR_DUMP=1: fsr-dump.request or capture.request in %s (bbtest mark), or Shift+F12 with "
-                 "BBHOST_VK_CAPTURE=1, dumps the next upscaled frame's FSR inputs, output and target; once by itself at the 600th",
+        host_log("fsr-dump: HELIAS_FSR_DUMP=1: fsr-dump.request or capture.request in %s (bbtest mark), or Shift+F12 with "
+                 "HELIAS_VK_CAPTURE=1, dumps the next upscaled frame's FSR inputs, output and target; once by itself at the 600th",
                  capture_folder().c_str());
     }
     if (flip % 30 == 0) {
@@ -140,7 +140,7 @@ bool fsr_dump_wanted_locked(std::uint64_t flip, std::uint64_t upscaled) {
         }
     }
     static const bool auto_on = [] {
-        const char* e = std::getenv("BBHOST_FSR_DUMP_AUTO");
+        const char* e = std::getenv("HELIAS_FSR_DUMP_AUTO");
         return !(e && e[0] == '0');
     }();
     if (auto_on && upscaled == 600) host_fsr_dump_request("the 600th upscaled frame");

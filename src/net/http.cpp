@@ -1,6 +1,6 @@
 #include "net/http.h"
 
-#include "bbhost_version.h"
+#include "heliasdream_version.h"
 #include "core/config.h"
 #include "host/plugins.h"
 #include "log.h"
@@ -9,7 +9,7 @@
 #include <atomic>
 #include <mutex>
 
-#if defined(BBHOST_HAVE_CURL)
+#if defined(HELIAS_HAVE_CURL)
 #include <curl/curl.h>
 #endif
 
@@ -17,7 +17,7 @@ namespace net {
 
 namespace {
 
-#if defined(BBHOST_HAVE_CURL)
+#if defined(HELIAS_HAVE_CURL)
 std::once_flag g_once;
 
 std::size_t write_cb(char* ptr, std::size_t size, std::size_t nmemb, void* user) {
@@ -54,7 +54,7 @@ HttpResult perform(const std::string& url, const std::string* post, int timeout_
     curl_easy_setopt(c, CURLOPT_WRITEDATA, &r.body);
     curl_easy_setopt(c, CURLOPT_TIMEOUT_MS, static_cast<long>(timeout_ms));
     curl_easy_setopt(c, CURLOPT_CONNECTTIMEOUT_MS, static_cast<long>(timeout_ms));
-    curl_easy_setopt(c, CURLOPT_USERAGENT, "bbhost/" BBHOST_VERSION);
+    curl_easy_setopt(c, CURLOPT_USERAGENT, "bbhost/" HELIAS_VERSION);
     if (!config().online_verify_tls) {
         curl_easy_setopt(c, CURLOPT_SSL_VERIFYPEER, 0L);
         curl_easy_setopt(c, CURLOPT_SSL_VERIFYHOST, 0L);

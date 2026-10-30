@@ -3,13 +3,13 @@
 # from-scratch Linux build on a stock Ubuntu 24.04: the packages, the Vulkan
 # headers (24.04's 1.3.275 are older than the renderer's), SDL3 and the movie
 # decoders of ffmpeg built static into a prefix as tools/linux_portable_build.sh
-# does, then bbhost, its tools and its tests, and ctest. No game files: the
+# does, then heliasdream, its tools and its tests, and ctest. No game files: the
 # tests that read them skip (tests/test_app0.h).
 #
 #   tools/ci_build.sh                 everything, in build-ci/
 #   CI_WORK=/somewhere tools/ci_build.sh
 #   CI_APT=0                          the packages are already there
-#   CI_CMAKE_ARGS="-DBBHOST_RELEASE=ON"   more configure arguments (a release build)
+#   CI_CMAKE_ARGS="-DHELIAS_RELEASE=ON"   more configure arguments (a release build)
 #   CI_PORTABLE=1                     link libstdc++ and libgcc statically, as
 #                                     tools/linux_portable_build.sh does: the
 #                                     binary tools/package_linux.sh packages
@@ -93,18 +93,18 @@ if [ ! -f "$P/lib/libavcodec.a" ]; then
     sed -i 's/ -latomic/ -l:libatomic.a/' "$P"/lib/pkgconfig/*.pc
 fi
 
-# bbhost, its tools and tests.
+# heliasdream, its tools and tests.
 export PKG_CONFIG_PATH=$P/lib/pkgconfig
 static=""
 [ "${CI_PORTABLE:-0}" = 1 ] && static="-static-libstdc++ -static-libgcc"
 B=${CI_BUILD_DIR:-$W/build}  # rc6: another build folder over the same prefix (packaging/vk/build.sh: the non-PGO twin)
-LOGP=$W/bbhost${CI_BUILD_DIR:+-$(basename "$B")}
+LOGP=$W/heliasdream${CI_BUILD_DIR:+-$(basename "$B")}
 cmake -S "$SRC" -B "$B" -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_PREFIX_PATH="$P" \
     -DVulkan_INCLUDE_DIR="$P/include" -DCMAKE_EXE_LINKER_FLAGS="$static -fuse-ld=lld" \
     -DCMAKE_MODULE_LINKER_FLAGS="${static#-static-libstdc++ } -fuse-ld=lld" ${CI_CMAKE_ARGS:-} > "$LOGP-configure.log" \
     || { tail -30 "$LOGP-configure.log"; exit 1; }
-grep -E "^-- bbhost" "$LOGP-configure.log" || true
+grep -E "^-- heliasdream" "$LOGP-configure.log" || true
 cmake --build "$B" -j"$JOBS" 2>&1 | tee "$LOGP-build.log" | grep -E "error|warning: unused|FAILED" | head -40 || true
 [ "${PIPESTATUS[0]}" = 0 ] || { echo "build failed (log: $LOGP-build.log)"; exit 1; }
 (cd "$B" && ctest --output-on-failure)
-echo "ci build: $B/bbhost"
+echo "ci build: $B/heliasdream"

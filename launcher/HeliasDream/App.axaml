@@ -1,0 +1,18 @@
+<Application xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="HeliasDream.App"
+             RequestedThemeVariant="Dark">
+  <Application.Resources>
+    <FontFamily x:Key="Display">avares://HeliasDream/Assets/Fonts#Cormorant Garamond</FontFamily>
+    <FontFamily x:Key="Body">avares://HeliasDream/Assets/Fonts#Manrope</FontFamily>
+    <Color x:Key="SystemAccentColor">#A9BFE3</Color>
+    <Color x:Key="SystemAccentColorLight1">#BCCDEA</Color>
+    <Color x:Key="SystemAccentColorLight2">#CFDBF0</Color>
+    <Color x:Key="SystemAccentColorDark1">#8EA6CE</Color>
+    <Color x:Key="SystemAccentColorDark2">#7690BA</Color>
+  </Application.Resources>
+  <Application.Styles>
+    <FluentTheme />
+    <StyleInclude Source="avares://HeliasDream/Glass.axaml" />
+  </Application.Styles>
+</Application>

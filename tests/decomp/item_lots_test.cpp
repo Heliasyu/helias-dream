@@ -4,7 +4,7 @@
 // flags on and off, results to free - from the same flag store, generator and
 // heap. The results are compared byte for byte, and so are the generator and
 // every flag block afterwards, the heap hint, and what is left allocated.
-// Skips without the 1.09 eboot (BBHOST_EBOOT, or eboot-109-decrypted.bin in
+// Skips without the 1.09 eboot (HELIAS_EBOOT, or eboot-109-decrypted.bin in
 // the checkout).
 #include "decomp/items/item_lots.cpp"
 

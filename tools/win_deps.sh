@@ -1,5 +1,5 @@
 #!/bin/bash
-# Builds what bbhost.exe links against, for the Windows target, from Linux:
+# Builds what heliasdream.exe links against, for the Windows target, from Linux:
 # zlib and SDL3 as static libraries with cmake/mingw-toolchain.cmake,
 # the Vulkan headers from this machine (platform-independent) and wine's
 # import library for vulkan-1.dll as the loader. Everything lands in

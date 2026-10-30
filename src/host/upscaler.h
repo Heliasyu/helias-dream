@@ -1,9 +1,9 @@
 #pragma once
 
-// bbhost-vk's upscaler (docs/vk/PLAN.md). Phase 0 is scaffolding: the
+// heliasdream-vk's upscaler (docs/vk/PLAN.md). Phase 0 is scaffolding: the
 // settings (host/settings.h) are saved, shown in F10, the System menu's PC
 // Upscaling sections and the setup window, and logged - but what reaches the
-// screen is bbhost's own path, FSR 1 at the Resolution setting
+// screen is heliasdream's own path, FSR 1 at the Resolution setting
 // (host/fsr.cpp), whatever they say. The temporal upscalers come in Phase 3
 // (FSR 3.1, FireBurn/FSR-Vulkan, linked from Phase 0 on) and Phase 4 (FSR
 // 4.1.1, built from the player's own DLL).

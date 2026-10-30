@@ -1,7 +1,7 @@
-# Bloodborne on PC (bbhost) - group playtest
+# Bloodborne on PC (Helia's Dream) - group playtest
 
 Thanks for helping test. This build plays Bloodborne online on our **dev
-server**, `dev.thehuntersdream.com`, together with other bbhost players.
+server**, `dev.thehuntersdream.com`, together with other Helia's Dream players.
 Everything here is a test: things will break, and telling us how is the whole
 point.
 
@@ -12,7 +12,7 @@ point.
   - The **game folder** (`CUSA00900`) with the 1.09 update's files copied
     over it. It contains a folder called `dvdroot_ps4`, and its
     `sce_sys/param.sfo` says version 01.09.
-  - The **1.09 eboot**: the update's `eboot.bin`, decrypted. bbhost only runs
+  - The **1.09 eboot**: the update's `eboot.bin`, decrypted. Helia's Dream only runs
     this exact file; any other version stops at start with a message saying
     so (a dump without the update has the 1.00 eboot, which will not work).
 - **A graphics card with a Vulkan 1.3 driver.** Update your GPU driver
@@ -29,44 +29,44 @@ point.
 ## Install
 
 1. Unzip (Windows) or untar (Linux) the package into a folder of its own, for
-   example `C:\Games\bbhost` or `~/Games/bbhost`.
-2. Start it (next section). The first time, the **bbhost setup** window
+   example `C:\Games\heliasdream` or `~/Games/heliasdream`.
+2. Start it (next section). The first time, the **Helia's Dream setup** window
    opens. Click **Browse...** next to *Game folder* and pick your game folder
    (the one that **contains** `dvdroot_ps4`), then next to *Eboot* and pick
    your decrypted 1.09 eboot. Each turns green when it is right. Leave
    *Online* on the playtest server (the kit chooses it anyway), set anything
    else you like, and click **Play**.
-3. That's it. To change these later, start bbhost with `--setup` (Windows:
-   `run-bbhost.bat --setup`), or tick *Show this window every time bbhost
+3. That's it. To change these later, start Helia's Dream with `--setup` (Windows:
+   `run-heliasdream.bat --setup`), or tick *Show this window every time Helia's Dream
    starts*. The settings are kept in your **per-user config**
-   (`%APPDATA%\bbhost\bbhost.toml` on Windows, `~/.config/bbhost/bbhost.toml`
+   (`%APPDATA%\Helia's Dream\heliasdream.toml` on Windows, `~/.config/heliasdream/heliasdream.toml`
    on Linux), which you can also edit by hand.
 
-You do this **once**: every copy of bbhost reads that file, so a new kit or a
+You do this **once**: every copy of Helia's Dream reads that file, so a new kit or a
 new download needs nothing set again. Your F10 settings
 and your account are kept beside it, and your saves in
-`%LOCALAPPDATA%\bbhost\data` (Windows) or `~/.local/share/bbhost/data`
+`%LOCALAPPDATA%\Helia's Dream\data` (Windows) or `~/.local/share/heliasdream/data`
 (Linux). Coming from an earlier kit: unzip the new one over the old kit's
 folder and your account and saves come along by themselves; the two paths
 are set once more, in the per-user config, and never again.
 
 ## Start the game
 
-- **Windows:** double-click **`run-bbhost.bat`**. A black window opens and
+- **Windows:** double-click **`run-heliasdream.bat`**. A black window opens and
   stays open while you play (it says where the log goes), and the game window
   appears. The first time, Windows may say "Windows protected your PC": click
   *More info* then *Run anyway*. When **Windows Defender Firewall** then asks
-  whether bbhost may communicate on networks, tick both *Private* and
+  whether Helia's Dream may communicate on networks, tick both *Private* and
   *Public* and click **Allow access**: other players reach you on UDP port
   9307, and a blocked port is the most common reason summons fail. (If you
-  clicked Cancel, allow `bbhost.exe` under *Windows Security > Firewall &
+  clicked Cancel, allow `heliasdream.exe` under *Windows Security > Firewall &
   network protection > Allow an app through firewall*.)
-- **Linux:** open a terminal in the folder and run **`./run-bbhost.sh`**.
+- **Linux:** open a terminal in the folder and run **`./run-heliasdream.sh`**.
 
-Always start it this way, not by opening `bbhost.exe`/`bbhost` directly: the
-launcher is what points bbhost at the playtest server (started on its own,
-bbhost plays on the live server instead), and it writes the log file we need
-when something goes wrong (`logs/bbhost-<date>-<time>.log`).
+Always start it this way, not by opening `heliasdream.exe`/`heliasdream` directly: the
+launcher is what points Helia's Dream at the playtest server (started on its own,
+Helia's Dream plays on the live server instead), and it writes the log file we need
+when something goes wrong (`logs/heliasdream-<date>-<time>.log`).
 
 The first time, areas load slowly and stutter for a moment while the game
 prepares its graphics for your card. That goes away on the next visit.
@@ -78,7 +78,7 @@ frame cap, mouse, key bindings and your account.
 
 The game stays **offline until this PC is linked to an account**, and your
 account name is your name online. You can do it in the **setup window**
-before the game starts (it opens the first time; `run-bbhost.bat --setup`
+before the game starts (it opens the first time; `run-heliasdream.bat --setup`
 opens it again): the **Account** part under **Online** has the same choices
 as the game's. Or, in the game, press **F10** at the title screen and go down
 to **ACCOUNT** (the arrow keys move, Enter picks; the mouse works too). Pick
@@ -97,7 +97,7 @@ one:
   the name and that code). Only 3 of these can be made per internet
   connection per day, so if you are several people in one house, use Discord.
 
-Your sign-in is kept in `bbhost-options-bbhost-playtest.toml` beside your
+Your sign-in is kept in `heliasdream-options-heliasdream-playtest.toml` beside your
 per-user config. Do not share that file.
 
 Then close F10 and choose **Play Online** at the title.
@@ -149,7 +149,7 @@ Tick off what you managed, and tell us about anything that failed:
 - Some home or mobile connections cannot connect to each other directly. If
   summons keep failing with one particular person, forwarding **UDP port
   9307** to your PC on your router often fixes it.
-- Two PCs in the same house: set `p2p_addr` in `bbhost-playtest.toml` to each
+- Two PCs in the same house: set `p2p_addr` in `heliasdream-playtest.toml` to each
   PC's local address (for example `192.168.1.23`).
 
 ## Reporting a problem
@@ -168,4 +168,4 @@ Send it to the playtest organiser, with:
 If the game crashed, the end of the log usually has a block starting
 `SIGSEGV pc=`; that block is what we need most. On Windows, if the log just
 stops, also look in Event Viewer (Windows Logs > Application) for an
-"Application Error" about bbhost.exe and send that too.
+"Application Error" about heliasdream.exe and send that too.

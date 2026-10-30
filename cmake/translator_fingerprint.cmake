@@ -7,7 +7,7 @@
 # change, or a change to the key, throws away the translations and pipelines of
 # the one before, and any other change keeps them - an update that leaves the
 # translator alone starts with every shader built. Rewritten only when the text
-# changes, like bbhost_version.h, so nothing rebuilds needlessly.
+# changes, like heliasdream_version.h, so nothing rebuilds needlessly.
 file(GLOB sources ${SRC}/src/gcn/*.cpp ${SRC}/src/gcn/*.h)
 list(APPEND sources ${SRC}/src/host/translation_cache.cpp ${SRC}/src/host/translation_cache.h)
 list(SORT sources)
@@ -19,7 +19,7 @@ foreach(f ${sources})
 endforeach()
 string(SHA256 fp "${all}")
 string(SUBSTRING "${fp}" 0 32 fp)
-set(content "#pragma once\n#define BBHOST_TRANSLATOR_FINGERPRINT \"${fp}\"\n")
+set(content "#pragma once\n#define HELIAS_TRANSLATOR_FINGERPRINT \"${fp}\"\n")
 set(old "")
 if(EXISTS ${OUT})
   file(READ ${OUT} old)

@@ -25,5 +25,5 @@ bool loading_screen_up();
 // (engine/frame_rate.cpp) and flips complete at once
 // (hle_video_set_loading_uncapped), so the loaders, which step once a frame,
 // run as fast as the machine allows - the community's fast-loading patch,
-// done natively. BBHOST_FAST_LOADING=0 turns it off.
+// done natively. HELIAS_FAST_LOADING=0 turns it off.
 bool loading_fast_now();

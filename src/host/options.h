@@ -1,8 +1,11 @@
 #pragma once
 
+#include <string>
+#include <vector>
+
 // The PC port's own options screen, drawn by the host overlay.
 //
-// These settings configure *bbhost*, not the game: resolution, pacing, what
+// These settings configure *heliasdream*, not the game: resolution, pacing, what
 // the pointer does. The PS4 build has nowhere to put them and the dump is
 // never written, so the host draws the screen and owns the file it saves to.
 // Coordinates are display-buffer pixels, the space
@@ -30,6 +33,13 @@ void host_options_set_open(bool open);
 // A key the pump saw, as an SDL scancode. True when the screen consumed it,
 // which includes the key that opens it.
 bool host_options_key(int scancode, bool repeat);
+// A controller's press, while the screen is open (host/window.cpp maps the
+// buttons, the region deciding confirm and back). Browsing, Left / Right move
+// between the two columns; Confirm selects a setting, and only then do Left /
+// Right change it, so the D-pad never changes one by accident. Back leaves a
+// selected setting, else closes the screen. `repeat`: a held direction.
+enum class OptionsPad { Up, Down, Left, Right, PrevTab, NextTab, Confirm, Back };
+void host_options_pad(OptionsPad press, bool repeat);
 // One pump: hit-tests the pointer, applies what changed, and draws. Call
 // between host_overlay_reset() and the pointer, so the pointer is on top.
 void host_options_frame(float display_w, float display_h);
@@ -38,9 +48,17 @@ void host_options_frame(float display_w, float display_h);
 // typed fields; the calls below are the front ends' way in, by name.
 // Read one by the same name host_opt_set() takes. Unknown names read false.
 bool host_opt_get(const char* key);
-// The render resolution the player chose, or what BBHOST_RES says. False when
+// The render resolution the player chose, or what HELIAS_RES says. False when
 // neither parses. Read once by the loader - it is a patch on the image.
 bool host_opt_resolution(int* w, int* h);
+// Texture detail: the LOD bias every sampler adds to the game's own (cheap: an atomic).
+float host_opt_mip_bias();
+// Submit split (More > Performance, experimental): check every n-th draw
+// whether the GPU has run dry; 0 off. Live, an atomic. HELIAS_SUBMIT_SPLIT wins.
+unsigned host_opt_submit_split();
+// Sharper motion (FSR 4) (More > Performance, experimental): FSR 4's balanced
+// model at Performance and Ultra Performance. Live, an atomic.
+bool host_opt_fsr4_sharp_motion();
 int host_opt_resolution_index();
 void host_opt_set_resolution_index(int i);
 // The game's frame rate (engine/frame_rate.h): 30, 60, 90, or 0 for
@@ -51,7 +69,7 @@ void host_opt_set_frame_cap(int fps);
 // Set one by name, from the rows the port adds to the game's own System menu
 // (engine/option_menu.h). The two front ends drive the same settings and the
 // same file, so a change made in game is the change the F10 screen shows and
-// bbhost-options.toml keeps. Unknown names are ignored.
+// HeliasDream-options.toml keeps. Unknown names are ignored.
 void host_opt_set(const char* key, bool on);
 // A setting as the index of its value (mouse_sens: 0..10), and setting it;
 // -1 for an unknown name. Saved at once, like host_opt_set.
@@ -67,7 +85,7 @@ std::string host_options_dump();
 
 // A Steam Deck - Valve's Jupiter or Galileo, from /sys/devices/virtual/dmi/id
 // on Linux and the BIOS registry key on Windows - where the System menu has a
-// Steam Deck section (engine/option_menu.cpp). BBHOST_STEAM_DECK=1 or 0 says
+// Steam Deck section (engine/option_menu.cpp). HELIAS_STEAM_DECK=1 or 0 says
 // so instead.
 bool host_steam_deck();
 // Its two configurations as one choice: 0 is 30 fps at the screen's own
@@ -106,3 +124,8 @@ std::string host_account_signed_in();  // "Signed in as NAME" or "Not signed in"
 std::string host_account_outcome();    // the last action's outcome, "" before one
 std::string host_account_detail();     // a code the player needs (link, recovery, website), or ""
 bool host_account_take_save();         // true once after a sign-in or sign-out
+
+// Every string the F10 menu can show, in English, once each (labels, values,
+// notes, tabs, buttons): what tools/menu_i18n.tsv translates. `--menu-strings`
+// prints them.
+std::vector<std::string> host_options_menu_strings();

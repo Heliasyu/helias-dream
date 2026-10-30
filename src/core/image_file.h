@@ -2,7 +2,7 @@
 
 // The image files the dumps write: an 8-bit RGB picture, a row at a time. A
 // path ending in ".png" is written as PNG (deflated: a fifth of the size, and
-// any image viewer opens it - F12 with BBHOST_F12_PNG=1), any other as binary
+// any image viewer opens it - F12 with HELIAS_F12_PNG=1), any other as binary
 // PPM (P6), which costs nothing to write and the development tools read.
 
 #include <cstdint>

@@ -20,7 +20,7 @@ import struct
 import sys
 import zlib
 
-APP0 = os.environ.get('BBHOST_APP0', '')  # the dump: the folder that contains dvdroot_ps4
+APP0 = os.environ.get('HELIAS_APP0', '')  # the dump: the folder that contains dvdroot_ps4
 SIZES = {'s8': 1, 'u8': 1, 'dummy8': 1, 'fixstr': 1, 's16': 2, 'u16': 2, 'fixstrW': 2, 's32': 4, 'u32': 4, 'f32': 4}
 FMT = {'s8': 'b', 'u8': 'B', 's16': 'h', 'u16': 'H', 's32': 'i', 'u32': 'I', 'f32': 'f'}
 

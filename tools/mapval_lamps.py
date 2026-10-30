@@ -9,14 +9,14 @@ Sources, all in the game's data:
     must be on before the lamp can be lit - 999 for none, flag base). Found
     by scanning the scripts' argument data for 7000 followed by an entity
     pair ending x950..x959 whose second is the first + 1000.
-  - The lamp DB (FrpgNetMan +0xc70; include/bbhost/engine/frpg/bonfire_db.hpp)
+  - The lamp DB (FrpgNetMan +0xc70; include/heliasdream/engine/frpg/bonfire_db.hpp)
     registers the base: base+10 is the lamp's lit flag, base+11 "selected"
     (the lamp last rested at in that map).
   - ReturnPointParam (tools/bbparam.py): row id = lamp entity + 1000, its
     area/block, warpChairNo (the Hunter's Dream headstone menu slot; 0-9 are
     the chalice dungeons), returnPointEntityId (an MSB "respawn" event whose
     point is where travel and death put the player).
-engine/world_chr.cpp keeps the same table for BBHOST_TEST_UNLOCK_LAMPS.
+engine/world_chr.cpp keeps the same table for HELIAS_TEST_UNLOCK_LAMPS.
 """
 import argparse
 import glob

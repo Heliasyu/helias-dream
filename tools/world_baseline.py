@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run an isolated clinic baseline, or summarize an existing bbhost log.
+"""Run an isolated clinic baseline, or summarize an existing heliasdream log.
 
 The 300-count windows are SubmitAndFlip calls, not presentation timestamps.
 This tool deliberately does not report frame-time percentiles from them.
@@ -90,7 +90,7 @@ class LogSummary:
             self.captures.append(match[1])
         if "eboot sha256 " in line:
             self.identity["eboot_sha256"] = line.strip().split()[-1]
-        if "[bbhost] gpu:" in line and "Vulkan" in line:
+        if "[heliasdream] gpu:" in line and "Vulkan" in line:
             self.identity["gpu"] = line.strip()
 
     def result(self, start, end):
@@ -137,34 +137,34 @@ def run(args):
     seed_files = file_inventory(seed)
     out.mkdir(parents=True, exist_ok=False)
     shutil.copytree(seed, out / "data")
-    env = {k: v for k, v in os.environ.items() if not k.startswith(("BBHOST_", "GCN2SPV_"))}
-    settings = {"BBHOST_HEADLESS": "0" if args.windowed else "1", "BBHOST_NP_SIGNED_OUT": "1",
-                "BBHOST_GPU_PROFILE": "1", "BBHOST_AUTOPRESS": args.autopress,
-                "BBHOST_SKIP_INTRO": "1" if args.skip_intro else "0",
-                "BBHOST_PIPELINE_CACHE": "1" if args.pipeline_cache else "0"}
+    env = {k: v for k, v in os.environ.items() if not k.startswith(("HELIAS_", "GCN2SPV_"))}
+    settings = {"HELIAS_HEADLESS": "0" if args.windowed else "1", "HELIAS_NP_SIGNED_OUT": "1",
+                "HELIAS_GPU_PROFILE": "1", "HELIAS_AUTOPRESS": args.autopress,
+                "HELIAS_SKIP_INTRO": "1" if args.skip_intro else "0",
+                "HELIAS_PIPELINE_CACHE": "1" if args.pipeline_cache else "0"}
     if args.decomp:
-        settings["BBHOST_DECOMP"] = args.decomp
+        settings["HELIAS_DECOMP"] = args.decomp
     if args.present_delay_us is not None:
-        settings["BBHOST_PRESENT_DELAY_US"] = str(args.present_delay_us)
+        settings["HELIAS_PRESENT_DELAY_US"] = str(args.present_delay_us)
     if args.dump_frame is not None:
-        settings["BBHOST_DUMP_FRAME"] = str(args.dump_frame)
+        settings["HELIAS_DUMP_FRAME"] = str(args.dump_frame)
     for item in args.env:
         name, sep, value = item.partition("=")
-        if not sep or not name.startswith("BBHOST_") or name in settings:
-            raise ValueError(f"--env takes BBHOST_NAME=VALUE and must not override the run's own settings: {item}")
+        if not sep or not name.startswith("HELIAS_") or name in settings:
+            raise ValueError(f"--env takes HELIAS_NAME=VALUE and must not override the run's own settings: {item}")
         settings[name] = value
     if args.mode == "magenta":
-        settings["BBHOST_DEBUG_PS_COLOR"] = "1"
+        settings["HELIAS_DEBUG_PS_COLOR"] = "1"
     elif args.mode == "inventory":
-        settings["BBHOST_TRACE_DRAW"] = "8747a367+a22c7f71"
-        settings["BBHOST_TRACE_MIN_FLIP"] = str(args.start)
+        settings["HELIAS_TRACE_DRAW"] = "8747a367+a22c7f71"
+        settings["HELIAS_TRACE_MIN_FLIP"] = str(args.start)
     elif args.mode == "capture":
         # A draw capture for tools/drawreplay; it settles and flushes the GPU.
-        settings["BBHOST_CAPTURE_DRAW"] = args.capture_draw
-        settings["BBHOST_CAPTURE_MIN_FLIP"] = str(args.start)
-        settings["BBHOST_CAPTURE_DIR"] = str(out / "captures")
-        settings["BBHOST_CAPTURE_COUNT"] = str(args.capture_count)
-        settings["BBHOST_CAPTURE_EVERY"] = str(args.capture_every)
+        settings["HELIAS_CAPTURE_DRAW"] = args.capture_draw
+        settings["HELIAS_CAPTURE_MIN_FLIP"] = str(args.start)
+        settings["HELIAS_CAPTURE_DIR"] = str(out / "captures")
+        settings["HELIAS_CAPTURE_COUNT"] = str(args.capture_count)
+        settings["HELIAS_CAPTURE_EVERY"] = str(args.capture_every)
     env.update(settings)
     argv = launch_argv([str(binary), "--config", str(config), "--data", str(out / "data")], args.numa_node)
     manifest = {
@@ -245,7 +245,7 @@ def run(args):
     report["binary_unchanged"] = digest(binary) == manifest["binary_sha256"]
     report["config_unchanged"] = digest(config) == manifest["config_sha256"]
     if args.dump_frame is not None:
-        # The host writes BBHOST_DUMP_FRAME to build/frame-N.ppm under its cwd; keep it with the run.
+        # The host writes HELIAS_DUMP_FRAME to build/frame-N.ppm under its cwd; keep it with the run.
         dumped = ROOT / "build" / f"frame-{args.dump_frame}.ppm"
         report["frame_dump"] = None
         if dumped.is_file() and dumped.stat().st_mtime >= launched:
@@ -272,7 +272,7 @@ def run(args):
 
 
 def launch_argv(argv, numa_node):
-    """The command that starts bbhost: under numactl, bound to one node's CPUs and memory, when numa_node is set.
+    """The command that starts heliasdream: under numactl, bound to one node's CPUs and memory, when numa_node is set.
 
     On a two-socket host the scheduler otherwise moves the command processor's
     threads between nodes, and CPU-bound timings vary by 10-20% from run to run.
@@ -287,34 +287,34 @@ def main():
     parser.add_argument("--summarize", type=Path, help="read an existing log without launching the game")
     parser.add_argument("--out", type=Path, help="new output directory under tmp/ or build/")
     parser.add_argument("--seed", type=Path, default=ROOT / "data")
-    parser.add_argument("--binary", type=Path, default=ROOT / "build/bbhost")
-    parser.add_argument("--config", type=Path, default=ROOT / "bbhost.toml")
+    parser.add_argument("--binary", type=Path, default=ROOT / "build/heliasdream")
+    parser.add_argument("--config", type=Path, default=ROOT / "HeliasDream.toml")
     parser.add_argument("--mode", choices=("translated", "magenta", "inventory", "capture"), default="translated")
     parser.add_argument("--capture-draw", default="8747a367+a22c7f71",
-                        help="capture mode: BBHOST_CAPTURE_DRAW pipeline prefix (first match from --start), "
+                        help="capture mode: HELIAS_CAPTURE_DRAW pipeline prefix (first match from --start), "
                              "or '*' for the first draw of each pipeline with a ready no-fallback variant (tools/lift_verify.py)")
-    parser.add_argument("--decomp", help="BBHOST_DECOMP for the run: 1 (the pilot shader), all, or PS hashes")
-    parser.add_argument("--dump-frame", type=int, help="BBHOST_DUMP_FRAME: keep the displayed frame at this flip as frame-N.ppm")
-    parser.add_argument("--env", action="append", default=[], metavar="BBHOST_NAME=VALUE",
-                        help="extra BBHOST_* setting for the run (repeatable), e.g. BBHOST_ARENA_MONITOR=1")
+    parser.add_argument("--decomp", help="HELIAS_DECOMP for the run: 1 (the pilot shader), all, or PS hashes")
+    parser.add_argument("--dump-frame", type=int, help="HELIAS_DUMP_FRAME: keep the displayed frame at this flip as frame-N.ppm")
+    parser.add_argument("--env", action="append", default=[], metavar="HELIAS_NAME=VALUE",
+                        help="extra HELIAS_* setting for the run (repeatable), e.g. HELIAS_ARENA_MONITOR=1")
     parser.add_argument("--capture-count", type=int, default=1, help="capture mode: draws to capture")
     parser.add_argument("--capture-every", type=int, default=1, help="capture mode: one of every n matching draws")
     parser.add_argument("--skip-intro", action=argparse.BooleanOptionalAction, default=True,
                         help="skip company logos (default); use --no-skip-intro to reproduce older runs")
     parser.add_argument("--pipeline-cache", action=argparse.BooleanOptionalAction, default=False,
-                        help="let bbhost load and save its Vulkan pipeline cache in the run's data (off by default, so loads stay comparable)")
+                        help="let heliasdream load and save its Vulkan pipeline cache in the run's data (off by default, so loads stay comparable)")
     parser.add_argument("--windowed", action="store_true",
-                        help="open the window and present (BBHOST_HEADLESS=0); needs DISPLAY, e.g. an Xvfb server")
+                        help="open the window and present (HELIAS_HEADLESS=0); needs DISPLAY, e.g. an Xvfb server")
     parser.add_argument("--present-delay-us", type=int,
-                        help="BBHOST_PRESENT_DELAY_US: how long each present pretends the display blocks (Xvfb never does)")
+                        help="HELIAS_PRESENT_DELAY_US: how long each present pretends the display blocks (Xvfb never does)")
     parser.add_argument("--autopress", default=AUTOPRESS,
-                        help="BBHOST_AUTOPRESS taps (default: circle every 4 s from 10 s). 'f329:circle,...' taps at flips, "
+                        help="HELIAS_AUTOPRESS taps (default: circle every 4 s from 10 s). 'f329:circle,...' taps at flips, "
                              "so configurations whose loads take different wall time press at the same point in the game")
     parser.add_argument("--start", type=int, default=1500)
     parser.add_argument("--end", type=int, default=2400)
     parser.add_argument("--timeout", type=float, default=300)
     parser.add_argument("--numa-node", type=int,
-                        help="run bbhost under numactl on this NUMA node's CPUs and memory (use the GPU's node for steadier timings)")
+                        help="run heliasdream under numactl on this NUMA node's CPUs and memory (use the GPU's node for steadier timings)")
     args = parser.parse_args()
     if args.start < 300 or args.end <= args.start or args.start % 300 or args.end % 300 or args.timeout <= 0:
         parser.error("start/end must be increasing multiples of 300 (start >= 300), timeout positive")

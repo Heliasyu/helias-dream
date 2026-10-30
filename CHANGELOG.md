@@ -14,6 +14,38 @@
 - Unchanged: the binary (`bbhost`, installed as `bbhost.bin`), the settings in
   `~/.config/bbhost/`, the version scheme (`v0.2.18-vk.<n>`), and online play.
 
+### The launcher (`launcher/HeliasDream`, Avalonia, Windows and Linux)
+- A frosted glass launcher: a moonlit scene with parallax layers, pill tabs, pages that
+  glide in; opens on the primary monitor, resizes by its corners, drags by its top.
+- **Play:** the ready check (engine, game files and version, eboot, FSR 4.1.1, DualSense,
+  sign-in, server), this hunt's settings, quick picks, trophy progress; Play or Enter.
+- **Display** (as Lantern Engine's): monitor, resolution, window, V-Sync, menu key; Advanced:
+  live resolution change and presentation mode (Mailbox by default); frame rate; the FPS
+  counter's look and contents; HDR.
+- **Upscaling, Graphics** (effects, picture, camera), **Controller** (haptics, mouse, and a
+  keyboard and mouse bindings editor), **Online**, **Trophies** (every trophy with its picture
+  from the player's dump and its date), **More** (game options, save backups with restore,
+  best settings for this PC, the launcher's own).
+- A hover explanation on every setting; the header shows the engine's version and a newer
+  release when there is one.
+
+### The engine
+- **HDR output:** HDR10 (BT.2020, PQ) where the desktop has HDR on for the display; the SDR
+  frame's white at paper white and its highlights expanded towards the peak (Lantern
+  Engine's expand mode); the peak from the display's EDID or the setting; HDR metadata.
+- **Picture:** brightness, contrast and hue shift at the presenter (the game's picture only).
+- **FPS counter:** position, size, colours, opacities, border, and what it shows (frame rate,
+  frame time, upscaler, CPU, GPU).
+- **Trophies:** a frosted glass pop-up when one is earned; the platinum is awarded; the
+  game gets the real names, descriptions and grades.
+- **Texture detail:** a LOD bias for the game's textures (Auto: the upscaler's render scale).
+- **F10:** frosted glass (the game blurred behind it), tabs, two columns, switches and pills;
+  the launcher's fonts. **Menu key:** Insert, Home or F1 as well as F10.
+- **Smoke:** the effect manager's and GPU particles' rate stays the data's 30 (Kyo's lists'
+  60 halved emitter lifetimes: smoke popped in and out). BBHOST_EFFECT_RATE=60 for the old.
+- **Live resolution change** is a setting; **Fullscreen** shows as borderless;
+  **monitor** choice (BBHOST_DISPLAY); `--version`.
+
 ## vk.2 (2026-10-22, `v0.2.18-vk.2`)
 
 Everything since vk.1: the rc2-rc7 performance work below, batch 1's fixes, and DualSense

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Summarise a bbhost run's frame statistics (BBHOST_FRAME_STATS=1), Linux or
+"""Summarise a heliasdream run's frame statistics (HELIAS_FRAME_STATS=1), Linux or
 Windows log alike - what tools/perf_soak.sh prints, for any log.
 
     tools/soak_summary.py LOG [--after-world 5] [--skip 40]
@@ -24,7 +24,7 @@ ap.add_argument('--keep-loads', action='store_true',
 a = ap.parse_args()
 
 lines = open(a.log, errors='replace').read().replace('\r', '').split('\n')
-frames = [i for i, l in enumerate(lines) if l.startswith('[bbhost] frames:')]
+frames = [i for i, l in enumerate(lines) if l.startswith('[heliasdream] frames:')]
 if a.skip is not None:
     if len(frames) <= a.skip:
         sys.exit('only %d seconds of frame statistics' % len(frames))
@@ -32,7 +32,7 @@ if a.skip is not None:
 else:
     # "world:" is logged at the first in-game frame (engine/loading.cpp);
     # older logs fall back to the first glare line, which the title also has.
-    world = next((i for i, l in enumerate(lines) if l.startswith('[bbhost] world: the first in-game frame')), None)
+    world = next((i for i, l in enumerate(lines) if l.startswith('[heliasdream] world: the first in-game frame')), None)
     if world is None:
         world = next((i for i, l in enumerate(lines) if 'graphics: area glare luminance' in l), None)
     if world is None:
@@ -49,20 +49,20 @@ else:
 dropped = set()
 if not a.keep_loads:
     for j, l in enumerate(lines):
-        m = re.match(r'\[bbhost\] loading: ([0-9.]+) s', l)
+        m = re.match(r'\[heliasdream\] loading: ([0-9.]+) s', l)
         if not m or j < start:
             continue
         before = [i for i in frames if i < j][-(int(float(m.group(1))) + 2):]
         after = [i for i in frames if i > j][:10]
         dropped.update(before + after)
     # A load still going when the log ends (its loading screen runs uncapped).
-    begins = [j for j, l in enumerate(lines) if l.startswith('[bbhost] loading: begins')]
-    ends = [j for j, l in enumerate(lines) if re.match(r'\[bbhost\] loading: [0-9.]+ s', l)]
+    begins = [j for j, l in enumerate(lines) if l.startswith('[heliasdream] loading: begins')]
+    ends = [j for j, l in enumerate(lines) if re.match(r'\[heliasdream\] loading: [0-9.]+ s', l)]
     if begins and (not ends or ends[-1] < begins[-1]):
         dropped.update(i for i in frames if i > begins[-1])
 rows = []
 threads = {}
-gpu_busy = []  # ms a second bbhost's command buffers kept the GPU busy (host/gpu_busy.cpp)
+gpu_busy = []  # ms a second heliasdream's command buffers kept the GPU busy (host/gpu_busy.cpp)
 for i in (i for i in frames if i >= start and i not in dropped):
     l = lines[i]
     fps = float(re.search(r'\(([0-9.]+)/s\)', l).group(1))
@@ -89,7 +89,7 @@ for i in range(len(lines) - 1, start - 1, -1):
         nxt = i
     owner[i] = nxt
 tail = [lines[i] for i in range(start, len(lines)) if owner.get(i) in kept]
-stalls = sum(1 for l in tail if l.startswith('[bbhost] stall:'))
+stalls = sum(1 for l in tail if l.startswith('[heliasdream] stall:'))
 long_frames = [float(m.group(1)) for l in tail for m in [re.search(r'main loop: a ([0-9.]+) ms frame', l)] if m]
 print('%s: %d s: fps mean %.2f, seconds under 58: %d%s' % (a.log, n, flips / n, sum(1 for r in rows if r[0] < 58),
       ' (%d s around mid-run loads left out)' % len(dropped) if dropped else ''))
@@ -110,7 +110,7 @@ if gpu_busy:
     print('  gpu busy avg %.0f ms/s (%.1f%%), p95 %.0f, max %.0f; %.2f ms a flip' %
           (sum(gb) / len(gb), sum(gb) / len(gb) / 10.0, gb[min(len(gb) - 1, int(0.95 * len(gb)))], gb[-1],
            sum(gb) / max(1.0, flips)))
-loads = [l.split('loading: ', 1)[1].strip() for l in lines if l.startswith('[bbhost] loading: ') and 'begins' not in l and 'quick re-entry' not in l]
+loads = [l.split('loading: ', 1)[1].strip() for l in lines if l.startswith('[heliasdream] loading: ') and 'begins' not in l and 'quick re-entry' not in l]
 if loads:
     print('  loads: ' + '; '.join(loads[:8]))
 for key in ('gpu: memory by heap', 'gpu: memory by site'):

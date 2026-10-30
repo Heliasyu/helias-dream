@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Per-thread CPU of any running process over a window, busiest first (Linux):
-what BBHOST_FRAME_STATS prints for bbhost, for another program run beside it
+what HELIAS_FRAME_STATS prints for heliasdream, for another program run beside it
 (shadPS4, say).
 
     tools/thread_cpu.py PID [SECONDS]

@@ -1,4 +1,4 @@
-// bbhost-vk's upscaler settings and their scaffolding (host/upscaler.h).
+// heliasdream-vk's upscaler settings and their scaffolding (host/upscaler.h).
 #include "host/upscaler.h"
 
 #include "engine/scene_split.h"
@@ -11,8 +11,8 @@
 #include <atomic>
 #include <cstdint>
 
-#if !defined(BBHOST_HAVE_FSR_VULKAN)
-// No FSR-Vulkan in this build (BBHOST_FSR_VULKAN=OFF, or no Vulkan).
+#if !defined(HELIAS_HAVE_FSR_VULKAN)
+// No FSR-Vulkan in this build (HELIAS_FSR_VULKAN=OFF, or no Vulkan).
 int upscaler_fsr3_embedded_modules() { return 0; }
 bool upscaler_fsr3_linked() { return false; }
 #endif
@@ -81,9 +81,9 @@ ScenePass upscaler_scene_pass() {
     // 4.1.1, replayed from its assets, else FSR 3.1) upscales instead, where this
     // build links it; the bilinear copy stays its fallback (host/fsr3_pass.h).
     if (!scene_split_active()) return ScenePass::Game;
-#if defined(BBHOST_HAVE_FSR_VULKAN)
+#if defined(HELIAS_HAVE_FSR_VULKAN)
     const int k = g_kind.load(std::memory_order_relaxed);
-    if (k == upscaler::kFsr31 || k == upscaler::kFsr411) return ScenePass::Fsr31;
+    if (upscaler::is_temporal(k)) return ScenePass::Fsr31;
 #endif
     return ScenePass::Bilinear;
 }

@@ -1,6 +1,6 @@
 // A page write watch on Windows (a vectored exception handler over
 // VirtualProtect): the foundation the Linux write-watch (core/write_watch.h)
-// has in SIGSEGV + mprotect. Today a diagnostic: BBHOST_SAVE_DUMP's search for
+// has in SIGSEGV + mprotect. Today a diagnostic: HELIAS_SAVE_DUMP's search for
 // what clears the save directory prefix. Nothing on Linux.
 #pragma once
 

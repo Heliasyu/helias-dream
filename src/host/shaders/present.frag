@@ -7,5 +7,6 @@ layout(set = 0, binding = 0) uniform sampler2D picture;
 layout(location = 0) in vec2 v_uv;
 layout(location = 0) out vec4 out_colour;
 void main() {
-    out_colour = textureLod(picture, v_uv, 0.0);
+    // Alpha 1: the HDR encode reads a lower alpha as the overlay's (host/hdr_ui.h).
+    out_colour = vec4(textureLod(picture, v_uv, 0.0).rgb, 1.0);
 }

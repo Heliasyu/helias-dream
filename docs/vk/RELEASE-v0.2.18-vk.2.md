@@ -1,6 +1,6 @@
-# bbhost-vk v0.2.18-vk.2
+# heliasdream-vk v0.2.18-vk.2
 
-The second bbhost-vk release. Built on droogie's bbhost v0.2.18 (GPLv3), for Bloodborne
+The second heliasdream-vk release. Built on droogie's Helia's Dream v0.2.18 (GPLv3), for Bloodborne
 CUSA03173 1.09 on Linux. On top of vk.1 it has the rc2-rc7 performance work, a round of
 fixes, and DualSense HD haptics and adaptive triggers.
 
@@ -23,7 +23,7 @@ fixes, and DualSense HD haptics and adaptive triggers.
   - Both relax in menus and loading screens.
 - **Settings** (F10 > CONTROLLER, all live): Haptics (Off / Rumble / HD), Haptics strength,
   Adaptive triggers, Trigger strength, Menu haptics.
-- bbhost raises the controller's own playback volume (Linux leaves it at -20 dB), and says on
+- Helia's Dream raises the controller's own playback volume (Linux leaves it at -20 dB), and says on
   screen when a DualSense is on Bluetooth, where HD haptics cannot work.
 
 ### Performance
@@ -45,11 +45,11 @@ fixes, and DualSense HD haptics and adaptive triggers.
 - The in-game PC Upscaling help says what the settings do now.
 
 ## Install
-1. Keep a copy of your `bbhost.bin`, `~/.config/bbhost/bbhost-options.toml` and
-   `~/.config/bbhost/bbhost.toml`.
+1. Keep a copy of your `heliasdream.bin`, `~/.config/heliasdream/heliasdream-options.toml` and
+   `~/.config/heliasdream/heliasdream.toml`.
 2. Check the download: `sha256sum -c SHA256SUMS`.
-3. `tar xzf bbhost-vk-linux-v0.2.18-vk.2.tar.gz`, then copy
-   `bbhost-vk-linux-v0.2.18-vk.2/bbhost` over your `bbhost.bin`.
+3. `tar xzf heliasdream-vk-linux-v0.2.18-vk.2.tar.gz`, then copy
+   `heliasdream-vk-linux-v0.2.18-vk.2/heliasdream` over your `heliasdream.bin`.
 
 ## For HD haptics
 - Plug the DualSense in by USB **with its Bluetooth link off.** A controller already

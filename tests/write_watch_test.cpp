@@ -43,7 +43,7 @@ std::uint64_t faults() { return write_watch_stats().faults; }
 
 int main() {
     if (!write_watch_enabled()) {
-        std::printf("write watch disabled (BBHOST_WRITE_WATCH=0); nothing to test\n");
+        std::printf("write watch disabled (HELIAS_WRITE_WATCH=0); nothing to test\n");
         return 0;
     }
     struct sigaction sa{};

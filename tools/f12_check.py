@@ -11,13 +11,13 @@ Each check is a pattern that has broken frames before:
 
   size       a T# whose render target is another size. Smaller T#: the
              target's top-left region is what the hardware reads (the host
-             copies it, BBHOST_RT_REGIONS). Larger T#: the target is too small
+             copies it, HELIAS_RT_REGIONS). Larger T#: the target is too small
              and what the game drew past its edge was clipped - the
              new-character magenta (588x221 drawn into 588x11).
   lost-clear a target cleared, then re-created by the next draw: the clear
              went to the old image (the metallic huntsman's blood layer).
              Since 2026-09-29 the new image starts with that clear
-             (BBHOST_RT_REFILL); those are counted apart, not listed.
+             (HELIAS_RT_REFILL); those are counted apart, not listed.
   stale      a texture uploaded from memory a drawn target or a GPU-written
              texture holds newer bits for (the host's stale-read check).
   layers     RGBA8 textures filled by copy tokens (the game's runtime blood

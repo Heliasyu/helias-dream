@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""Summarize a bbhost `perf record` (no call graph or DWARF) per thread.
+"""Summarize a heliasdream `perf record` (no call graph or DWARF) per thread.
 
     perf script -i cpu-flat.data -F comm,tid,ip,sym,dso > flat.script
     python3 perf_cpu_summary.py flat.script maps.txt [--top 25] [--thread bb-cp0]
 
 Each sample is put in a bucket: guest (the game's own code, anonymous
-executable memory at the eboot's address range), bbhost (our code),
+executable memory at the eboot's address range), heliasdream (our code),
 radv/vulkan, libc/libstdc++, other libs, kernel. Then the top functions
 per thread are listed. Guest addresses are printed raw (game address =
 the runtime address, the eboot loads at 0x400000); no game code is read.
@@ -37,8 +37,8 @@ def bucket(ip, sym, dso):
     d = dso.lower()
     if ip >= 0xffff800000000000 or '[kernel' in d or d.endswith('.ko') or '[unknown]' == d and ip >= 0xffff800000000000:
         return 'kernel'
-    if 'bbhost' in d:
-        return 'bbhost'
+    if 'heliasdream' in d:
+        return 'heliasdream'
     if 'radv' in d or 'vulkan' in d or 'libdrm' in d or 'mesa' in d:
         return 'radv/vulkan/drm'
     if 'libc.so' in d or 'ld-linux' in d or 'libm.so' in d or 'libpthread' in d:

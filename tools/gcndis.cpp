@@ -103,7 +103,7 @@ int main(int argc, char** argv) {
                     continue;
                 }
                 const gcn::Program p = gcn::decode(code.words.data(), code.words.size());
-                // The translator's spill cells, as it reads them (BBHOST_SPILL_CELLS).
+                // The translator's spill cells, as it reads them (HELIAS_SPILL_CELLS).
                 const gcn::SpillCells cells = gcn::spill_cells_on() ? gcn::spill_cells(p) : gcn::SpillCells{};
                 const std::uint32_t needs = gcn::pixel_wave64_needs(p, cells.reads);
                 spill_programs += !cells.reads.empty();

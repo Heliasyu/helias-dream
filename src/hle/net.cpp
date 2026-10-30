@@ -138,7 +138,7 @@ inline void sock_setopt_int(sockfd_t fd, int level, int name, int v) { ::setsock
 inline bool sock_ok(sockfd_t fd) { return fd != kBadSock; }
 
 // The game's epoll over our own wake word instead of the kernel's epoll and
-// eventfds: Windows has neither, and on Linux BBHOST_NET_POLL=1 runs this
+// eventfds: Windows has neither, and on Linux HELIAS_NET_POLL=1 runs this
 // path so it is proven on the same co-op runs. A P2P socket is readable when
 // its inbox has a datagram; a UDP socket is polled with a zero timeout; a
 // wait sleeps on one word every reader, control change and abort bumps
@@ -156,7 +156,7 @@ const bool g_net_poll = [] {
 #if defined(_WIN32)
     return true;
 #else
-    const char* e = std::getenv("BBHOST_NET_POLL");
+    const char* e = std::getenv("HELIAS_NET_POLL");
     return e && e[0] == '1';
 #endif
 }();
@@ -374,9 +374,9 @@ int g_net_cb_next = 1;
 
 // The first datagrams are always logged (the P2P handshake is a few dozen
 // small packets and the runs that fail are the ones without a trace);
-// BBHOST_NET_TRACE=1 removes the cap.
+// HELIAS_NET_TRACE=1 removes the cap.
 bool g_net_trace = [] {
-    const char* e = std::getenv("BBHOST_NET_TRACE");
+    const char* e = std::getenv("HELIAS_NET_TRACE");
     return e && e[0] == '1';
 }();
 constexpr int kTraceFirst = 400;
@@ -581,7 +581,7 @@ std::shared_ptr<P2pPort> p2p_port_open(std::uint16_t want) {
     auto pit = g_p2p_ports.find(want);
     if (pit != g_p2p_ports.end()) return pit->second;
     auto port = std::make_shared<P2pPort>();
-    // The port is this instance's alone. With SO_REUSEADDR a second bbhost on
+    // The port is this instance's alone. With SO_REUSEADDR a second heliasdream on
     // the machine bound it too and the kernel handed it our peers' datagrams:
     // this game kept sending, heard nothing, and left every session ~40 s in
     // (dev, 2026-10-06, a test harness beside a player). Windows also lets a

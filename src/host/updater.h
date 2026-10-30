@@ -1,7 +1,7 @@
 // The update check, against GitHub releases (CONTRIBUTING.md, "Releasing"). A
 // release build looks for a newer release at start; the F10 screen's UPDATES
 // rows and the setup window say what it found, and a newer release's page
-// opens in the browser, where the player downloads it. bbhost never downloads
+// opens in the browser, where the player downloads it. heliasdream never downloads
 // or replaces its own executable.
 //
 // update.source is the "releases/latest" API URL; a private repository's
@@ -9,8 +9,8 @@
 // never the account's.
 //
 // Each release carries the bare executables under the same names every time
-// (bbhost.exe, bbhost), SHA256SUMS and SHA256SUMS.sig, besides the packages.
-// Older builds' updater looked for bbhost-<tag>-windows.exe; finding none, it
+// (heliasdream.exe, heliasdream), SHA256SUMS and SHA256SUMS.sig, besides the packages.
+// Older builds' updater looked for heliasdream-<tag>-windows.exe; finding none, it
 // says to get the release from its page. The release key below signs
 // SHA256SUMS and the official plugins.
 #pragma once
@@ -20,7 +20,7 @@
 
 namespace updater {
 
-// This build's version (BBHOST_VERSION: "v0.1.0", "v0.1.0-3-gabc1234",
+// This build's version (HELIAS_VERSION: "v0.1.0", "v0.1.0-3-gabc1234",
 // "v0.0.0-<rev>", "+" for a changed tree).
 const char* current_version();
 
@@ -28,7 +28,7 @@ const char* current_version();
 // and the check begun on a thread of its own when update.check (or a release
 // build) says so and there is a window to offer it in - unless the setup
 // window has checked already.
-// BBHOST_UPDATE_TEST=1 checks regardless, headless too, and logs what it finds.
+// HELIAS_UPDATE_TEST=1 checks regardless, headless too, and logs what it finds.
 void start();
 
 // The setup window, while its box is checked: a check at once, unless one has
@@ -67,7 +67,7 @@ bool is_newer(const std::string& tag, const std::string& current);
 // The manifest's Ed25519 signature (64 raw bytes) against `public_key` (32).
 bool signature_ok(const std::string& manifest, const std::string& signature, const std::uint8_t public_key[32]);
 // What a "releases/latest" answer says: the release's tag, and the page to
-// open for it - its html_url, else bbhost's page for the tag, else bbhost's
+// open for it - its html_url, else heliasdream's page for the tag, else heliasdream's
 // latest release. False when the answer is not a release (no JSON object, no
 // tag).
 bool parse_release(const std::string& body, std::string& tag, std::string& page);

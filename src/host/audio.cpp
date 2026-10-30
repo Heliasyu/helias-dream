@@ -14,13 +14,13 @@
 #include <thread>
 #include <unordered_map>
 
-#if defined(BBHOST_HAVE_SDL3)
+#if defined(HELIAS_HAVE_SDL3)
 #include <SDL3/SDL.h>
 #endif
 
 namespace {
 
-#if defined(BBHOST_HAVE_SDL3)
+#if defined(HELIAS_HAVE_SDL3)
 // A write uses its output's stream outside g_mu while it waits for the queue
 // to drain and hands SDL the data. `writers` counts those uses; close and
 // shutdown set `closing` (a waiting write stops early and drops its data) and
@@ -44,7 +44,7 @@ struct Out {
     std::uint64_t writes = 0, underruns = 0, total_writes = 0, over = 0, nans = 0;
     double longest_gap_ms = 0.0;
     float peak = 0.0f;
-    std::FILE* dump = nullptr;  // BBHOST_AUDIO_DUMP: raw samples as written
+    std::FILE* dump = nullptr;  // HELIAS_AUDIO_DUMP: raw samples as written
     // The device asked for more than the stream held (SDL's get callback):
     // the rest of that period was silence - an audible dropout. Counted from
     // the first write on; `starved_bytes` is how much was missing.
@@ -93,7 +93,7 @@ bool ensure_audio() {
 }  // namespace
 
 int host_audio_open(unsigned freq, unsigned channels, bool is_float, unsigned frames_per_write) {
-#if defined(BBHOST_HAVE_SDL3)
+#if defined(HELIAS_HAVE_SDL3)
     std::lock_guard<std::mutex> lock(g_mu);
     if (g_audio_shutdown || !ensure_audio()) {
         return 0;
@@ -117,9 +117,9 @@ int host_audio_open(unsigned freq, unsigned channels, bool is_float, unsigned fr
     o.freq = freq;
     o.channels = channels;
     o.is_float = is_float;
-    // BBHOST_AUDIO_DUMP=<dir>: every output's samples, exactly as the game
+    // HELIAS_AUDIO_DUMP=<dir>: every output's samples, exactly as the game
     // wrote them, to <dir>/audio-<handle>-<Hz>-<ch>ch-<f32|s16>.raw.
-    if (const char* dir = std::getenv("BBHOST_AUDIO_DUMP")) {
+    if (const char* dir = std::getenv("HELIAS_AUDIO_DUMP")) {
         const std::string path = std::string(dir) + "/audio-" + std::to_string(h) + "-" + std::to_string(freq) + "-" +
                                  std::to_string(channels) + "ch-" + (is_float ? "f32" : "s16") + ".raw";
         o.dump = std::fopen(path.c_str(), "wb");
@@ -137,7 +137,7 @@ int host_audio_open(unsigned freq, unsigned channels, bool is_float, unsigned fr
 }
 
 void host_audio_write(int handle, const void* data, unsigned frames) {
-#if defined(BBHOST_HAVE_SDL3)
+#if defined(HELIAS_HAVE_SDL3)
     Out* o = nullptr;
     {
         std::lock_guard<std::mutex> lock(g_mu);
@@ -176,7 +176,7 @@ void host_audio_write(int handle, const void* data, unsigned frames) {
         }
         if (o->dump && data) std::fwrite(data, 1, bytes, o->dump);
         const double window_s = std::chrono::duration<double>(start - o->window_start).count();
-        static const bool always = [] { const char* e = std::getenv("BBHOST_AUDIO_STATS"); return e && *e == '1'; }();
+        static const bool always = [] { const char* e = std::getenv("HELIAS_AUDIO_STATS"); return e && *e == '1'; }();
         if (window_s >= 5.0) {
             const std::uint64_t starved = o->starved.exchange(0), starved_bytes = o->starved_bytes.exchange(0);
             if (always || o->underruns || starved || o->over || o->nans) {
@@ -245,7 +245,7 @@ void host_audio_write(int handle, const void* data, unsigned frames) {
 }
 
 void host_audio_set_gain(int handle, float gain) {
-#if defined(BBHOST_HAVE_SDL3)
+#if defined(HELIAS_HAVE_SDL3)
     std::lock_guard<std::mutex> lock(g_mu);
     auto it = g_outs.find(handle);
     if (it != g_outs.end() && !it->second.closing.load()) {
@@ -258,7 +258,7 @@ void host_audio_set_gain(int handle, float gain) {
 }
 
 void host_audio_close(int handle) {
-#if defined(BBHOST_HAVE_SDL3)
+#if defined(HELIAS_HAVE_SDL3)
     std::unique_lock<std::mutex> lock(g_mu);
     auto it = g_outs.find(handle);
     if (it == g_outs.end() || it->second.closing.exchange(true)) {
@@ -281,7 +281,7 @@ void host_audio_close(int handle) {
 }
 
 void host_audio_pause_all() {
-#if defined(BBHOST_HAVE_SDL3)
+#if defined(HELIAS_HAVE_SDL3)
     std::lock_guard<std::mutex> lock(g_mu);
     for (auto& [handle, o] : g_outs) {
         if (o.stream) SDL_PauseAudioStreamDevice(o.stream);
@@ -290,7 +290,7 @@ void host_audio_pause_all() {
 }
 
 void host_audio_shutdown() {
-#if defined(BBHOST_HAVE_SDL3)
+#if defined(HELIAS_HAVE_SDL3)
     std::unique_lock<std::mutex> lock(g_mu);
     g_audio_shutdown = true;
     for (auto& [handle, o] : g_outs) {

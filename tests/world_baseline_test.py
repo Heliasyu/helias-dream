@@ -12,14 +12,14 @@ spec.loader.exec_module(baseline)
 
 class BaselineTest(unittest.TestCase):
     def window(self, summary, end, seconds=16.0, profile=True, complete=True):
-        summary.feed(f"[bbhost] sceGnmSubmitAndFlip #{end} handle=1 buf=0 arg={end} cp-backlog=1 | "
+        summary.feed(f"[heliasdream] sceGnmSubmitAndFlip #{end} handle=1 buf=0 arg={end} cp-backlog=1 | "
                      f"{seconds} s: draws=425000 dispatches=47000 submits=1200 gpu-wait=7000 ms pipelines=3 transfers=189000/15000")
-        summary.feed("[bbhost]   cp-thread ms: draw=5700 dispatch=650 prefetch=1250 bind=4100 label-wait=0")
+        summary.feed("[heliasdream]   cp-thread ms: draw=5700 dispatch=650 prefetch=1250 bind=4100 label-wait=0")
         if profile:
-            summary.feed("[bbhost]   gpu profile: total=14600ms cmdbuf=15500ms(1200) "
+            summary.feed("[heliasdream]   gpu profile: total=14600ms cmdbuf=15500ms(1200) "
                          "graphics=14000ms compute=600ms 8747a367+a22c7f71=1600ms(13500)")
         if complete:
-            summary.feed("[bbhost]   fill: pending=20000 applied=9000")
+            summary.feed("[heliasdream]   fill: pending=20000 applied=9000")
 
     def test_complete_windows_and_pipeline_identity(self):
         summary = baseline.LogSummary()
@@ -39,16 +39,16 @@ class BaselineTest(unittest.TestCase):
         summary = baseline.LogSummary()
         self.window(summary, 1200)
         self.window(summary, 1500)
-        summary.feed("[bbhost]   gnm ops: total=900 native-draw-tokens=40 set-context-reg=500 nop=60 op-58=12")
+        summary.feed("[heliasdream]   gnm ops: total=900 native-draw-tokens=40 set-context-reg=500 nop=60 op-58=12")
         window = summary.windows[-1]
         self.assertEqual(window["gnm_ops"], {"total": 900, "native-draw-tokens": 40, "set-context-reg": 500, "nop": 60, "op-58": 12})
         self.assertNotIn("gnm_ops", summary.windows[0])
 
     def test_launch_on_one_numa_node(self):
-        argv = ["build/bbhost", "--config", "bbhost.toml"]
+        argv = ["build/heliasdream", "--config", "HeliasDream.toml"]
         self.assertEqual(baseline.launch_argv(argv, None), argv)
         self.assertEqual(baseline.launch_argv(argv, 0),
-                         ["numactl", "--cpunodebind=0", "--membind=0", "build/bbhost", "--config", "bbhost.toml"])
+                         ["numactl", "--cpunodebind=0", "--membind=0", "build/heliasdream", "--config", "HeliasDream.toml"])
 
     def test_missing_boundary_is_not_assumed_to_be_300(self):
         summary = baseline.LogSummary()
@@ -66,39 +66,39 @@ class BaselineTest(unittest.TestCase):
 
     def test_failure_retained_even_outside_selected_window(self):
         summary = baseline.LogSummary()
-        summary.feed("[bbhost] render: descriptor set allocation failed")
+        summary.feed("[heliasdream] render: descriptor set allocation failed")
         self.window(summary, 1500)
         self.window(summary, 1800)
-        summary.feed("[bbhost] SIGSEGV at 0x2ab0a98")
+        summary.feed("[heliasdream] SIGSEGV at 0x2ab0a98")
         result = summary.result(1500, 1800)
         self.assertTrue(result["complete_windows"])
         self.assertEqual(len(result["failures"]), 2)
 
     def test_real_wait_failure_but_not_zero_failure_summary(self):
         summary = baseline.LogSummary()
-        summary.feed("[bbhost] hang: 0 address(es) had a wait give up")
+        summary.feed("[heliasdream] hang: 0 address(es) had a wait give up")
         self.assertEqual(summary.failures, [])
-        summary.feed("[bbhost]   wait 0x123 gave up 3 time(s) (fn=3 ref=0x1)")
-        summary.feed("[bbhost] startup: skip intro refused: unexpected logo bytes at 0x4d99138")
+        summary.feed("[heliasdream]   wait 0x123 gave up 3 time(s) (fn=3 ref=0x1)")
+        summary.feed("[heliasdream] startup: skip intro refused: unexpected logo bytes at 0x4d99138")
         self.assertEqual(len(summary.failures), 2)
 
     def test_capture_written_rejected_and_abandoned(self):
         summary = baseline.LogSummary()
-        summary.feed("[bbhost] capture: 8747a367+a22c7f71 draw 41 (flip 1500) not captured: indirect draw: its arguments are GPU data")
-        summary.feed("[bbhost] capture: wrote /tmp/x/captures/8747a367+a22c7f71-f1500-d42/manifest.json "
+        summary.feed("[heliasdream] capture: 8747a367+a22c7f71 draw 41 (flip 1500) not captured: indirect draw: its arguments are GPU data")
+        summary.feed("[heliasdream] capture: wrote /tmp/x/captures/8747a367+a22c7f71-f1500-d42/manifest.json "
                      "(8747a367+a22c7f71, flip 1500, draw 42, 31 blobs, 104857600 bytes)")
         self.assertEqual(summary.captures, ["/tmp/x/captures/8747a367+a22c7f71-f1500-d42"])
         self.assertEqual(summary.failures, [])
-        summary.feed("[bbhost] capture: 8747a367+a22c7f71 draw 43 abandoned before it was written")
-        summary.feed("[bbhost] capture: /tmp/x/captures/y: writing blobs failed; no manifest written")
+        summary.feed("[heliasdream] capture: 8747a367+a22c7f71 draw 43 abandoned before it was written")
+        summary.feed("[heliasdream] capture: /tmp/x/captures/y: writing blobs failed; no manifest written")
         self.assertEqual(len(summary.failures), 2)
         self.assertEqual(len(summary.result(1500, 1800)["captures"]), 1)
 
     def test_inventory_requires_selected_draw_not_a_binding_log(self):
         summary = baseline.LogSummary()
-        summary.feed("[bbhost] render: first bind of pipeline 8747a367+a22c7f71")
+        summary.feed("[heliasdream] render: first bind of pipeline 8747a367+a22c7f71")
         self.assertFalse(summary.pilot_inventory)
-        summary.feed("[bbhost] render: detail for 8747a367+a22c7f71: index_va=0x0 type=0 count=4")
+        summary.feed("[heliasdream] render: detail for 8747a367+a22c7f71: index_va=0x0 type=0 count=4")
         self.assertTrue(summary.pilot_inventory)
 
 

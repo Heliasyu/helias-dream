@@ -709,15 +709,15 @@ bool hle_kernel_reserve_guest_windows() {
     // A second home for the eboot image when 0x400000 is taken (it is under
     // wine): fixed, so a run's guest addresses are the same every time.
     win_vm_reserve(kImageFallbackBase, 0x10000000ull);
-    // BBHOST_TEST_RESERVE_FAIL=1: the first process pretends the reservation
+    // HELIAS_TEST_RESERVE_FAIL=1: the first process pretends the reservation
     // lost, to see the relaunch below work.
     char relaunch_env[16] = {};
-    const DWORD relaunches = GetEnvironmentVariableA("BBHOST_RELAUNCH", relaunch_env, sizeof(relaunch_env))
+    const DWORD relaunches = GetEnvironmentVariableA("HELIAS_RELAUNCH", relaunch_env, sizeof(relaunch_env))
                                  ? static_cast<DWORD>(std::atoi(relaunch_env))
                                  : 0;
-    if (ok && relaunches == 0 && GetEnvironmentVariableA("BBHOST_TEST_RESERVE_FAIL", relaunch_env, sizeof(relaunch_env)) &&
+    if (ok && relaunches == 0 && GetEnvironmentVariableA("HELIAS_TEST_RESERVE_FAIL", relaunch_env, sizeof(relaunch_env)) &&
         relaunch_env[0] == '1') {
-        host_log("win-vm: BBHOST_TEST_RESERVE_FAIL: pretending the reservation lost");
+        host_log("win-vm: HELIAS_TEST_RESERVE_FAIL: pretending the reservation lost");
         ok = false;
     }
     host_log("win-vm: guest windows [0x%llx, +0x%llx) and [0x%llx, +4 GiB) %s",
@@ -734,7 +734,7 @@ bool hle_kernel_reserve_guest_windows() {
             return false;
         }
         std::snprintf(relaunch_env, sizeof(relaunch_env), "%lu", static_cast<unsigned long>(relaunches + 1));
-        SetEnvironmentVariableA("BBHOST_RELAUNCH", relaunch_env);
+        SetEnvironmentVariableA("HELIAS_RELAUNCH", relaunch_env);
         host_log("win-vm: relaunching (%s of 3) so the guest windows are placed anew", relaunch_env);
         std::fflush(nullptr);
         STARTUPINFOW si{};
@@ -1166,7 +1166,7 @@ GUEST_ABI int hle_batch_map(BatchEntry* entries, int num, int* processed) {
 }
 
 // The lock and the sleep are core/futex.h's (WaitOnAddress on Windows, not
-// winpthreads' semaphores and critical sections; BBHOST_FUTEX=0 for those).
+// winpthreads' semaphores and critical sections; HELIAS_FUTEX=0 for those).
 // A signal wakes as many waiters as it gives tokens when every waiter wants
 // one (it woke them all, and all but one went back to sleep);
 // when a waiter wants more than one, all wake and each checks its own need,
@@ -1284,7 +1284,7 @@ GUEST_ABI int hle_signal_sema(HostSema* h, int count) {
         // Every logged CreateSema is binary (init 0, max 1) with one waiter
         // at most, so this is mostly one wake for one token either way.
         static const bool wake_all = [] {
-            const char* e = std::getenv("BBHOST_SEMA_WAKE_ALL");
+            const char* e = std::getenv("HELIAS_SEMA_WAKE_ALL");
             return e && e[0] == '1';
         }();
         if (wake_all || h->multi_waiters || count >= h->waiters) {
@@ -1531,10 +1531,10 @@ HleClockReads g_hle_clock_reads;
 // without the FS- and stack-switching thunk, as it calls memcpy (hle/libc.cpp
 // REG_RAW) - only in GS mode (Windows always), where the host's FS (errno,
 // the C library's thread data, which the CPU-time clocks may touch) stays in
-// place while the guest runs. BBHOST_RAW_CLOCK=0 thunks them again.
+// place while the guest runs. HELIAS_RAW_CLOCK=0 thunks them again.
 bool hle_raw_clock() {
     static const bool on = [] {
-        const char* e = std::getenv("BBHOST_RAW_CLOCK");
+        const char* e = std::getenv("HELIAS_RAW_CLOCK");
         return tls_gs_mode() && !(e && e[0] == '0');
     }();
     return on;
@@ -1564,7 +1564,7 @@ std::string hle_timing_window(double secs, std::string* sync) {
                       "waits/s mutex=%.0f cond=%.0f (signals %.0f) rwlock=%.0f sema=%.0f (woken %.0f) equeue=%.0f; "
                       "sleeps/s %.0f (timed out %.0f), wakes/s %.0f, on %s",
                       rate(6), rate(7), rate(8), rate(9), rate(10), rate(11), rate(12), rate(13), rate(14), rate(15),
-                      host_futex_native() ? "the word sleep" : "parked condition variables (BBHOST_FUTEX=0)");
+                      host_futex_native() ? "the word sleep" : "parked condition variables (HELIAS_FUTEX=0)");
         *sync = sb;
     }
     last = now;
@@ -1622,12 +1622,12 @@ void hle_register_kernel() {
 #undef REG
     host_log("timing: the guest's clocks (gettimeofday, time, clock, sceKernelClockGettime, GetProcessTime, ReadTsc) %s; "
              "its mutexes, condition variables, read/write locks, semaphores and event queues sleep on %s, %u pauses of spin "
-             "before a contended lock sleeps (BBHOST_FUTEX_SPIN)",
-             hle_raw_clock() ? "bound raw, read from the performance counter (BBHOST_RAW_CLOCK=0: thunked)" : "thunked (BBHOST_RAW_CLOCK=0 or FS mode)",
+             "before a contended lock sleeps (HELIAS_FUTEX_SPIN)",
+             hle_raw_clock() ? "bound raw, read from the performance counter (HELIAS_RAW_CLOCK=0: thunked)" : "thunked (HELIAS_RAW_CLOCK=0 or FS mode)",
 #if defined(_WIN32)
-             host_futex_native() ? "WaitOnAddress (BBHOST_FUTEX=0: winpthreads)" : "winpthreads' condition variables (BBHOST_FUTEX=0)",
+             host_futex_native() ? "WaitOnAddress (HELIAS_FUTEX=0: winpthreads)" : "winpthreads' condition variables (HELIAS_FUTEX=0)",
 #else
-             host_futex_native() ? "futex (BBHOST_FUTEX=0: std::condition_variable)" : "std::condition_variable (BBHOST_FUTEX=0)",
+             host_futex_native() ? "futex (HELIAS_FUTEX=0: std::condition_variable)" : "std::condition_variable (HELIAS_FUTEX=0)",
 #endif
              host_futex_spin());
 }

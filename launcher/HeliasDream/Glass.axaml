@@ -1,0 +1,230 @@
+<!-- The glass look: translucent panes with a bright top edge, pill controls with a glass bead
+     for the chosen one, blood red for Play. Colours: moonlit blue-black, accent #A9BFE3. -->
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+  <Style Selector="Window, UserControl">
+    <Setter Property="FontFamily" Value="{StaticResource Body}" />
+    <Setter Property="Foreground" Value="#E9EDF5" />
+  </Style>
+  <Style Selector="TextBlock.display">
+    <Setter Property="FontFamily" Value="{StaticResource Display}" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+  </Style>
+  <Style Selector="TextBlock.muted">
+    <Setter Property="Foreground" Value="#A7B0C0" />
+    <Setter Property="FontSize" Value="12" />
+  </Style>
+  <Style Selector="TextBlock.soft">
+    <Setter Property="Foreground" Value="#C3CAD6" />
+  </Style>
+  <Style Selector="TextBlock.eyebrow">
+    <Setter Property="Foreground" Value="#A7B0C0" />
+    <Setter Property="FontSize" Value="12" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+    <Setter Property="LetterSpacing" Value="1.6" />
+  </Style>
+
+  <!-- Panes -->
+  <Style Selector="Border.glass">
+    <Setter Property="Background" Value="#14FFFFFF" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="22" />
+    <Setter Property="Padding" Value="20" />
+    <Setter Property="BoxShadow" Value="inset 0 1 0 0 #2EFFFFFF, 0 20 50 0 #55000000" />
+    <Setter Property="BorderBrush">
+      <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%">
+        <GradientStop Color="#40FFFFFF" Offset="0" />
+        <GradientStop Color="#1AFFFFFF" Offset="0.4" />
+        <GradientStop Color="#12FFFFFF" Offset="1" />
+      </LinearGradientBrush>
+    </Setter>
+  </Style>
+  <Style Selector="Border.dark">
+    <Setter Property="Background" Value="#73080A10" />
+    <Setter Property="BorderBrush" Value="#1FFFFFFF" />
+    <Setter Property="BorderThickness" Value="1" />
+  </Style>
+  <Style Selector="Border.well">
+    <Setter Property="Background" Value="#38000000" />
+    <Setter Property="BorderBrush" Value="#10FFFFFF" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="14" />
+    <Setter Property="Padding" Value="14,11" />
+  </Style>
+  <Style Selector="Border.track">
+    <Setter Property="Background" Value="#4D000000" />
+    <Setter Property="BorderBrush" Value="#14FFFFFF" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="999" />
+    <Setter Property="Padding" Value="4" />
+  </Style>
+  <Style Selector="Border.bead">
+    <Setter Property="CornerRadius" Value="999" />
+    <Setter Property="BoxShadow" Value="inset 0 1 0 0 #99FFFFFF, 0 4 14 0 #40000000" />
+    <Setter Property="Background">
+      <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%">
+        <GradientStop Color="#EBFFFFFF" Offset="0" />
+        <GradientStop Color="#D9D6E0F2" Offset="1" />
+      </LinearGradientBrush>
+    </Setter>
+  </Style>
+
+  <!-- Buttons: one plain template, so a pill is a pill on every theme. -->
+  <Style Selector="Button.flat">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="Foreground" Value="#D5DBE6" />
+    <Setter Property="BorderThickness" Value="0" />
+    <Setter Property="Cursor" Value="Hand" />
+    <Setter Property="HorizontalContentAlignment" Value="Center" />
+    <Setter Property="VerticalContentAlignment" Value="Center" />
+    <Setter Property="Template">
+      <ControlTemplate>
+        <Border Name="Root" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
+                BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="{TemplateBinding CornerRadius}"
+                Padding="{TemplateBinding Padding}">
+          <ContentPresenter Content="{TemplateBinding Content}" ContentTemplate="{TemplateBinding ContentTemplate}"
+                            HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                            VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
+                            Foreground="{TemplateBinding Foreground}" />
+        </Border>
+      </ControlTemplate>
+    </Setter>
+    <Setter Property="Transitions">
+      <Transitions>
+        <BrushTransition Property="Background" Duration="0:0:0.25" />
+        <BrushTransition Property="Foreground" Duration="0:0:0.3" />
+      </Transitions>
+    </Setter>
+  </Style>
+  <Style Selector="Button.flat:pointerover">
+    <Setter Property="Background" Value="#1AFFFFFF" />
+  </Style>
+  <Style Selector="Button.flat.selected, Button.flat.selected:pointerover">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="Foreground" Value="#0B0D12" />
+  </Style>
+
+  <Style Selector="Button.ghost">
+    <Setter Property="Background" Value="#14FFFFFF" />
+    <Setter Property="BorderBrush" Value="#29FFFFFF" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="14" />
+    <Setter Property="Padding" Value="20,0" />
+    <Setter Property="Height" Value="46" />
+    <Setter Property="Foreground" Value="#E9EDF5" />
+  </Style>
+  <Style Selector="Button.ghost:pointerover">
+    <Setter Property="Background" Value="#26FFFFFF" />
+  </Style>
+
+  <Style Selector="Button.play">
+    <Setter Property="Background" Value="#8E1B2A" />
+    <Setter Property="BorderBrush" Value="#59FFBEBE" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="16" />
+    <Setter Property="Height" Value="56" />
+    <Setter Property="Padding" Value="46,0" />
+    <Setter Property="Foreground" Value="#FFF4F2" />
+    <Setter Property="FontFamily" Value="{StaticResource Display}" />
+    <Setter Property="FontSize" Value="26" />
+    <Setter Property="FontWeight" Value="Bold" />
+  </Style>
+  <Style Selector="Button.play:pointerover">
+    <Setter Property="Background" Value="#A3243A" />
+  </Style>
+  <Style Selector="Button.play:disabled">
+    <Setter Property="Background" Value="#4A1A22" />
+    <Setter Property="Foreground" Value="#A08A8A" />
+  </Style>
+
+  <Style Selector="Button.icon">
+    <Setter Property="Width" Value="34" />
+    <Setter Property="Height" Value="34" />
+    <Setter Property="CornerRadius" Value="12" />
+    <Setter Property="Background" Value="#0FFFFFFF" />
+    <Setter Property="BorderBrush" Value="#24FFFFFF" />
+    <Setter Property="BorderThickness" Value="1" />
+  </Style>
+  <Style Selector="Button.icon:pointerover">
+    <Setter Property="Background" Value="#26FFFFFF" />
+  </Style>
+  <Style Selector="Button.icon.close:pointerover">
+    <Setter Property="Background" Value="#8E1B2A" />
+  </Style>
+
+  <!-- Quality tiles -->
+  <Style Selector="Button.tile">
+    <Setter Property="Background" Value="#40000000" />
+    <Setter Property="BorderBrush" Value="#1AFFFFFF" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="16" />
+    <Setter Property="Padding" Value="12,12" />
+    <Setter Property="HorizontalContentAlignment" Value="Left" />
+    <Setter Property="Foreground" Value="#E9EDF5" />
+  </Style>
+  <Style Selector="Button.tile:pointerover">
+    <Setter Property="Background" Value="#26FFFFFF" />
+  </Style>
+  <Style Selector="Button.tile.selected, Button.tile.selected:pointerover">
+    <Setter Property="Foreground" Value="#0B0D12" />
+    <Setter Property="BorderBrush" Value="#80FFFFFF" />
+    <Setter Property="Background">
+      <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%">
+        <GradientStop Color="#EBFFFFFF" Offset="0" />
+        <GradientStop Color="#D9D6E0F2" Offset="1" />
+      </LinearGradientBrush>
+    </Setter>
+  </Style>
+
+  <!-- Sliders and switches in the accent -->
+  <Style Selector="Slider">
+    <Setter Property="Foreground" Value="#C9D6EE" />
+  </Style>
+  <Style Selector="ToggleSwitch">
+    <Setter Property="OnContent" Value="" />
+    <Setter Property="OffContent" Value="" />
+  </Style>
+  <Style Selector="ToggleSwitch:checked /template/ Border#SwitchKnobBounds">
+    <Setter Property="Background" Value="#A9BFE3" />
+  </Style>
+  <Style Selector="ToggleSwitch:checked /template/ Ellipse#SwitchKnobOn">
+    <Setter Property="Fill" Value="#0B0D12" />
+  </Style>
+  <Style Selector="ComboBox">
+    <Setter Property="CornerRadius" Value="14" />
+    <Setter Property="Background" Value="#40000000" />
+    <Setter Property="BorderBrush" Value="#24FFFFFF" />
+    <Setter Property="MinWidth" Value="180" />
+  </Style>
+  <Style Selector="ToolTip">
+    <Setter Property="Background" Value="#F0121620" />
+    <Setter Property="BorderBrush" Value="#3DFFFFFF" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="14" />
+    <Setter Property="Padding" Value="14,11" />
+    <Setter Property="Foreground" Value="#E9EDF5" />
+    <Setter Property="MaxWidth" Value="380" />
+  </Style>
+  <Style Selector="Expander.advanced">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="BorderThickness" Value="0" />
+    <Setter Property="Padding" Value="0" />
+    <Setter Property="CornerRadius" Value="14" />
+  </Style>
+  <Style Selector="Expander.advanced /template/ ToggleButton#ExpanderHeader">
+    <Setter Property="Background" Value="#24000000" />
+    <Setter Property="BorderBrush" Value="#14FFFFFF" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="14" />
+    <Setter Property="MinHeight" Value="40" />
+  </Style>
+  <Style Selector="Expander.advanced /template/ Border#ExpanderContent">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="BorderThickness" Value="0" />
+    <Setter Property="Padding" Value="0" />
+  </Style>
+  <Style Selector="ScrollViewer">
+    <Setter Property="Background" Value="Transparent" />
+  </Style>
+</Styles>

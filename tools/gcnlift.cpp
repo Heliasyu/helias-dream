@@ -156,7 +156,7 @@ int run(const fs::path& capture, const fs::path& out, bool vs) {
     json::Value m;
     std::string error;
     if (!json::parse(std::string(text.begin(), text.end()), m, error)) fail("manifest.json: " + error);
-    if (json::str(m, "schema") != "bbhost-draw-capture") fail("not a draw capture");
+    if (json::str(m, "schema") != "heliasdream-draw-capture") fail("not a draw capture");
     const json::Value& blobs = json::member(m, "blobs");
     const auto blob = [&](const std::string& name) { return read_file(capture / json::str(json::member(blobs, name.c_str()), "file")); };
     const json::Value& stage = json::arr(m, "stages").at(vs ? 0 : 1);
@@ -183,7 +183,7 @@ int run(const fs::path& capture, const fs::path& out, bool vs) {
     }
     const gcn::TranslateResult reference = gcn::translate(program, options);
     const gcn::LiftResult lifted = vs ? gcn::lift_vertex_shader(program, options, reference) : gcn::lift_pixel_shader(program, options, reference);
-    // A capture taken with BBHOST_DECOMP bound the lifted stage; that is what
+    // A capture taken with HELIAS_DECOMP bound the lifted stage; that is what
     // the rebuilt options have to reproduce.
     const json::Value* stage_lifted = json::member(m, "translate").find(vs ? "vs_lifted" : "ps_lifted");
     const bool captured_lifted = stage_lifted && stage_lifted->type == json::Value::Type::Bool && stage_lifted->boolean;
@@ -193,7 +193,7 @@ int run(const fs::path& capture, const fs::path& out, bool vs) {
 
     fs::create_directories(out);
     json::Value report = json::Value::make_object();
-    report.set("schema", "bbhost-gcn-lift");
+    report.set("schema", "heliasdream-gcn-lift");
     report.set("version", 1);
     report.set("capture", capture.string());
     report.set("pipeline", json::str(json::member(m, "identity"), "pipeline"));
@@ -237,7 +237,7 @@ int run(const fs::path& capture, const fs::path& out, bool vs) {
     if (lifted.ok()) write_file(out / "lifted.spv", spv_text(lifted.spirv));
     if (reference.ok()) write_file(out / "reference.spv", spv_text(reference.spirv));
     // Diagnostic floor for replay benches: the same translation with every
-    // export magenta (BBHOST_DEBUG_PS_COLOR=1), so the rest of the pixel shader
+    // export magenta (HELIAS_DEBUG_PS_COLOR=1), so the rest of the pixel shader
     // is dead code while the pipeline, bindings and fragment tests stay the same.
     if (!vs) {
         gcn::TranslateOptions magenta_options = options;

@@ -33,7 +33,7 @@ def write_capture(root, manifest, blobs):
 
 def base_manifest():
     return {
-        "schema": "bbhost-draw-capture",
+        "schema": "heliasdream-draw-capture",
         "version": 1,
         "identity": {"pipeline": "aaaa+bbbb", "flip": 1500, "draw_index": 10},
         "draw": {"vertex_count": 4, "instance_count": 1, "indexed": False},

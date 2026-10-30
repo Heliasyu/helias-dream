@@ -198,11 +198,11 @@ void apply_override(Table& t) {
              static_cast<unsigned long long>(written), static_cast<unsigned long long>(rows_touched), size);
 }
 
-// BBHOST_PARAM_DUMP="EquipParamWeapon:1000,LockCamParam:0": each named row's
+// HELIAS_PARAM_DUMP="EquipParamWeapon:1000,LockCamParam:0": each named row's
 // fields, by the game's definition - what a <mods>/params file can change.
 void dump_rows(const Table& t) {
     static const std::string spec = [] {
-        const char* e = std::getenv("BBHOST_PARAM_DUMP");
+        const char* e = std::getenv("HELIAS_PARAM_DUMP");
         return std::string(e ? e : "");
     }();
     if (spec.empty()) return;

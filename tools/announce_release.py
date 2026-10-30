@@ -29,7 +29,7 @@ FIELD_MAX = 1024
 
 
 def github(path: str) -> dict:
-    headers = {"Accept": "application/vnd.github+json", "User-Agent": "bbhost-announce"}
+    headers = {"Accept": "application/vnd.github+json", "User-Agent": "heliasdream-announce"}
     if os.environ.get("GH_TOKEN"):
         headers["Authorization"] = "Bearer " + os.environ["GH_TOKEN"]
     with urllib.request.urlopen(urllib.request.Request(API + path, headers=headers), timeout=20) as r:
@@ -59,8 +59,8 @@ def notes(body: str, url: str) -> str:
 
 
 def downloads(assets: list) -> str:
-    kinds = [("Windows", r"^bbhost-win-.*\.zip$"), ("Linux", r"^bbhost(-vk)?-linux-.*\.tar\.gz$"),
-             ("Steam Deck", r"^bbhost(-vk)?-steamdeck-.*\.tar\.gz$")]
+    kinds = [("Windows", r"^(helias-dream-windows|heliasdream-win)-.*\.zip$"), ("Linux", r"^heliasdream(-vk)?-linux-.*\.tar\.gz$"),
+             ("Steam Deck", r"^heliasdream(-vk)?-steamdeck-.*\.tar\.gz$")]
     out = []
     for label, pattern in kinds:
         for a in assets:
@@ -72,7 +72,7 @@ def downloads(assets: list) -> str:
 
 def message(rel: dict) -> dict:
     tag, url = rel["tag_name"], rel["html_url"]
-    embed = {"title": f"bbhost {tag} is out", "url": url,
+    embed = {"title": f"heliasdream {tag} is out", "url": url,
              "description": notes(rel.get("body", ""), url) or f"[Release notes]({url})",
              "color": 0x8B1E1E}
     fields = []
@@ -86,7 +86,7 @@ def message(rel: dict) -> dict:
 
 
 def main() -> int:
-    repo = os.environ.get("GITHUB_REPOSITORY", "droogie/bbhost")
+    repo = os.environ.get("GITHUB_REPOSITORY", "Heliasyu/helias-dream")
     tag = (sys.argv[1] if len(sys.argv) > 1 else "").strip()
     rel = github(f"/repos/{repo}/releases/tags/{tag}" if tag else f"/repos/{repo}/releases/latest")
     if rel.get("draft") or rel.get("prerelease"):
@@ -103,7 +103,7 @@ def main() -> int:
     req = urllib.request.Request(
         f"https://discord.com/api/v10/channels/{channel}/messages", data=json.dumps(payload).encode(),
         headers={"Authorization": f"Bot {token}", "Content-Type": "application/json",
-                 "User-Agent": "DiscordBot (https://github.com/droogie/bbhost, 1) announce-release"})
+                 "User-Agent": "DiscordBot (https://github.com/Heliasyu/helias-dream, 1) announce-release"})
     try:
         with urllib.request.urlopen(req, timeout=20) as r:
             print(f"{rel['tag_name']}: announced (HTTP {r.status})")

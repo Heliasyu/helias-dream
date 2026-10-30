@@ -9,7 +9,7 @@
 // is checked against the game's own getter (a line either way).
 //
 // Changes: while watching (a plugin's on_event_flag, or
-// BBHOST_EVENT_FLAG_LOG=1 to log each), every flag a setter flips is taken
+// HELIAS_EVENT_FLAG_LOG=1 to log each), every flag a setter flips is taken
 // from decomp's ring once a frame, on the main thread.
 #pragma once
 

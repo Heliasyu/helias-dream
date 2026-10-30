@@ -219,9 +219,9 @@ namespace yebis_bind {
 
 int mode() {
     if (g_mode < 0) {
-        const char* e = std::getenv("BBHOST_YEBIS_BIND");
+        const char* e = std::getenv("HELIAS_YEBIS_BIND");
         g_mode = e ? std::atoi(e) : 1;
-        const char* v = std::getenv("BBHOST_YEBIS_BIND_VERIFY");
+        const char* v = std::getenv("HELIAS_YEBIS_BIND_VERIFY");
         g_verify = v && v[0] == '1';
         if (g_mode) g_arena = new std::uint8_t[kArenaBytes + kMaxWindow]();
     }

@@ -1,0 +1,22 @@
+[1/19] cd /home/helias/Projects/bbhost-vk/build-win && /usr/bin/cmake -DSRC=/home/helias/Projects/bbhost-vk -DOUT=/home/helias/Projects/bbhost-vk/build-win/gen/translator_fingerprint.h -P /home/helias/Projects/bbhost-vk/cmake/translator_fingerprint.cmake
+[2/18] cd /home/helias/Projects/bbhost-vk/build-win && /usr/bin/cmake -DSRC=/home/helias/Projects/bbhost-vk -DOUT=/home/helias/Projects/bbhost-vk/build-win/gen/heliasdream_version.h -P /home/helias/Projects/bbhost-vk/cmake/version.cmake
+[3/12] Building C object third_party/FSR-Vulkan/CMakeFiles/ffx_vulkan_portable.dir/__/__/fsr_vulkan_patched/src/ffx_vk_fsr3_3_1_5_descriptor.c.obj
+[4/12] Linking CXX static library third_party/FSR-Vulkan/libffx_vulkan_portable.a
+[5/12] Building CXX object CMakeFiles/heliasdream.dir/src/host/menu_i18n.cpp.obj
+[6/12] Building CXX object third_party/FSR-Vulkan/CMakeFiles/ffx_vulkan_fsr3_vk_backend_3_1_5.dir/__/__/fsr_vulkan_patched/src/ffx_vk_fsr3_3_1_5_bridge.cpp.obj
+[7/12] Linking CXX static library third_party/FSR-Vulkan/libffx_vulkan_fsr3_vk_backend_3_1_5.a
+[8/12] Building CXX object CMakeFiles/heliasdream.dir/src/host/haptics.cpp.obj
+[9/12] Building CXX object CMakeFiles/heliasdream.dir/src/main.cpp.obj
+[10/12] Building CXX object CMakeFiles/heliasdream.dir/src/engine/menu_assets.cpp.obj
+/home/helias/Projects/bbhost-vk/src/engine/menu_assets.cpp:1189:32: warning: loop variable 'root' creates a copy from type 'const std::string' (aka 'const basic_string<char>') [-Wrange-loop-construct]
+ 1189 |         for (const std::string root : {app0, std::string(hle_fs_update_root())}) {
+      |                                ^
+/home/helias/Projects/bbhost-vk/src/engine/menu_assets.cpp:1189:14: note: use reference type 'const std::string &' (aka 'const basic_string<char> &') to prevent copying
+ 1189 |         for (const std::string root : {app0, std::string(hle_fs_update_root())}) {
+      |              ^~~~~~~~~~~~~~~~~~~~~~~~
+      |                                &
+1 warning generated.
+[11/12] Linking CXX executable heliasdream.exe
+[11/12] cd /home/helias/Projects/bbhost-vk && /home/helias/Projects/bbhost-vk/tools/win_package.sh /home/helias/Projects/bbhost-vk/build-win/heliasdream.exe /home/helias/Projects/bbhost-vk/build/win
+plugins: 4 packed into /home/helias/Projects/bbhost-vk/build/win/helias-dream-windows-d6dfa0c+/plugins, unsigned
+package: /home/helias/Projects/bbhost-vk/build/win/helias-dream-windows-d6dfa0c+.zip (48 MB); symbols: /home/helias/Projects/bbhost-vk/build/win/helias-dream-windows-d6dfa0c+.debug.exe

@@ -10,7 +10,7 @@
 # are not here: host/present_spv.h and host/overlay.cpp carry their own words.
 set -eu
 cd "$(dirname "$0")/.."
-graphics="src/host/shaders/stream_selftest.vert src/host/shaders/stream_selftest.frag src/host/shaders/motion_view.frag"
+graphics="src/host/shaders/stream_selftest.vert src/host/shaders/stream_selftest.frag src/host/shaders/motion_view.frag src/host/shaders/frosted.frag src/host/shaders/present_grade.frag src/host/shaders/hdr_encode.frag"
 if [ $# -gt 0 ]; then
     sources="$*"
 else

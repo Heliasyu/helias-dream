@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-// bbhost-vk Phase 4: adapted from bbport (deadinside28/bloodborne_pc, GPL-2.0-or-later),
+// heliasdream-vk Phase 4: adapted from bbport (deadinside28/bloodborne_pc, GPL-2.0-or-later),
 // gpu/shadps4/video_core/renderer_vulkan/fsr411/fsr411.cpp at 3c57da4 - the FSR 4.1.1 replay
-// on plain Vulkan. Changes for bbhost-vk are marked "bbhost-vk:". Credit: bbport's authors.
+// on plain Vulkan. Changes for heliasdream-vk are marked "heliasdream-vk:". Credit: bbport's authors.
 // bbport: FSR 4.1.1 replay on Vulkan (fsr411.h). The frame is the DLL's 29 dispatches: SPD auto
 // exposure, prepass, pass0_post, model passes 1..12 each followed by its _post pass (tensor border
 // clears), postpass, RCAS. The rules for group counts, the tensor size table and the constants
@@ -270,7 +270,7 @@ struct Upscaler::Impl {
         VkDeviceMemory memory = VK_NULL_HANDLE;
     };
     Img recurrent, history, reprojected, mlsr_output, exposure, exposure_identity, spd_atomic, spd_mip5;
-    const Img* last_exposure = nullptr;  // bbhost-vk: the exposure the last Record bound
+    const Img* last_exposure = nullptr;  // heliasdream-vk: the exposure the last Record bound
     struct Buf {
         VkBuffer buffer = VK_NULL_HANDLE;
         VkDeviceMemory memory = VK_NULL_HANDLE;
@@ -296,8 +296,8 @@ struct Upscaler::Impl {
         const auto built = [&](const Rules& r) {
             return bool(std::ifstream(dir + "/" + r.folder + "t1080_m0/initializer.bin"));
         };
-        // bbhost-vk: BBHOST_FSR411_VARIANT, or bbport's name.
-        const char* env = std::getenv("BBHOST_FSR411_VARIANT");
+        // heliasdream-vk: HELIAS_FSR411_VARIANT, or bbport's name.
+        const char* env = std::getenv("HELIAS_FSR411_VARIANT");
         if (!env) env = std::getenv("BB_FSR411_VARIANT");
         const std::string wanted = env ? env : "";
         if (wanted == "fp8emu" && features.fp16_matrices && built(kFp8Emulated)) {
@@ -312,8 +312,8 @@ struct Upscaler::Impl {
         push_descriptors = reinterpret_cast<PFN_vkCmdPushDescriptorSetKHR>(
             vkGetDeviceProcAddr(device, "vkCmdPushDescriptorSetKHR"));
         period_ns = props.limits.timestampPeriod;
-        // bbhost-vk: BBHOST_FSR4_PROFILE, or bbport's name.
-        const char* profile = std::getenv("BBHOST_FSR4_PROFILE");
+        // heliasdream-vk: HELIAS_FSR4_PROFILE, or bbport's name.
+        const char* profile = std::getenv("HELIAS_FSR4_PROFILE");
         if (!profile) profile = std::getenv("BB_FSR4_PROFILE");
         if (profile && profile[0] == '1') {
             VkQueryPoolCreateInfo qci{VK_STRUCTURE_TYPE_QUERY_POOL_CREATE_INFO};
@@ -732,7 +732,7 @@ struct Upscaler::Impl {
         previous_pre_exposure = pre_exposure;
 
         const Img& exposure_image = f.auto_exposure ? exposure : exposure_identity;
-        last_exposure = &exposure_image;  // bbhost-vk: for SharpenExposure()
+        last_exposure = &exposure_image;  // heliasdream-vk: for SharpenExposure()
         const Image* const final_output = &f.output;
 
         VkMemoryBarrier between{VK_STRUCTURE_TYPE_MEMORY_BARRIER};
@@ -741,7 +741,7 @@ struct Upscaler::Impl {
         // Earlier work of the caller on the inputs (render, copies) is the caller's barrier.
         for (uint32_t index = 0; index < kPassCount; ++index) {
             const std::string name = kPasses[index];
-            // bbhost-vk: sharpen_external leaves the RCAS pass to the caller (test7).
+            // heliasdream-vk: sharpen_external leaves the RCAS pass to the caller (test7).
             if ((name == "spd" && !f.auto_exposure) || (name == "rcas" && (!f.sharpen || f.sharpen_external))) {
                 continue;
             }

@@ -2,7 +2,7 @@
 """Compare two draw captures (src/host/draw_capture.cpp) of the same draw.
 
 Typical use: the same draw captured from its Gnm packets and from a host-draw
-token (BBHOST_GX_NATIVE=2), to show whether the renderer saw the same inputs
+token (HELIAS_GX_NATIVE=2), to show whether the renderer saw the same inputs
 and produced the same output.
 
     tools/capture_diff.py <capture A> <capture B> [--max-lines N]
@@ -43,8 +43,8 @@ def load(path):
         m = json.loads(manifest.read_text())
     except (OSError, ValueError) as e:
         fail(f"cannot read {manifest}: {e}")
-    if m.get("schema") != "bbhost-draw-capture":
-        fail(f"{manifest} is not a bbhost draw capture")
+    if m.get("schema") != "heliasdream-draw-capture":
+        fail(f"{manifest} is not a heliasdream draw capture")
     return manifest.parent, m
 
 

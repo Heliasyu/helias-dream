@@ -2,7 +2,7 @@
 
 // YEBIS's resource binding, as our source instead of the game's.
 //
-// The YEBIS draw flip (BBHOST_GX_NATIVE_YEBIS=5) already draws from the state
+// The YEBIS draw flip (HELIAS_GX_NATIVE_YEBIS=5) already draws from the state
 // we read ourselves, but it still made seven guest calls a draw - and every one
 // of them exists only to build a PM4 packet:
 //
@@ -30,9 +30,9 @@
 // makes it byte-for-byte: a record the game changed without marking it dirty
 // must not reach the shader early, exactly as on the hardware.
 //
-// BBHOST_YEBIS_BIND: 0 the guest builder, 1 ours (default), 2 compare - ours
+// HELIAS_YEBIS_BIND: 0 the guest builder, 1 ours (default), 2 compare - ours
 // predicts, the guest's runs, and every address is checked against it.
-// BBHOST_YEBIS_BIND_VERIFY=1 also checks every window against constant RAM.
+// HELIAS_YEBIS_BIND_VERIFY=1 also checks every window against constant RAM.
 
 #include <cstdint>
 
@@ -85,7 +85,7 @@ void run(const Work& work);
 // Compare mode: what a stage predicted, against what the guest builder left.
 void compare(int stage, const std::uint64_t* mine, const std::uint64_t* theirs, std::uint32_t count);
 
-// BBHOST_YEBIS_BIND_VERIFY=1: the window we stashed, against the one the
+// HELIAS_YEBIS_BIND_VERIFY=1: the window we stashed, against the one the
 // guest's constant engine dumped for the same draw.
 void check_dump(std::uint32_t off, const void* ce, std::uint32_t bytes);
 bool verifying();

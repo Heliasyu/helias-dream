@@ -1,21 +1,21 @@
 #!/usr/bin/env bash
-# bbhost-vk: a game session under the Khronos validation layer with
+# heliasdream-vk: a game session under the Khronos validation layer with
 # synchronization validation on, to find the missing barriers and
 # dependencies the renderer has (docs/vk/PLAN.md, Phase 5.1). The same
 # settings as tools/vvl_check.sh, on the real game: expect a low frame rate.
 # Needs the layer (Arch/CachyOS: vulkan-validation-layers; Debian/Ubuntu:
 # vulkan-validationlayers).
 #
-#   tools/vvl_game.sh [bbtest session name] [-- bbhost args...]
+#   tools/vvl_game.sh [bbtest session name] [-- heliasdream args...]
 #
 # Runs `./bbtest start <name>` (default vvl) in BBTEST_GAME_DIR (bbtest's
 # default folder), with the layer's messages in logs/vvl-<date>-<time>.txt
 # there, at most 5 of each message, then prints how many of each kind came.
 # Play a minute or two through what matters (a fight with particles, smoke,
 # the blood on a hit, a menu), then quit; `bbtest stop` bundles as usual.
-# Extra environment passes through, e.g. BBHOST_PASS_BARRIERS=lazy.
+# Extra environment passes through, e.g. HELIAS_PASS_BARRIERS=lazy.
 set -euo pipefail
-GAME_DIR=${BBTEST_GAME_DIR:-$HOME/BloodBorne PC/bbhost-linux-v0.2.18}
+GAME_DIR=${BBTEST_GAME_DIR:-$HOME/BloodBorne PC/heliasdream-linux-v0.2.18}
 name=${1:-vvl}
 [ $# -gt 0 ] && shift
 [ -x "$GAME_DIR/bbtest" ] || { echo "vvl_game: no ./bbtest in $GAME_DIR (set BBTEST_GAME_DIR)" >&2; exit 1; }

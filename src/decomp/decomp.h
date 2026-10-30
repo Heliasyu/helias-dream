@@ -50,7 +50,7 @@ struct DecompFunction {
     void* ours;                 // GUEST_ABI, the game's signature
     DecompKind kind;
     void** original = nullptr;  // receives the trampoline into the game's version
-    // A Hosted stand-in for compare runs (BBHOST_DECOMP_COMPARE=1): the game's
+    // A Hosted stand-in for compare runs (HELIAS_DECOMP_COMPARE=1): the game's
     // version does the work and ours has to agree with it, into `counts`.
     void* compare = nullptr;
     DecompCompare* counts = nullptr;
@@ -65,9 +65,9 @@ struct DecompFunction {
 void decomp_add(const DecompFunction& fn);
 
 // Places every function added, once the eboot's SHA-256 is 1.09's:
-//   BBHOST_DECOMP=0              none: the game's code throughout
-//   BBHOST_DECOMP_OFF=name,...   these stay the game's
-//   BBHOST_DECOMP_COMPARE=1      those with a compare run it instead of ours
+//   HELIAS_DECOMP=0              none: the game's code throughout
+//   HELIAS_DECOMP_OFF=name,...   these stay the game's
+//   HELIAS_DECOMP_COMPARE=1      those with a compare run it instead of ours
 void decomp_install(ElfImage* image);
 bool decomp_comparing();
 // Whether a function on the list took the game's place, by its name: 0 not,

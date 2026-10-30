@@ -1,7 +1,7 @@
 # gpumem.ps1 NAME SAMPLES INTERVAL: a process's GPU memory as Task Manager
 # counts it (dedicated = VRAM, shared = system RAM the GPU maps), its working
 # set and CPU seconds; one line per sample. Used by tools/win_perf.sh.
-param([string]$Name = "bbhost", [int]$Samples = 1, [int]$Interval = 5)
+param([string]$Name = "heliasdream", [int]$Samples = 1, [int]$Interval = 5)
 for ($i = 0; $i -lt $Samples; $i++) {
   $p = Get-Process -Name $Name -ErrorAction SilentlyContinue | Select-Object -First 1
   if (-not $p) { Write-Output "$(Get-Date -Format HH:mm:ss) no $Name"; Start-Sleep $Interval; continue }

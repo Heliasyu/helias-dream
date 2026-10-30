@@ -1,17 +1,17 @@
 #!/bin/bash
 # Stutters while the world streams: the map-validation probe
-# (tools/mapval_plugin.c, BBHOST_TEST_WARP=1) warps the player through one
+# (tools/mapval_plugin.c, HELIAS_TEST_WARP=1) warps the player through one
 # block - its lamps, player starts and enemy placements, 21 points 9.5 s
 # apart for Central Yharnam - with frame statistics every second, the
-# command processor's stall lines from 40 ms (BBHOST_STALL_MS) and, given
-# BBHOST_HLE_COUNT=1, the call sites the main loop waited at in each long
+# command processor's stall lines from 40 ms (HELIAS_STALL_MS) and, given
+# HELIAS_HLE_COUNT=1, the call sites the main loop waited at in each long
 # frame; then tools/stutter_summary.py on the tour's window.
 #
 #   tools/stutter_tour.sh [NAME] [VAR=value...]
 #
 # NAME (default stutter-tour) names build/NAME/ (run.log). VAR=value pairs go
-# into the game's environment (BBHOST_HLE_COUNT=1, BBHOST_GPU_PROFILE=1,
-# BBHOST_GX_RATE=1, BBHOST_SAMPLE=..., an A/B switch). As tools/perf_soak.sh:
+# into the game's environment (HELIAS_HLE_COUNT=1, HELIAS_GPU_PROFILE=1,
+# HELIAS_GX_RATE=1, HELIAS_SAMPLE=..., an A/B switch). As tools/perf_soak.sh:
 # a copy of the data (PERF_SOAK_DATA, a frozen seed keeps runs comparable),
 # a config made from PERF_SOAK_TOML (a test config pointing at the dev or a
 # local server, never the players' one), the 60 fps cap, the menu driver's
@@ -27,8 +27,8 @@ set -u
 cd "$(dirname "$0")/.."
 NAME=${1:-stutter-tour}
 [ $# -gt 0 ] && shift
-BASE_TOML=${PERF_SOAK_TOML:-bbhost.toml}
-[ -f "$BASE_TOML" ] || { echo "no $BASE_TOML (see bbhost.example.toml)"; exit 1; }
+BASE_TOML=${PERF_SOAK_TOML:-heliasdream.toml}
+[ -f "$BASE_TOML" ] || { echo "no $BASE_TOML (see heliasdream.example.toml)"; exit 1; }
 mkdir -p tmp
 cfg() { sed -n "s|^$1 *= *\"\(.*\)\"|\1|p" "$BASE_TOML" | head -1; }
 app0=$(cfg app0)
@@ -46,20 +46,20 @@ mkdir -p tmp/data-scratch/plugins && cp tmp/stutter-mapval.so tmp/data-scratch/p
 sed -e "s|^data *=.*|data = \"$PWD/tmp/data-scratch\"|" -e "s|^mods *=.*|mods = \"$PWD/tmp/data-scratch/mods\"|" "$BASE_TOML" > tmp/stutter-tour.toml
 cat > tmp/stutter-tour-run.sh <<EOS
 #!/bin/bash
-if [ -n "\${BB_OPT:-}" ] && [ -n "\${BBHOST_OPTIONS_PATH:-}" ]; then
-  sed -i "/^frame_cap = /d" "\$BBHOST_OPTIONS_PATH"; sed -i "/^\[options\]/a \$BB_OPT" "\$BBHOST_OPTIONS_PATH"
+if [ -n "\${BB_OPT:-}" ] && [ -n "\${HELIAS_OPTIONS_PATH:-}" ]; then
+  sed -i "/^frame_cap = /d" "\$HELIAS_OPTIONS_PATH"; sed -i "/^\[options\]/a \$BB_OPT" "\$HELIAS_OPTIONS_PATH"
 fi
 export SDL_AUDIO_DRIVER=\${SDL_AUDIO_DRIVER:-dummy}
 pin=""
 command -v numactl >/dev/null && pin="numactl --cpunodebind=${PERF_SOAK_NODE:-0} --membind=${PERF_SOAK_NODE:-0}"
-exec \$pin "\${BBHOST_EXE:-$PWD/build/bbhost}" --config "$PWD/tmp/stutter-tour.toml" "\$@"
+exec \$pin "\${HELIAS_EXE:-$PWD/build/heliasdream}" --config "$PWD/tmp/stutter-tour.toml" "\$@"
 EOS
 chmod +x tmp/stutter-tour-run.sh
 # A config folder of its own: the run never writes the player's.
 mkdir -p tmp/stutter-cfgdir
-env BBHOST_CONFIG_DIR="${BBHOST_CONFIG_DIR:-$PWD/tmp/stutter-cfgdir}" "$@" BBHOST_GAME_FPS=60 BB_OPT='frame_cap = "60"' BBHOST_FRAME_STATS=1 BBHOST_TEST_WARP=1 BBHOST_STALL_MS=40 \
-    BBHOST_MAPVAL_TOUR="$PWD/tmp/stutter-tour/tour.txt" BBHOST_MAPVAL_START="${STUTTER_START:-40}" \
-    MENU_DRIVE_OUT="build/$NAME" MENU_DRIVE_TIMEOUT=420 BBHOST_BIN="$PWD/tmp/stutter-tour-run.sh" \
+env HELIAS_CONFIG_DIR="${HELIAS_CONFIG_DIR:-$PWD/tmp/stutter-cfgdir}" "$@" HELIAS_GAME_FPS=60 BB_OPT='frame_cap = "60"' HELIAS_FRAME_STATS=1 HELIAS_TEST_WARP=1 HELIAS_STALL_MS=40 \
+    HELIAS_MAPVAL_TOUR="$PWD/tmp/stutter-tour/tour.txt" HELIAS_MAPVAL_START="${STUTTER_START:-40}" \
+    MENU_DRIVE_OUT="build/$NAME" MENU_DRIVE_TIMEOUT=420 HELIAS_BIN="$PWD/tmp/stutter-tour-run.sh" \
     timeout 520 tools/menu_drive.sh title sleep:4 clicknow:0 waitlog:area.glare.luminance 'waitlog:mapval tour-done' sleep:5 > /dev/null 2>&1
 grep -aq 'mapval tour-done' "build/$NAME/run.log" 2>/dev/null || { echo "build/$NAME: the tour did not finish (see run.log)"; exit 1; }
 python3 tools/stutter_summary.py "build/$NAME/run.log"

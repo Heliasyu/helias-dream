@@ -25,14 +25,14 @@
 #
 # Same server, configs and displays as game_trio.sh, plus :81 and :82 for the
 # invaders. The seed stands in Central Yharnam (m24_01), whose maiden is
-# entity 2410750 with area flag 2410 (BBHOST_TEST_FLAGS turns it off).
+# entity 2410750 with area flag 2410 (HELIAS_TEST_FLAGS turns it off).
 set -u
 cd "$(dirname "$0")/../.."
 R=$PWD
 OUT=${NET_OUT:-$R/build/nettest-five}
 TREE=${NET_SERVER_TREE:?NET_SERVER_TREE: the private server package directory}
 SEED=${NET_SEED:?NET_SEED: a folder with userdata0001 and userdata0010}
-APP0=${BBHOST_APP0:?BBHOST_APP0: the game folder that contains dvdroot_ps4}
+APP0=${HELIAS_APP0:?HELIAS_APP0: the game folder that contains dvdroot_ps4}
 rm -rf "$OUT"; mkdir -p "$OUT"
 
 BB_SSINFO_SET=${NET_SSINFO_SET:-} python3 tools/nettest/bench.py --server-tree "$TREE" --serve --http-port 18671 --ssinfo-port 20443 \
@@ -43,7 +43,7 @@ grep -q "server up" "$OUT/server-run.log" || { echo "server did not start"; cat 
 
 role_cfg() {  # role online_id p2p_port data
   local d="$OUT/$1"; mkdir -p "$d/cfg"
-  cat > "$d/bbhost.toml" <<EOF
+  cat > "$d/heliasdream.toml" <<EOF
 [paths]
 app0 = "$APP0"
 data = "$4"
@@ -69,8 +69,8 @@ skip_intro = true
 EOF
   cat > "$d/run.sh" <<EOF
 #!/bin/bash
-export SDL_AUDIO_DRIVER=\${SDL_AUDIO_DRIVER:-dummy} BBHOST_CONFIG_DIR="$d/cfg"
-exec "$R/build/bbhost" --config "$d/bbhost.toml" "\$@"
+export SDL_AUDIO_DRIVER=\${SDL_AUDIO_DRIVER:-dummy} HELIAS_CONFIG_DIR="$d/cfg"
+exec "$R/build/heliasdream" --config "$d/heliasdream.toml" "\$@"
 EOF
   chmod +x "$d/run.sh"
   mkdir -p "$4/saves/SPRJ0005"
@@ -96,7 +96,7 @@ if [ -n "${NET_MODS:-}" ]; then
   echo "overlay for every game: $(cd "$NET_MODS" && find . -type f | tr '\n' ' ')"
 fi
 
-export BBHOST_GAME_FPS=60 BBHOST_NP_TRACE=1 BBHOST_NP_TEST=probe BBHOST_TEST_INSIGHT=5 BBHOST_RES=960x540
+export HELIAS_GAME_FPS=60 HELIAS_NP_TRACE=1 HELIAS_NP_TEST=probe HELIAS_TEST_INSIGHT=5 HELIAS_RES=960x540
 use() { echo "key:Escape waitnew:count.24.cells.6 sleep:1 click:0 waitnew:count.187.cells.1 sleep:1 move:1150,750 sleep:1 wheelto:$1 sleep:1 shot:$2 keyhold:Return,0.6 waitnew:count.2.cells.1.lines.5 sleep:1 click:0 sleep:4 shot:$2-used"; }
 WORLD="title:online sleep:4 clicknow:0 waitlog:area.glare.luminance sleep:25"
 C1="$WORLD $(use 157 c1-bell) waitnew:np:.joined.room sleep:60 shot:c1-coop sleep:1500 shot:c1-end"
@@ -110,14 +110,14 @@ drive() {  # role display steps...
   # Every game renders the minimum unless NET_HOST_RENDER=full gives the host
   # its full picture: five full games share one GPU at a few frames a second,
   # where the menus crawl and more first summons fail.
-  extra=(BBHOST_RENDER_MIN=1 BBHOST_BUFFER_SHADOW=0)
+  extra=(HELIAS_RENDER_MIN=1 HELIAS_BUFFER_SHADOW=0)
   if [ "$role" = host ]; then
-    extra=(BBHOST_TEST_LEVEL=30 "BBHOST_TEST_FLAGS=2410=0,12414220?,12414221?,12414222?"
-           BBHOST_NP_WATCH_FLAGS=2410,12414220,12414221,12414222,12414223)
-    [ "${NET_HOST_RENDER:-min}" = full ] || extra+=(BBHOST_RENDER_MIN=1 BBHOST_BUFFER_SHADOW=0)
+    extra=(HELIAS_TEST_LEVEL=30 "HELIAS_TEST_FLAGS=2410=0,12414220?,12414221?,12414222?"
+           HELIAS_NP_WATCH_FLAGS=2410,12414220,12414221,12414222,12414223)
+    [ "${NET_HOST_RENDER:-min}" = full ] || extra+=(HELIAS_RENDER_MIN=1 HELIAS_BUFFER_SHADOW=0)
   fi
-  env "${extra[@]}" MENU_DRIVE_OUT="$OUT/$role/drive" DISPLAY_DRIVE=$disp BBHOST_BIN="$OUT/$role/run.sh" \
-    MENU_DRIVE_ONLINE_CONFIG="$OUT/$role/bbhost.toml" MENU_DRIVE_TIMEOUT=2400 \
+  env "${extra[@]}" MENU_DRIVE_OUT="$OUT/$role/drive" DISPLAY_DRIVE=$disp HELIAS_BIN="$OUT/$role/run.sh" \
+    MENU_DRIVE_ONLINE_CONFIG="$OUT/$role/heliasdream.toml" MENU_DRIVE_TIMEOUT=2400 \
     tools/menu_drive.sh "$@" > "$OUT/$role/drive.log" 2>&1
 }
 drive coop1 :79 $C1 & P1=$!
@@ -133,7 +133,7 @@ wait $P5
 # The host's run decides: once it is over, end the other games and their
 # drivers, which may be in a long sleep step (by PID: the patterns name this
 # run's folders, which no shell here carries).
-for pid in $(pgrep -f "build/bbhost --config $OUT/") $(pgrep -f "menu_drive.py $OUT/"); do kill "$pid" 2>/dev/null; done
+for pid in $(pgrep -f "build/heliasdream --config $OUT/") $(pgrep -f "menu_drive.py $OUT/"); do kill "$pid" 2>/dev/null; done
 wait $P1 $P2 $P3 $P4 2>/dev/null
 kill $SRV 2>/dev/null; wait $SRV 2>/dev/null
 python3 tools/nettest/game_verdict.py --five "$OUT"

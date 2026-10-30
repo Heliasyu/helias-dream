@@ -9,12 +9,14 @@ cd "$(dirname "$0")/.."
 out=${1:-build/win}
 mkdir -p "$out"
 export WINEPREFIX=${WINEPREFIX:-$PWD/$out/wine} WINEDEBUG=${WINEDEBUG:--all}
+# The mingw-w64 GCC's version, whatever it is (its C++ headers and libraries).
+gv=$(basename "$(ls -d /usr/lib/gcc/x86_64-w64-mingw32/*/ | sort -V | tail -1)")
 cxx() {
   local exe=$1; shift
   clang++ --target=x86_64-w64-mingw32 --sysroot=/usr/x86_64-w64-mingw32 \
-    -I/usr/x86_64-w64-mingw32/include/c++/16.1.0 -I/usr/x86_64-w64-mingw32/include/c++/16.1.0/x86_64-w64-mingw32 \
+    -I/usr/x86_64-w64-mingw32/include/c++/$gv -I/usr/x86_64-w64-mingw32/include/c++/$gv/x86_64-w64-mingw32 \
     -std=c++20 -Wno-invalid-constexpr -w -O1 -g -Isrc -fuse-ld=lld \
-    -L/usr/x86_64-w64-mingw32/lib -L/usr/lib/gcc/x86_64-w64-mingw32/16.1.0 -static "$@" -lwinpthread -lwinmm -o "$exe"
+    -L/usr/x86_64-w64-mingw32/lib -L/usr/lib/gcc/x86_64-w64-mingw32/$gv -static "$@" -lwinpthread -lwinmm -o "$exe"
 }
 fail=0
 run() {

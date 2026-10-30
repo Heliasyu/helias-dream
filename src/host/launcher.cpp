@@ -1,6 +1,6 @@
 #include "host/launcher.h"
 
-#include "bbhost_version.h"
+#include "heliasdream_version.h"
 #include "core/sha256.h"
 #include "engine/addr.h"
 #include "engine/patch_manifest.h"
@@ -40,7 +40,7 @@ struct Server {
     const char* auth_server;  // where /auth/* goes ("": the NP server's origin)
 };
 // Both take only https and signed-in players; the playtest server as the
-// playtest kit's bbhost-playtest.toml has it.
+// playtest kit's heliasdream-playtest.toml has it.
 constexpr Server kServers[] = {
     {"Live server (thehuntersdream.com)", "thehuntersdream.com", "https", true, true, "https://thehuntersdream.com"},
     {"Playtest server (dev.thehuntersdream.com)", "dev.thehuntersdream.com", "https", true, true, "https://dev.thehuntersdream.com"},
@@ -90,7 +90,7 @@ std::string generic(std::string p) {
 }
 
 // A path as the config keeps it: absolute. The window checks a relative one
-// against the working directory (an eboot found beside bbhost), but the config
+// against the working directory (an eboot found beside heliasdream), but the config
 // reads relative paths against its own folder, where it is not.
 std::string saved_path(const std::string& p) {
     std::error_code ec;
@@ -177,7 +177,7 @@ LauncherResult launcher_run(const HostConfig& cfg, const std::string& reason, bo
     char scheme[8] = {};
     std::snprintf(scheme, sizeof(scheme), "%s", cfg.online_scheme.empty() ? "http" : cfg.online_scheme.c_str());
     bool verify_tls = cfg.online_verify_tls, require_account = cfg.online_require_account;
-#if defined(BBHOST_RELEASE_BUILD)
+#if defined(HELIAS_RELEASE_BUILD)
     bool check_updates = cfg.update_check != 0;
 #else
     bool check_updates = cfg.update_check == 1;
@@ -190,10 +190,10 @@ LauncherResult launcher_run(const HostConfig& cfg, const std::string& reason, bo
     bool debug_camera = host_opt_get("debug_camera");
     int frame_cap = host_opt_frame_cap();
     int resolution = host_opt_resolution_index();
-    // bbhost-vk's upscaler and its quality (host/upscaler_presets.h). Phase 1:
+    // heliasdream-vk's upscaler and its quality (host/upscaler_presets.h). Phase 1:
     // the quality sets the scene's render size (engine/scene_split.h); the
     // presenter is still FSR 1 at the render resolution.
-    int upscaler = std::clamp(host_opt_index("upscaler"), 0, 3);
+    int upscaler = std::clamp(host_opt_index("upscaler"), 0, 6);
     int upscale_quality = std::clamp(host_opt_index("upscale_quality"), 0, 4);
     int upscale_sharpness = std::clamp(host_opt_index("upscale_sharpness"), 0, 10);  // tenths
     // test7: the game's AA - On, Off, or Auto (off while FSR 4.1.1 upscales).
@@ -234,7 +234,7 @@ LauncherResult launcher_run(const HostConfig& cfg, const std::string& reason, bo
     // (engine/patch_manifest.h), each with its switch. One that follows a
     // setting (its `option`) shows that setting - the Game tab's Skip company
     // logos, its Debug camera - so a patch has one switch; the rest (The Old
-    // Hunters among them) are [patches] <name> = true or false in bbhost.toml.
+    // Hunters among them) are [patches] <name> = true or false in HeliasDream.toml.
     bool quick_reentry = cfg.quick_reentry, all_post_processors = cfg.all_post_processors;
     bool quick_reentry_was = quick_reentry, all_post_processors_was = all_post_processors;
     struct PatchRow {
@@ -260,9 +260,9 @@ LauncherResult launcher_run(const HostConfig& cfg, const std::string& reason, bo
         const std::string& o = r.p.option;
         if (o == "startup.skip_intro") return "The same switch as the Game tab's Skip company logos.";
         if (o == "debug.free_camera") return "The same switch as the Game tab's Debug camera.";
-        if (o == "loading.quick_reentry") return "Saved as quick_reentry under [loading] in bbhost.toml.";
-        if (o == "streaming.all_post_processors") return "Saved as all_post_processors under [streaming] in bbhost.toml.";
-        return "Saved as " + r.p.name + " under [patches] in bbhost.toml.";
+        if (o == "loading.quick_reentry") return "Saved as quick_reentry under [loading] in HeliasDream.toml.";
+        if (o == "streaming.all_post_processors") return "Saved as all_post_processors under [streaming] in HeliasDream.toml.";
+        return "Saved as " + r.p.name + " under [patches] in HeliasDream.toml.";
     };
 
     EbootCheck eboot = check_eboot(f[kEboot].str());
@@ -271,11 +271,11 @@ LauncherResult launcher_run(const HostConfig& cfg, const std::string& reason, bo
     std::string saved_note;
     LauncherResult result = LauncherResult::Quit;
     bool done = false;
-    // BBHOST_SETUP_TEST=play|quit: the window answers itself after a few
+    // HELIAS_SETUP_TEST=play|quit: the window answers itself after a few
     // frames (a test that it opens, draws and hands over). create:NAME makes
     // an account held by this PC through the account section, as its button
     // does, then closes once the server has answered.
-    const char* test = std::getenv("BBHOST_SETUP_TEST");
+    const char* test = std::getenv("HELIAS_SETUP_TEST");
     int frames = 0;
     // link: starts a Discord link as its button does and, once the code is
     // up, cancels it and closes.
@@ -311,9 +311,9 @@ LauncherResult launcher_run(const HostConfig& cfg, const std::string& reason, bo
         if (!f[kToken].str().empty()) e.push_back({"update", "token_file", toml_string(saved_path(f[kToken].str()))});
         if (!f[kDll].str().empty()) e.push_back({"upscaler", "fsr4_dll", toml_string(saved_path(f[kDll].str()))});
         e.push_back({"startup", "setup_window", show_every_start ? "true" : "false"});
-        // What this bbhost's file looks like (core/config.h): a value saved
+        // What this heliasdream's file looks like (core/config.h): a value saved
         // from here is a choice.
-        e.push_back({"bbhost", "config_version", std::to_string(kUserConfigVersion)});
+        e.push_back({"heliasdream", "config_version", std::to_string(kUserConfigVersion)});
         // The Patches tab's own switches, each only once changed.
         for (const PatchRow& r : patch_rows) {
             if (r.p.option.empty() && r.on != r.was && bare_key(r.p.name)) e.push_back({"patches", r.p.name, r.on ? "true" : "false"});
@@ -377,15 +377,15 @@ LauncherResult launcher_run(const HostConfig& cfg, const std::string& reason, bo
         ImGui::SetNextWindowSize(vp->WorkSize);
         ImGui::Begin("setup", nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoSavedSettings);
 
-        ImGui::Text("bbhost %s - setup", BBHOST_VERSION);
-        ImGui::TextDisabled("Saved to %s, which every copy of bbhost reads.", config_user_file().c_str());
+        ImGui::Text("Helia's Dream %s - setup", HELIAS_VERSION);
+        ImGui::TextDisabled("Saved to %s, which every copy of heliasdream reads.", config_user_file().c_str());
         if (!reason.empty()) ImGui::TextColored(ImVec4(0.95f, 0.65f, 0.30f, 1.0f), "%s", reason.c_str());
         // While the Updates box is checked: one check, on a thread of its own
         // (host/updater.h), and a newer release's page opens in the browser.
         if (check_updates) updater::check_once();
         if (check_updates && updater::update_available()) {
             ImGui::AlignTextToFramePadding();
-            ImGui::TextColored(ImVec4(0.95f, 0.80f, 0.40f, 1.0f), "bbhost %s is available", updater::latest_tag().c_str());
+            ImGui::TextColored(ImVec4(0.95f, 0.80f, 0.40f, 1.0f), "Helia's Dream %s is available", updater::latest_tag().c_str());
             ImGui::SameLine();
             if (ImGui::Button("Open the release page")) updater::open_release_page();
         }
@@ -436,7 +436,7 @@ LauncherResult launcher_run(const HostConfig& cfg, const std::string& reason, bo
             // The patch manifests, as the Plugins tab has the plugins.
             if (ImGui::BeginTabItem("Patches")) {
                 ImGui::BeginChild("##patches", ImVec2(0, ImGui::GetContentRegionAvail().y - footer));
-                ImGui::TextWrapped("Byte patches to the game's code, applied when it starts: bbhost's own (the patches folder beside "
+                ImGui::TextWrapped("Byte patches to the game's code, applied when it starts: heliasdream's own (the patches folder beside "
                                    "it) and any a mod brings (<mods>/patches).");
                 ImGui::TextDisabled("A patch made for another eboot is never applied.");
                 ImGui::Spacing();
@@ -460,8 +460,8 @@ LauncherResult launcher_run(const HostConfig& cfg, const std::string& reason, bo
                     const std::string why = !r.p.error.empty()        ? "Not read: " + r.p.error + "."
                                             : !r.p.enabled            ? "Turned off in its own file ([patch] enabled = false)."
                                             : other_eboot             ? "Made for another eboot: not applied."
-                                            : unknown_option          ? "Follows " + r.p.option + ", which this bbhost does not know: not applied."
-                                            : r.p.option.empty() && !bare_key(r.p.name) ? "Its name cannot be a bbhost.toml key, so it is always on."
+                                            : unknown_option          ? "Follows " + r.p.option + ", which this heliasdream does not know: not applied."
+                                            : r.p.option.empty() && !bare_key(r.p.name) ? "Its name cannot be a HeliasDream.toml key, so it is always on."
                                                                                        : patch_note(r);
                     const std::string where = generic(fs::path(r.p.path).lexically_normal().string());
                     ImGui::TextDisabled("%s %s", why.c_str(), where.c_str());
@@ -637,7 +637,7 @@ LauncherResult launcher_run(const HostConfig& cfg, const std::string& reason, bo
         }
 
         ImGui::SeparatorText("Display");  // rc2: the F10 menu's sections, mirrored
-        ImGui::Checkbox("Fullscreen", &fullscreen);
+        ImGui::Checkbox("Fullscreen (borderless)", &fullscreen);
         ImGui::SetNextItemWidth(200 * scale);
         static const char* const kCapLabels[] = {"30 fps", "60 fps", "90 fps", "120 fps", "Uncapped"};
         ImGui::Combo("Frame rate", &cap_choice, kCapLabels, 5);
@@ -646,10 +646,10 @@ LauncherResult launcher_run(const HostConfig& cfg, const std::string& reason, bo
         ImGui::SetNextItemWidth(200 * scale);
         ImGui::Combo("Render resolution", &resolution, kResolutions, static_cast<int>(sizeof(kResolutions) / sizeof(kResolutions[0])));
         ImGui::SetNextItemWidth(200 * scale);
-        static const char* const kUpscalers[] = {"Off", "FSR 1", "FSR 3.1", "FSR 4.1.1"};
-        ImGui::Combo("Upscaler", &upscaler, kUpscalers, 4);
+        static const char* const kUpscalers[] = {"Off", "FSR 1", "FSR 3.1", "FSR 4.1.1", "Native TAA", "FSR 4", "DLSS"};
+        ImGui::Combo("Upscaler", &upscaler, kUpscalers, 7);
         if (ImGui::IsItemHovered())
-            ImGui::SetTooltip("Off keeps the whole game at the render resolution, as stock bbhost. Any other choice lets Upscaling quality render the 3D scene smaller (FSR 3.1 is temporal; FSR 4.1.1 needs assets built once from your own DLL, tools/fsr4cap, and is FSR 3.1 without them).");
+            ImGui::SetTooltip("Off keeps the whole game at the render resolution, as stock heliasdream. Any other choice lets Upscaling quality render the 3D scene smaller (FSR 3.1 is temporal; FSR 4.1.1 needs assets built once from your own DLL, tools/fsr4cap, and is FSR 3.1 without them).");
         ImGui::SetNextItemWidth(200 * scale);
         static const char* const kQualities[] = {"Native AA (100%)", "Quality (67%)", "Balanced (58%)", "Performance (50%)",
                                                  "Ultra Performance (33%)"};
@@ -658,7 +658,7 @@ LauncherResult launcher_run(const HostConfig& cfg, const std::string& reason, bo
             ImGui::SetTooltip("The 3D scene's render scale, with the menus, text and post-processing kept at the render resolution. Native AA is stock. Not used while Upscaler is Off.");
         ImGui::SetNextItemWidth(200 * scale);
         ImGui::SliderInt("Upscaler sharpness", &upscale_sharpness, 0, 10, "%d / 10");
-        if (ImGui::IsItemHovered()) ImGui::SetTooltip("FSR 3.1's and FSR 4.1.1's sharpening (RCAS); 0 turns it off. 8 matches stock bbhost's FSR 1, which keeps its own.");
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("FSR 3.1's and FSR 4.1.1's sharpening (RCAS); 0 turns it off. 8 matches stock heliasdream's FSR 1, which keeps its own.");
         ImGui::Checkbox("Upscaler reactive mask", &upscale_reactive);
         if (ImGui::IsItemHovered())
             ImGui::SetTooltip("FSR 3.1: keeps particles, fog, Blood Echoes and the lantern's glow from smearing. Off for comparison.");
@@ -684,7 +684,7 @@ LauncherResult launcher_run(const HostConfig& cfg, const std::string& reason, bo
         if (ImGui::IsItemHovered())
             ImGui::SetTooltip("Lance McDonald's free camera: hold Interact (E) and press L3 (Left Ctrl). The debug menu's LOAD TEST crashes while it is on.");
         ImGui::SeparatorText("FSR 4.1.1 assets");
-        // bbhost-vk Phase 4: FSR 4.1.1 is built once from the player's own
+        // heliasdream-vk Phase 4: FSR 4.1.1 is built once from the player's own
         // DLL (tools/fsr4cap) into the asset folder; without it, FSR 3.1.
         path_row("FSR 4.1.1: your amd_fidelityfx_upscaler_dx12.dll (4.1.x, e.g. from OptiScaler)", kDll, false, "");
         {
@@ -713,7 +713,7 @@ LauncherResult launcher_run(const HostConfig& cfg, const std::string& reason, bo
         ImGui::TextDisabled("F10 in the game has every other setting.");
 
         ImGui::SeparatorText("Updates");
-        ImGui::Checkbox("Check for a newer bbhost at start", &check_updates);
+        ImGui::Checkbox("Check for a newer heliasdream at start", &check_updates);
         if (check_updates) {
             ImGui::TextDisabled("%s", updater::status().c_str());
             if (const std::string d = updater::detail(); !d.empty()) ImGui::TextDisabled("%s", d.c_str());
@@ -723,8 +723,8 @@ LauncherResult launcher_run(const HostConfig& cfg, const std::string& reason, bo
         }
         if (game_tab) ImGui::EndChild();
         ImGui::Separator();
-        ImGui::Checkbox("Show this window every time bbhost starts", &show_every_start);
-        ImGui::TextDisabled("Or start bbhost with --setup to open it once.");
+        ImGui::Checkbox("Show this window every time heliasdream starts", &show_every_start);
+        ImGui::TextDisabled("Or start heliasdream with --setup to open it once.");
         ImGui::Spacing();
         const bool can_play = app0_ok && eboot.ok;
         ImGui::BeginDisabled(!can_play);

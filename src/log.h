@@ -7,12 +7,12 @@
 #include <unistd.h>
 #endif
 
-// bbhost-vk rc2: a tap on every line (host/perf_capture.cpp keeps the last
+// heliasdream-vk rc2: a tap on every line (host/perf_capture.cpp keeps the last
 // 30 s for its captures). Lock-free on the tap's side: the fault handler logs.
 inline void (*volatile g_host_log_tap)(const char* line, std::size_t len) = nullptr;
 
 // rc6: the asynchronous sink (core/log_async.cpp). Null until
-// host_log_start(), and again in crash mode or with BBHOST_LOG_SYNC=1: then
+// host_log_start(), and again in crash mode or with HELIAS_LOG_SYNC=1: then
 // every line is written by its own thread, as before. The sink returns false
 // for a line it did not take (the caller writes it itself).
 inline bool (*volatile g_host_log_sink)(const char* line, std::size_t len) = nullptr;
@@ -79,7 +79,7 @@ inline void host_log_line(const char* line) {
 template <typename... Args>
 inline void host_log(const char* fmt, Args&&... args) {
     char buf[1024];
-    int n = std::snprintf(buf, sizeof(buf) - 1, "[bbhost] ");
+    int n = std::snprintf(buf, sizeof(buf) - 1, "[heliasdream] ");
     if (n < 0) {
         return;
     }

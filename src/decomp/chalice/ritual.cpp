@@ -298,7 +298,7 @@ DECOMP_LEAF Pair* chalice_feature_pairs(Pair* out, const Setup* s) {
     return out;
 }
 
-// ---- compare runs (BBHOST_DECOMP_COMPARE=1) ---------------------------------
+// ---- compare runs (HELIAS_DECOMP_COMPARE=1) ---------------------------------
 //
 // The game's roll draws from the generator it is given: the compare clones
 // it - the SFMT (vtable 0x57267a0) is 0x9e0 bytes whose +0x9d8 points into

@@ -15,7 +15,7 @@ import sys
 
 CLASSES = [
     ('crash', r'dumped core|Segmentation fault|DL_PANIC from|DL_PANIC [^v]\S*\(\d+\)'),
-    ('hang', r'^\[bbhost\] hang: no flip'),
+    ('hang', r'^\[heliasdream\] hang: no flip'),
     ('draw failed: pipeline', r'render: pipeline \S+ failed to build'),
     ('no texture (black)', r'render: \S+ binding \d+ \(.*\) has no texture'),
     ('invalid T# (zero)', r'texture: dummy-zero for invalid T#'),
@@ -57,12 +57,12 @@ def main():
             r = re.compile(rx)
             hits = [l for l in lines if r.search(l)]
             if hits:
-                print('  %-38s %6d  %s' % (name, len(hits), hits[0].replace('[bbhost] ', '')[:150]))
+                print('  %-38s %6d  %s' % (name, len(hits), hits[0].replace('[heliasdream] ', '')[:150]))
         for rx in TOTALS:
             r = re.compile(rx)
             last = [l for l in lines if r.search(l)]
             if last:
-                print('  = ' + last[-1].replace('[bbhost] ', '')[:260])
+                print('  = ' + last[-1].replace('[heliasdream] ', '')[:260])
 
 
 if __name__ == '__main__':

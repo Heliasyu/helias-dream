@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Compare where two bbhost instances think the same characters are.
+"""Compare where two heliasdream instances think the same characters are.
 
 Both logs carry `np pos <epoch ms> me x y z | <slot> <handle> x y z ...` once a
-second (BBHOST_NP_TEST=probe). One instance's own position ("me") is matched
+second (HELIAS_NP_TEST=probe). One instance's own position ("me") is matched
 against the other instance's view of it, and the divergence over time is
 printed as a table plus a summary; the slot on the far side is picked as the
 one whose track is closest overall, unless --slot says which.
@@ -98,7 +98,7 @@ def compare(own, other, slot, window, threshold, persist, label):
         print(f"   episode from +{(ms-t0)/1000:.0f} s")
     # How much of the distance is plain delay: shift the far side's view in time and find the lag
     # at which the tracks agree best (the far side draws us where we were `lag` ago).
-    # (Only meaningful at a few samples a second, BBHOST_NP_POS_HZ=5; at 1 Hz the nearest sample is
+    # (Only meaningful at a few samples a second, HELIAS_NP_POS_HZ=5; at 1 Hz the nearest sample is
     # the same one for every lag under half a second.)
     gaps = sorted(b[0] - a[0] for a, b in zip(own, own[1:]) if b[0] > a[0])
     interval = gaps[len(gaps) // 2] if gaps else 1000

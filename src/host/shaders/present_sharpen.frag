@@ -1,5 +1,5 @@
 #version 450
-// bbhost-vk rc2, BBHOST_SHARPEN_AT_PRESENT=1 (debugging; off by default): the
+// heliasdream-vk rc2, HELIAS_SHARPEN_AT_PRESENT=1 (debugging; off by default): the
 // presenter's pass (present.frag) with FSR's sharpening folded in - AMD's RCAS
 // (fsr1/ffx_fsr1.h, MIT) cross of five taps, without its noise removal, on the
 // display image as it is shown. It saves FSR 4.1.1's own sharpening pass
@@ -24,5 +24,5 @@ void main() {
     const vec3 lobe3 = max(-hit_min, hit_max);
     const float lobe = max(-0.1875, min(max(lobe3.r, max(lobe3.g, lobe3.b)), 0.0)) * pc.con;
     const vec3 o = (lobe * (b + d + f + h) + e) / (4.0 * lobe + 1.0);
-    out_colour = vec4(clamp(o, 0.0, 1.0), e4.a);
+    out_colour = vec4(clamp(o, 0.0, 1.0), 1.0);  // alpha 1: see present.frag
 }

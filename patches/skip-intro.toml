@@ -8,8 +8,8 @@
 # message 400003, group 204). The jne there becoming a jmp builds the step
 # that follows it instead, as every other state does (the community list's
 # 0x0202EE1C EB73).
-# Enabled by `skip_intro = true` under [startup] in bbhost.toml
-# (BBHOST_SKIP_INTRO=1 overrides). Story movies are untouched.
+# Enabled by `skip_intro = true` under [startup] in heliasdream.toml
+# (HELIAS_SKIP_INTRO=1 overrides). Story movies are untouched.
 [patch]
 name = "skip-intro"
 eboot = "941f887a562aae054fac35af8cc8f27cf075f3d4cc2e029fb5ae2a663aaa5ae7"

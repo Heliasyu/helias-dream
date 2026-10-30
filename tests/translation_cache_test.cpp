@@ -5,8 +5,8 @@
 // damaged entry and another translator's file each fall back to translating.
 // Skips (77) when the dump is absent.
 //
-//   translation_cache_test [bundle.dcx...]   (default: BBHOST_APP0's dvdroot_ps4/shader bundles)
-//   BBHOST_TC_TEST_ALL=1: every shader, not a sample of ~600
+//   translation_cache_test [bundle.dcx...]   (default: HELIAS_APP0's dvdroot_ps4/shader bundles)
+//   HELIAS_TC_TEST_ALL=1: every shader, not a sample of ~600
 #include "test_app0.h"
 
 // The cache's internals (its anonymous namespace) are what is tested.
@@ -177,11 +177,11 @@ int main(int argc, char** argv) {
         }
     }
     if (all.empty()) {
-        std::fprintf(stderr, "no shader bundles (BBHOST_APP0); skipped\n");
+        std::fprintf(stderr, "no shader bundles (HELIAS_APP0); skipped\n");
         return kTestSkip;
     }
     std::vector<Case> cases;
-    const char* every = std::getenv("BBHOST_TC_TEST_ALL");
+    const char* every = std::getenv("HELIAS_TC_TEST_ALL");
     const std::size_t step = every && every[0] == '1' ? 1 : std::max<std::size_t>(1, all.size() / 600);
     for (std::size_t i = 0; i < all.size(); i += step) cases.push_back(std::move(all[i]));
 
@@ -216,7 +216,7 @@ int main(int argc, char** argv) {
     std::printf("%zu shaders (of %zu), %zu pixel shaders lifted of %zu\n", cases.size(), all.size(), lifted, lift_cases);
 
     // 2. A first start fills the file, a second takes everything from it.
-    const std::string path = (std::filesystem::temp_directory_path() / "bbhost-translation-cache-test.bin").generic_string();
+    const std::string path = (std::filesystem::temp_directory_path() / "heliasdream-translation-cache-test.bin").generic_string();
     std::error_code ec;
     std::filesystem::remove(path, ec);
     const std::uint64_t entries = cases.size() * 2 + lift_cases;

@@ -1,21 +1,21 @@
-// BBHOST_CAPTURE_DRAW: a self-contained capture of one draw for
+// HELIAS_CAPTURE_DRAW: a self-contained capture of one draw for
 // tools/drawreplay: the bound
 // shader modules, fixed and dynamic state, the bytes behind every descriptor,
 // the guest pages its shaders can reach through the page table, and its colour
 // and depth/stencil targets before and after the draw. Debug runs only:
 // capturing settles the GPU before the draw and flushes after it.
 //
-//   BBHOST_CAPTURE_DRAW=<pipeline prefix>[,<prefix>...][%<min count>]   e.g. 8747a367+a22c7f71
-//   BBHOST_CAPTURE_DRAW=*                                 the first draw of each pipeline whose no-fallback variant is
-//                                                         ready, up to BBHOST_CAPTURE_COUNT (tools/lift_verify.py)
-//   BBHOST_CAPTURE_DRAW=*ps                               the same, one draw for each pixel shader
-//   BBHOST_CAPTURE_ARMED=1                                only while a test harness has armed it, for as many draws as
-//                                                         it asked (BBHOST_TEST_REQUESTS "capture <n> [<dir>]",
+//   HELIAS_CAPTURE_DRAW=<pipeline prefix>[,<prefix>...][%<min count>]   e.g. 8747a367+a22c7f71
+//   HELIAS_CAPTURE_DRAW=*                                 the first draw of each pipeline whose no-fallback variant is
+//                                                         ready, up to HELIAS_CAPTURE_COUNT (tools/lift_verify.py)
+//   HELIAS_CAPTURE_DRAW=*ps                               the same, one draw for each pixel shader
+//   HELIAS_CAPTURE_ARMED=1                                only while a test harness has armed it, for as many draws as
+//                                                         it asked (HELIAS_TEST_REQUESTS "capture <n> [<dir>]",
 //                                                         hle/video.cpp; tools/area_check.py)
-//   BBHOST_CAPTURE_MIN_FLIP=<flip>                        first flip considered
-//   BBHOST_CAPTURE_DIR=<dir>                              parent directory (default tmp/captures)
-//   BBHOST_CAPTURE_COUNT=<n>                              draws to capture (default 1)
-//   BBHOST_CAPTURE_EVERY=<n>                              one of every n matching draws (default 1)
+//   HELIAS_CAPTURE_MIN_FLIP=<flip>                        first flip considered
+//   HELIAS_CAPTURE_DIR=<dir>                              parent directory (default tmp/captures)
+//   HELIAS_CAPTURE_COUNT=<n>                              draws to capture (default 1)
+//   HELIAS_CAPTURE_EVERY=<n>                              one of every n matching draws (default 1)
 #pragma once
 
 #include "host/gpu_internal.h"
@@ -36,7 +36,7 @@ struct CaptureStage {
     std::vector<VkDescriptorBufferInfo> buffers;           // parallel to meta->buffers
 };
 
-// A draw's Vulkan vertex input (BBHOST_VERTEX_INPUT): the elements its vertex
+// A draw's Vulkan vertex input (HELIAS_VERTEX_INPUT): the elements its vertex
 // shader converts, and the bindings and attributes over guest memory.
 struct CaptureVertexInput {
     std::vector<gcn::VertexElement> elements;
@@ -49,7 +49,7 @@ struct CaptureDraw {
     std::string pipeline;
     bool lean = false;  // the no-fallback variant is bound
     std::uint64_t flip = 0, draw_index = 0;
-    const char* source = "packets";  // "token": drawn from a host-draw token (BBHOST_GX_NATIVE=2)
+    const char* source = "packets";  // "token": drawn from a host-draw token (HELIAS_GX_NATIVE=2)
     CaptureStage stages[2];  // vertex, pixel
     const std::vector<std::uint32_t>* gs_spirv = nullptr;  // RECTLIST expansion, if any
     const std::vector<std::uint32_t>* fetch_words = nullptr;
@@ -85,7 +85,7 @@ struct CaptureSessionDeleter {
 };
 using CapturePtr = std::unique_ptr<CaptureSession, CaptureSessionDeleter>;
 
-// True when BBHOST_CAPTURE_DRAW selects this draw and captures remain.
+// True when HELIAS_CAPTURE_DRAW selects this draw and captures remain.
 // `lean_ready`: the pipeline's no-fallback variant is built, so the draw will most likely bind it (the `*` mode needs it).
 bool capture_candidate(const std::string& pipeline, std::uint32_t count, std::uint64_t flip, bool lean_ready);
 // For a candidate, before its descriptor sets exist: runs everything recorded

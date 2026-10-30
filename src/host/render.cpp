@@ -18,6 +18,7 @@
 #include "host/translation_cache.h"
 #include "host/upscaler.h"
 #include "host/fsr3_pass.h"
+#include "host/hdr_ui.h"
 #include "host/temporal_inputs.h"
 #include "host/temporal/mblur_skip.h"
 #include "host/temporal/motion_classify.h"
@@ -206,7 +207,7 @@ struct ShaderStage {
     // pipeline's own (fresh()).
     std::shared_ptr<const gcn::TranslateResult> shared;
     gcn::TranslateResult own;
-    bool lifted = false;  // BBHOST_DECOMP: spirv is the typed lift (gcn/lift.h)
+    bool lifted = false;  // HELIAS_DECOMP: spirv is the typed lift (gcn/lift.h)
     const gcn::TranslateResult& meta() const { return shared ? *shared : own; }
     gcn::TranslateResult& fresh() {  // a translation made for this stage
         shared.reset();
@@ -233,7 +234,7 @@ struct GfxPipeline {
     bool tess_hw = false, tess_attrs = false;
     std::uint32_t tess_control_points = 1, tess_attr_vec4s = 8;
     // The VS and PS sets' layouts and the pipeline layout (stage_set_layout);
-    // null with BBHOST_SET_LAYOUTS=0, which keeps the shared layout.
+    // null with HELIAS_SET_LAYOUTS=0, which keeps the shared layout.
     VkDescriptorSetLayout set_layouts[2] = {VK_NULL_HANDLE, VK_NULL_HANDLE};
     VkPipelineLayout layout = VK_NULL_HANDLE;
     // The no-fallback variant, once a draw whose constant buffers all bound
@@ -261,10 +262,10 @@ struct GfxPipeline {
     // 1 for d3ca03f3+111fce32, 2 for 7d668276+e0305cef (the YEBIS probes in
     // draw_impl, which log once), 0 for the rest; -1 until a draw asks.
     std::int8_t yebis_probe = -1;
-    // bbhost-vk: 1 when the pixel shader is the game's scene-to-output scale
+    // heliasdream-vk: 1 when the pixel shader is the game's scene-to-output scale
     // pass (ccbf44a6, host/upscaler.h ScenePass), 0 not, -1 until a draw asks.
     std::int8_t scale_pass = -1;
-    // bbhost-vk Phase 2 (host/temporal_inputs.h): the stages' OrbShdr hashes
+    // heliasdream-vk Phase 2 (host/temporal_inputs.h): the stages' OrbShdr hashes
     // as numbers, parsed from the name once.
     std::uint32_t orb_vs = 0, orb_ps = 0;
     // The optimized relink, queued at the pipeline's first draw
@@ -283,7 +284,7 @@ struct GfxPipeline {
     std::uint32_t spec_stride[2][16] = {};  // and their strides (gcn::kCbStrideSpecId)
     std::uint16_t spec_w3_mask[2] = {};
     VkPipeline generic = VK_NULL_HANDLE;
-    // The GPU profile's name (BBHOST_GPU_PROFILE) of the draws bound to it:
+    // The GPU profile's name (HELIAS_GPU_PROFILE) of the draws bound to it:
     // `name`, "~fallback" for the variant with the page-table paths, "~walks"
     // for one that still walks.
     std::string profile_name;
@@ -297,12 +298,12 @@ struct Pass {
     VkExtent2D extent{};
     std::uint64_t targets[9] = {};  // its attachments' bases (lazy pass barriers)
     int ntargets = 0;
-    bool profiled = false;  // BBHOST_GPU_PROFILE=3: a timestamp pair is open around it
+    bool profiled = false;  // HELIAS_GPU_PROFILE=3: a timestamp pair is open around it
 };
 Pass g_pass;
-const std::string* g_pass_profile_name = nullptr;  // the profile name of the draw beginning the next pass (BBHOST_GPU_PROFILE=3)
+const std::string* g_pass_profile_name = nullptr;  // the profile name of the draw beginning the next pass (HELIAS_GPU_PROFILE=3)
 
-// ---- Lazy pass barriers (BBHOST_PASS_BARRIERS=lazy; off by default) ----
+// ---- Lazy pass barriers (HELIAS_PASS_BARRIERS=lazy; off by default) ----
 // Every pass end put a full barrier behind it, attachment writes made visible
 // to everything after: ~45 a frame, ~2.5% of the Steam Deck's GPU frame and up
 // to 7% of the RTX 4070's (priced by leaving them all out). Ended between two
@@ -313,14 +314,14 @@ const std::string* g_pass_profile_name = nullptr;  // the profile name of the dr
 // RTX 4070: 5% less GPU at the seed's spawn; the Deck: no change. The
 // validation layer's synchronization checks find the same hazards either way
 // (3000 flips, the world included; none from passes), 59% of the barriers left out.
-// Off by default: with the targets compressed (BBHOST_RT_DCC) the Deck's world
+// Off by default: with the targets compressed (HELIAS_RT_DCC) the Deck's world
 // went white in blocks within a minute, and with either alone it did not - a
 // read of a target this tracking does not see (a T# whose base is inside the
 // target rather than at it, or an image bound another way), which the
 // validation layer cannot see through the bindless set either.
-// bbhost-vk b7 turned them on by default; b8 turns them off again: on the RX
+// heliasdream-vk b7 turned them on by default; b8 turns them off again: on the RX
 // 9070 XT, loading into the Hunter's Dream flashed white blocks at the top
-// and bottom of the screen with them and not with BBHOST_PASS_BARRIERS=full
+// and bottom of the screen with them and not with HELIAS_PASS_BARRIERS=full
 // (2026-10-21, round 4) - a hazard the tracking below still misses.
 // What b7 had going for it: The hazards are matched by range now (a T#
 // inside a target included: hazard_holds / hazard_inside below), the pass's
@@ -328,7 +329,7 @@ const std::string* g_pass_profile_name = nullptr;  // the profile name of the dr
 // the RX 9070 XT the validation layer's synchronization checks found no
 // hazard from it in a game session (tools/vvl_game.sh, 2026-10-21) while
 // the 1% lows rose (b6: 105.7 with it, b5: 102.7 without). The bindless set
-// (BBHOST_BINDLESS=1, off) is still not tracked.
+// (HELIAS_BINDLESS=1, off) is still not tracked.
 struct PassHazards {
     bool owed = false;
     std::unordered_set<std::uint64_t> written;  // attachment bases written since the last barrier
@@ -336,11 +337,11 @@ struct PassHazards {
 };
 PassHazards g_hazards;
 const bool g_lazy_barriers = [] {
-    const char* e = std::getenv("BBHOST_PASS_BARRIERS");
+    const char* e = std::getenv("HELIAS_PASS_BARRIERS");
     return e && std::strcmp(e, "lazy") == 0;
 }();
 
-// bbhost-vk: the hazards by range, not by base. A T# can point inside a
+// heliasdream-vk: the hazards by range, not by base. A T# can point inside a
 // target - a layer or a mip of it, or an image the game placed in its memory
 // (the blood layers sit 0x28000 bytes into an older target) - and a base
 // compare missed exactly those reads, the likeliest cause of the Deck's
@@ -388,14 +389,14 @@ void note_fill_last(RtImage& r, std::uint64_t va, std::size_t bytes, const float
 std::atomic<std::uint64_t> g_tess_ls_user_gx{0}, g_tess_ls_user_fallback{0};
 std::atomic<std::uint64_t> g_tess_ls_slot[16] = {}, g_tess_ls_slot_bad[16] = {}, g_tess_ls_table{0};
 std::atomic<std::uint64_t> g_token_draws_seen{0}, g_token_with_gx{0}, g_token_tess{0};
-// BBHOST_VPORT_SCISSOR=0 leaves viewport scissor 0 out of the draw scissor
+// HELIAS_VPORT_SCISSOR=0 leaves viewport scissor 0 out of the draw scissor
 // (for frame comparisons); g_vport_narrowed counts draws it narrows.
 const bool g_vport_scissor = [] {
-    const char* e = std::getenv("BBHOST_VPORT_SCISSOR");
+    const char* e = std::getenv("HELIAS_VPORT_SCISSOR");
     return !(e && e[0] == '0');
 }();
 std::atomic<std::uint64_t> g_vport_narrowed{0};
-// BBHOST_VERTEX_INPUT (on unless 0): GX draws in render mode take
+// HELIAS_VERTEX_INPUT (on unless 0): GX draws in render mode take
 // their vertex data through Vulkan vertex input, built from the fetch shader
 // and the vertex table made at the call, instead of running the fetch shader:
 // one binding per buffer and stride, as IASetVertexBuffers binds streams. `2`:
@@ -403,28 +404,28 @@ std::atomic<std::uint64_t> g_vport_narrowed{0};
 // The vertex shaders then need no dispatcher loop, which halves cold pipeline
 // compile time.
 const int g_vertex_input = [] {
-    const char* e = std::getenv("BBHOST_VERTEX_INPUT");
+    const char* e = std::getenv("HELIAS_VERTEX_INPUT");
     if (!e) return 1;
     return e[0] == '1' ? 1 : e[0] == '2' ? 2 : 0;
 }();
 std::atomic<std::uint64_t> g_vertex_input_draws{0}, g_vertex_input_kept{0}, g_vertex_tables_read{0};
 std::atomic<std::uint64_t> g_vertex_tables_with_input{0};  // vertex-input draws whose vertex shader still reads the table
-// BBHOST_GX_SKIP_TABLES (on unless 0): GX draws leave out of the
+// HELIAS_GX_SKIP_TABLES (on unless 0): GX draws leave out of the
 // host ring the user-data tables and blocks their no-fallback variant does not
 // read (table_slots_read), once that variant exists. A draw that ends up on the
 // fallback variant gets them built and its params and storage buffers
 // rewritten in place.
 const bool g_skip_tables = [] {
-    const char* e = std::getenv("BBHOST_GX_SKIP_TABLES");
+    const char* e = std::getenv("HELIAS_GX_SKIP_TABLES");
     return !(e && e[0] == '0');
 }();
 std::atomic<std::uint64_t> g_skip_draws{0}, g_tables_skipped{0}, g_skip_rebuilds{0}, g_skip_rebuilds_lean{0};
-// BBHOST_GX_TOKEN_USER_DATA=register (checks, as in gx_trace.cpp): token draws
+// HELIAS_GX_TOKEN_USER_DATA=register (checks, as in gx_trace.cpp): token draws
 // keep the register file's unnamed user data, every pipeline gets a read mask
 // (which roughly doubles pipeline creation time while loading), and the
 // report counts token stages whose drawing variant reads such a slot.
 const bool g_token_user_data_check = [] {
-    const char* e = std::getenv("BBHOST_GX_TOKEN_USER_DATA");
+    const char* e = std::getenv("HELIAS_GX_TOKEN_USER_DATA");
     return e && std::strcmp(e, "register") == 0;
 }();
 // Draw stages whose prefetch took the pipeline key's binding words, and those
@@ -452,16 +453,16 @@ std::atomic<std::uint64_t> g_token_bound_checked{0}, g_token_bound_stale{0}, g_t
 // where the captured values differ from the register file's at the draw (a
 // check on the capture: 0 means the fill's values are the draw's).
 std::atomic<std::uint64_t> g_token_htile_clears{0}, g_token_htile_clear_values{0}, g_htile_clear_value_mismatch{0};
-// BBHOST_VS_DISPATCHER=1 (diagnostics): vertex shaders taking vertex input keep
+// HELIAS_VS_DISPATCHER=1 (diagnostics): vertex shaders taking vertex input keep
 // the dispatcher loop they had with the fetch shader inlined, to tell their
 // code shape apart from the vertex fetch when timing.
 const bool g_vs_dispatcher = [] {
-    const char* e = std::getenv("BBHOST_VS_DISPATCHER");
+    const char* e = std::getenv("HELIAS_VS_DISPATCHER");
     return e && e[0] == '1';
 }();
-// BBHOST_VS_INVARIANT=1: every vertex shader declares its position Invariant.
+// HELIAS_VS_INVARIANT=1: every vertex shader declares its position Invariant.
 const bool g_vs_invariant = [] {
-    const char* e = std::getenv("BBHOST_VS_INVARIANT");
+    const char* e = std::getenv("HELIAS_VS_INVARIANT");
     return e && e[0] == '1';
 }();
 // Rendering from GX: the tables a draw's user data points at
@@ -475,11 +476,11 @@ struct GxRing {
 };
 GxRing g_gx_ring;
 std::atomic<std::uint64_t> g_vertex_tables{0}, g_gx_user_stages{0}, g_gx_user_fallbacks{0};
-// BBHOST_GX_COST=1: the renderer's GX work timed per
+// HELIAS_GX_COST=1: the renderer's GX work timed per
 // draw, and sampled constant buffers checked against their contents at the
 // call (gx_trace.cpp hashes them there).
 const bool g_render_cost_enabled = [] {
-    const char* e = std::getenv("BBHOST_GX_COST");
+    const char* e = std::getenv("HELIAS_GX_COST");
     return e && e[0] == '1';
 }();
 // The rest split host_gpu_draw into consecutive sections (RenderCostStamp):
@@ -516,9 +517,9 @@ struct RenderCostTimer {
 // on average. The snapshot's
 // [cpu] `cp_split:` and the log's `cp split:` give ns per draw for each section,
 // so a PC run says where the command processor's time goes without
-// BBHOST_GX_COST. BBHOST_CP_SPLIT=0 turns it off.
+// HELIAS_GX_COST. HELIAS_CP_SPLIT=0 turns it off.
 const bool g_cp_split_on = [] {
-    const char* e = std::getenv("BBHOST_CP_SPLIT");
+    const char* e = std::getenv("HELIAS_CP_SPLIT");
     return !(e && e[0] == '0');
 }();
 thread_local bool t_cost_sample = false;
@@ -606,16 +607,16 @@ bool note_stage_set(int st, const VkWriteDescriptorSet* w, std::size_t n) {
 // set is only ever bound again, never rewritten - except by the fallback
 // variant's table rebuild, which takes a fresh set instead (see below).
 const bool g_set_reuse = [] {
-    const char* e = std::getenv("BBHOST_SET_REUSE");
+    const char* e = std::getenv("HELIAS_SET_REUSE");
     return !e || std::atoi(e) != 0;
 }();
 std::atomic<std::uint64_t> g_set_reused{0}, g_set_built{0}, g_set_reuse_undone{0};
 
 }  // namespace
 
-// ---- descriptor sets cached by content (BBHOST_SET_CACHE; gpu_internal.h) ----
+// ---- descriptor sets cached by content (HELIAS_SET_CACHE; gpu_internal.h) ----
 const bool g_set_cache = [] {
-    const char* e = std::getenv("BBHOST_SET_CACHE");
+    const char* e = std::getenv("HELIAS_SET_CACHE");
     return !(e && e[0] == '0');
 }();
 bool set_cache_on() { return g_set_cache; }
@@ -641,7 +642,7 @@ constexpr std::uint32_t kCachePoolSets = 4096;
 // bucket (a 64-bit division) and node were two cold misses for each of a
 // draw's stages, 3.3% of a Steam Deck's command processor. The node a slot
 // names stays put until it is erased (set_cache_drop clears the slot), and
-// the material is still compared. BBHOST_SET_FRONT=0: the map alone.
+// the material is still compared. HELIAS_SET_FRONT=0: the map alone.
 struct SetFront {
     std::uint64_t key = 0;
     const CachedSet* set = nullptr;
@@ -649,7 +650,7 @@ struct SetFront {
 constexpr std::size_t kSetFront = 4096;
 SetFront g_set_front[kSetFront];
 const bool g_set_front_on = [] {
-    const char* e = std::getenv("BBHOST_SET_FRONT");
+    const char* e = std::getenv("HELIAS_SET_FRONT");
     return !(e && e[0] == '0');
 }();
 
@@ -816,7 +817,7 @@ void stage_set_remember(StageSetCache& c, VkDescriptorSetLayout layout, const gc
 std::atomic<std::uint64_t> g_par_stages{0}, g_par_same_as_last{0}, g_par_seen_in_cb{0}, g_par_both{0};
 // Tessellated draws emulated (host_gpu_draw), their patches, and draws refused.
 std::atomic<bool> g_dump_patches{false};
-std::uint64_t g_frames_watched = 0, g_frames_bright = 0;  // BBHOST_DUMP_ON_BRIGHT
+std::uint64_t g_frames_watched = 0, g_frames_bright = 0;  // HELIAS_DUMP_ON_BRIGHT
 std::atomic<std::uint64_t> g_tess_draws{0}, g_tess_patches{0}, g_tess_refused{0}, g_tess_vertices{0};
 std::atomic<std::uint32_t> g_tess_max_patches{0}, g_tess_max_level{0};
 // The draws the game's own hull shader ran for (tess_draw_one), and their patches.
@@ -826,11 +827,11 @@ std::atomic<std::uint64_t> g_tess_hull_draws{0}, g_tess_hull_patches{0};
 // or the region the LS pass gave the draw, 0 read and the write dropped past
 // it. An AMD card lost the device on the first hull draw of the Forbidden
 // Woods without it (an RX 7600 XT, AMD's Windows driver: a read 4 GiB-odd
-// past the ring). BBHOST_TESS_LDS_BOUND=0 leaves the accesses unchecked, as
+// past the ring). HELIAS_TESS_LDS_BOUND=0 leaves the accesses unchecked, as
 // before 2026-10-08.
 bool tess_lds_bound() {
     static const bool on = [] {
-        const char* e = std::getenv("BBHOST_TESS_LDS_BOUND");
+        const char* e = std::getenv("HELIAS_TESS_LDS_BOUND");
         return !(e && e[0] == '0');
     }();
     return on;
@@ -885,7 +886,7 @@ std::string split_text(const SplitSnap& now, const SplitSnap* prev) {
     out += b;
     double total = 0;
     for (int k = 0; k < kRenderCosts; ++k) {
-        // The nested sections (compare, vertex_table, user_data_build: BBHOST_GX_COST's
+        // The nested sections (compare, vertex_table, user_data_build: HELIAS_GX_COST's
         // RenderCostTimer) are inside registers, programs and stage_user here.
         if (!g_split_n[k].load(std::memory_order_relaxed)) continue;
         const double ns = draws && per_ns > 0 ? static_cast<double>(now.tsc[k] - (prev ? prev->tsc[k] : 0)) / per_ns / static_cast<double>(draws) : 0.0;
@@ -899,7 +900,7 @@ std::string split_text(const SplitSnap& now, const SplitSnap* prev) {
 }
 }  // namespace
 std::string cp_split_section_impl() {
-    if (!g_cp_split_on) return "cp_split: off (BBHOST_CP_SPLIT=0)";
+    if (!g_cp_split_on) return "cp_split: off (HELIAS_CP_SPLIT=0)";
     static SplitSnap prev;
     static std::mutex mu;
     std::lock_guard<std::mutex> lk(mu);
@@ -917,7 +918,7 @@ void log_cp_split_maybe() {
     if (d < next) return;
     next = d + 100000;
     const SplitSnap now = split_now();
-    host_log("cp split: %s (ns per draw over the last ~%llu sampled draws; BBHOST_CP_SPLIT=0 turns it off)", split_text(now, &prev).c_str(),
+    host_log("cp split: %s (ns per draw over the last ~%llu sampled draws; HELIAS_CP_SPLIT=0 turns it off)", split_text(now, &prev).c_str(),
              static_cast<unsigned long long>(now.draws - prev.draws));
     prev = now;
 }
@@ -966,7 +967,7 @@ std::uint64_t render_cb_fnv(std::uint64_t va, std::uint64_t bytes) {
     for (std::uint64_t i = 0; i < bytes; ++i) h = (h ^ p[i]) * 1099511628211ull;
     return h;
 }
-const std::uint64_t g_order_target = [] { const char* e = std::getenv("BBHOST_ORDER"); return e ? std::strtoull(e, nullptr, 0) : 0ull; }();
+const std::uint64_t g_order_target = [] { const char* e = std::getenv("HELIAS_ORDER"); return e ? std::strtoull(e, nullptr, 0) : 0ull; }();
 std::atomic<int> g_order_logs{0};
 
 }  // namespace
@@ -975,7 +976,7 @@ DrawRec g_draw_recs[kDrawRecs];
 std::uint64_t g_draw_rec_next = 0;
 std::uint32_t g_draw_dummies = 0;
 thread_local const char* t_draw_pipeline = nullptr;
-// bbhost-vk: the stage being prefetched is the scale pass drawn as a bilinear
+// heliasdream-vk: the stage being prefetched is the scale pass drawn as a bilinear
 // copy (host/upscaler.h): its samplers' S# made bilinear and clamped.
 thread_local bool t_bilinear_samplers = false;  // the draw being resolved, for the glitch hunt's lines
 // The draw being resolved came from a Scaleform (or wrapper) token: its
@@ -1019,7 +1020,7 @@ std::uint32_t rt_view_formats(VkFormat format, VkFormat* out) {
 }
 
 namespace {
-// BBHOST_KEEP_INPUT=<pipeline prefix>:<image index>: the image that pass reads,
+// HELIAS_KEEP_INPUT=<pipeline prefix>:<image index>: the image that pass reads,
 // copied *before* the pass runs, kept per flip. The watcher's ring keeps the
 // display target, but by the time a flip comes round a pass's input has been
 // cleared for the next frame, so a frame that went wrong cannot be traced back
@@ -1113,8 +1114,8 @@ std::vector<KeepSpec> parse_keep_specs(const char* e) {
     }
     return out;
 }
-const char* g_keep_input = std::getenv("BBHOST_KEEP_INPUT");
-// BBHOST_KEEP_VERTS=<pipeline prefix>: that pass's vertex data, gathered every
+const char* g_keep_input = std::getenv("HELIAS_KEEP_INPUT");
+// HELIAS_KEEP_VERTS=<pipeline prefix>: that pass's vertex data, gathered every
 // flip into a ring and written out by the change trigger, so the frame that
 // went wrong can be read against the frame before it. All of it is guest
 // memory read on the CPU - no readback, no broken render pass, none of what
@@ -1133,15 +1134,15 @@ struct KeptVerts {
 };
 constexpr int kKeptVerts = 4;
 KeptVerts g_kept_verts[kKeptVerts];
-const char* g_keep_verts = std::getenv("BBHOST_KEEP_VERTS");
-// BBHOST_KEEP_VERTS_ROWS=0 keeps only a digest per buffer - a hash and a range
+const char* g_keep_verts = std::getenv("HELIAS_KEEP_VERTS");
+// HELIAS_KEEP_VERTS_ROWS=0 keeps only a digest per buffer - a hash and a range
 // - instead of every record. The full dump is a hundred and fifty formatted
 // lines a draw, which is enough to change the run's timing: three runs in a
 // row with it produced no flash at all to compare, while the same build
 // without it reproduced the flash twice. Whatever this bug is, it is
 // sensitive to that.
 const int g_keep_verts_rows = [] {
-    const char* e = std::getenv("BBHOST_KEEP_VERTS_ROWS");
+    const char* e = std::getenv("HELIAS_KEEP_VERTS_ROWS");
     return e ? std::atoi(e) : 8;
 }();
 // The params as they go into the ring - the one piece of a draw's state the
@@ -1191,15 +1192,15 @@ void keep_params(const std::string& name, const gcn::StageParams& params, int st
 }
 std::atomic<std::uint64_t> g_cb_realigned{0}, g_cb_realigned_bytes{0};
 const bool g_trace = [] {
-    const char* e = std::getenv("BBHOST_TRACE_RENDER");
+    const char* e = std::getenv("HELIAS_TRACE_RENDER");
     return e && e[0] == '1';
 }();
 const int g_debug_ps_color = [] {
-    const char* e = std::getenv("BBHOST_DEBUG_PS_COLOR");
+    const char* e = std::getenv("HELIAS_DEBUG_PS_COLOR");
     return e ? std::atoi(e) : 0;
 }();
 const long g_dump_frame = [] {
-    const char* e = std::getenv("BBHOST_DUMP_FRAME");
+    const char* e = std::getenv("HELIAS_DUMP_FRAME");
     return e ? std::strtol(e, nullptr, 10) : -1;
 }();
 
@@ -1239,11 +1240,11 @@ void destroy_rt_image(RtImage& r) {
 // A target's memory comes from the image heap, as a texture's does
 // (image_memory_alloc, gpu.cpp): an area's targets are made as it loads -
 // ~300 a soak - and a driver allocation each was ~37 ms of the command
-// processor in the frame the world first draws. BBHOST_RT_HEAP=0 gives each
+// processor in the frame the world first draws. HELIAS_RT_HEAP=0 gives each
 // its own allocation again.
 bool rt_image_memory(VkImage image, ImageMemory& out) {
     static const bool heap = [] {
-        const char* e = std::getenv("BBHOST_RT_HEAP");
+        const char* e = std::getenv("HELIAS_RT_HEAP");
         return !(e && e[0] == '0');
     }();
     VkMemoryRequirements req{};
@@ -1336,13 +1337,13 @@ std::uint64_t steady_ms() {
     return static_cast<std::uint64_t>(
         std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count());
 }
-// test8, BBHOST_MOTION_BLUR_SKIP=1 (host/temporal/mblur_skip.h): the policy,
+// test8, HELIAS_MOTION_BLUR_SKIP=1 (host/temporal/mblur_skip.h): the policy,
 // whether it is on, and whether the work being recorded is one of the motion
 // blur's own draws (exempt from the "something else used B" watch). Under g.mu.
-// On unless BBHOST_MOTION_BLUR_SKIP=0; BBHOST_AB_SECONDS=<s> turns it off
+// On unless HELIAS_MOTION_BLUR_SKIP=0; HELIAS_AB_SECONDS=<s> turns it off
 // and on every s seconds in one run (ab_frame_locked).
 const bool g_mb_skip_mode = [] {
-    const char* e = std::getenv("BBHOST_MOTION_BLUR_SKIP");
+    const char* e = std::getenv("HELIAS_MOTION_BLUR_SKIP");
     return !(e && e[0] == '0');
 }();
 bool g_mb_skip_on = g_mb_skip_mode;
@@ -1386,11 +1387,11 @@ void rt_written(RtImage& r) {
 // too early (each such remake costs an allocation and the old contents).
 std::unordered_map<std::uint64_t, std::uint64_t> g_reuse_retired_at;  // under g.mu
 std::uint64_t g_reuse_remade = 0;                                     // under g.mu
-// BBHOST_IMG_REUSE_IDLE=<s>: how long nothing may have written an image before
+// HELIAS_IMG_REUSE_IDLE=<s>: how long nothing may have written an image before
 // the reuse retire looks at it (10 s).
 std::uint64_t reuse_idle_ms() {
     static const std::uint64_t ms = [] {
-        const char* e = std::getenv("BBHOST_IMG_REUSE_IDLE");
+        const char* e = std::getenv("HELIAS_IMG_REUSE_IDLE");
         const std::uint64_t s = e && *e ? std::strtoull(e, nullptr, 10) : 10;
         return (s ? s : 10) * 1000;
     }();
@@ -1453,7 +1454,7 @@ void mb_skip_materialize_locked() {
 }
 
 // ---------------------------------------------------------------------------
-// test10, BBHOST_POST_AT_RENDER (on unless 0): the game's post-processing
+// test10, HELIAS_POST_AT_RENDER (on unless 0): the game's post-processing
 // before its tonemap at the render size, FSR 4.1.1 / 3.1 after it.
 //
 // The chain (t10/t11 `post-chain:` lines, FSR 4.1.1 Performance 1080p -> 4K):
@@ -1481,17 +1482,17 @@ void mb_skip_materialize_locked() {
 // end (the stand-in is copied in, the log says why).
 // rc2: permanent - no options switch any more (vk.1's "Post-processing at
 // render size" is gone from the menu and the launcher; a saved value is
-// ignored). BBHOST_POST_AT_RENDER=0 stays, for debugging.
+// ignored). HELIAS_POST_AT_RENDER=0 stays, for debugging.
 bool post_mode() {
     static const bool on = [] {
-        const char* e = std::getenv("BBHOST_POST_AT_RENDER");
+        const char* e = std::getenv("HELIAS_POST_AT_RENDER");
         const bool v = !(e && e[0] == '0');
-        host_log("post-at-render: %s%s", v ? "on" : "off", v ? "" : " (BBHOST_POST_AT_RENDER=0)");
+        host_log("post-at-render: %s%s", v ? "on" : "off", v ? "" : " (HELIAS_POST_AT_RENDER=0)");
         return v;
     }();
     return on;
 }
-bool g_post_on = true;            // BBHOST_AB_SECONDS=post turns it off and on
+bool g_post_on = true;            // HELIAS_AB_SECONDS=post turns it off and on
 bool g_post_dead = false;         // FSR failed at a window's end: off for the session
 thread_local bool t_in_draw = false;  // draw_impl: a dispatch's prefetch is not a draw's
 std::map<std::uint64_t, RtImage> g_post_shadows;  // by the real target's base
@@ -1627,14 +1628,14 @@ std::string walk_section() {
                   static_cast<unsigned long long>(g_walk_pl.post.load()), static_cast<unsigned long long>(g_walk_pl.post_vs_walking.load()));
     std::string out = b;
     std::snprintf(b, sizeof(b), "\nfetch_inline: fetch_inlined=%llu fetch_inlined_walking=%llu soffset_bound=%llu soffset_bound_sites=%llu "
-                  "(pipelines since start; BBHOST_FETCH_INLINE=0 / BBHOST_SOFFSET_BOUND=0 turn them off)",
+                  "(pipelines since start; HELIAS_FETCH_INLINE=0 / HELIAS_SOFFSET_BOUND=0 turn them off)",
                   static_cast<unsigned long long>(g_walk_pl.fetch_inlined.load()),
                   static_cast<unsigned long long>(g_walk_pl.fetch_inlined_walking.load()),
                   static_cast<unsigned long long>(g_walk_pl.soffset_bound.load()),
                   static_cast<unsigned long long>(g_walk_pl.soffset_bound_sites.load()));
     out += b;
-    out += "\n" + page_tables_line() + " (rc5: tables in ReBAR video memory; BBHOST_TABLES_VRAM=0 puts them in system memory)";
-    out += "\n" + compute_cb_line() + " (rc5b: compute constant buffers bound; BBHOST_CS_CB=0 walks them)";
+    out += "\n" + page_tables_line() + " (rc5: tables in ReBAR video memory; HELIAS_TABLES_VRAM=0 puts them in system memory)";
+    out += "\n" + compute_cb_line() + " (rc5b: compute constant buffers bound; HELIAS_CS_CB=0 walks them)";
     std::lock_guard<std::mutex> lk(g_walk_pl.mu);
     for (const std::string& n : g_walk_pl.post_names) out += "\npost_vs_walks: " + n;
     return out;
@@ -1761,9 +1762,9 @@ RtImage* rt_image(std::uint64_t base, VkFormat format, std::uint32_t width, std:
     // and UNORM; the game clears one and draws it in its new shape, and the
     // clear went to the old image - a huntsman came out metallic again
     // (2026-09-29, flip 2497) after the same-shape case was fixed.
-    // BBHOST_RT_REFILL=0: as before, the new image starts as the image heap left it.
+    // HELIAS_RT_REFILL=0: as before, the new image starts as the image heap left it.
     static const bool refill_on = [] {
-        const char* e = std::getenv("BBHOST_RT_REFILL");
+        const char* e = std::getenv("HELIAS_RT_REFILL");
         return !(e && e[0] == '0');
     }();
     RtImage refill;  // only its fill_* fields
@@ -1889,9 +1890,9 @@ RtImage* rt_image(std::uint64_t base, VkFormat format, std::uint32_t width, std:
     // Its view formats listed (rt_view_formats), so AMD's drivers keep it
     // compressed: on a Steam Deck at the seed's spawn, 1.5% less GPU time
     // (18.95/18.97 against 19.22/19.29 ms a frame). A view outside the list
-    // reads a copy (render_target_view). BBHOST_RT_DCC=0: mutable with no list.
+    // reads a copy (render_target_view). HELIAS_RT_DCC=0: mutable with no list.
     static const bool listed = [] {
-        const char* e = std::getenv("BBHOST_RT_DCC");
+        const char* e = std::getenv("HELIAS_RT_DCC");
         return !(e && e[0] == '0');
     }();
     VkFormat view_formats[5];
@@ -1911,7 +1912,7 @@ RtImage* rt_image(std::uint64_t base, VkFormat format, std::uint32_t width, std:
     ici.tiling = VK_IMAGE_TILING_OPTIMAL;
     ici.usage = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT |
                 (depth ? VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT : VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT);
-    // bbhost-vk test4: the output-sized RGBA16F targets FSR 3.1 may write directly (host/fsr3_pass.h).
+    // heliasdream-vk test4: the output-sized RGBA16F targets FSR 3.1 may write directly (host/fsr3_pass.h).
     if (!depth && fsr3_target_storage_wanted(static_cast<int>(format), width, height, r.layers)) {
         ici.usage |= VK_IMAGE_USAGE_STORAGE_BIT;
         r.upscaler_storage = true;
@@ -2010,15 +2011,15 @@ RtImage* rt_image(std::uint64_t base, VkFormat format, std::uint32_t width, std:
         // pass draws, unchanged for minutes (2026-10-01, six F12 dumps): any
         // read past the drawn region would flood the glare pyramid. One clear
         // per new target, which is an area load's worth, not a frame's.
-        // BBHOST_RT_POISON=1 (checks): magenta instead, so anything that reads
+        // HELIAS_RT_POISON=1 (checks): magenta instead, so anything that reads
         // pixels no pass drew (a T# over a larger target, a lost clear) shows.
-        // BBHOST_RT_ZERO=0: as the heap left it, as before.
+        // HELIAS_RT_ZERO=0: as the heap left it, as before.
         static const bool poison = [] {
-            const char* e = std::getenv("BBHOST_RT_POISON");
+            const char* e = std::getenv("HELIAS_RT_POISON");
             return e && e[0] == '1';
         }();
         static const bool zero = [] {
-            const char* e = std::getenv("BBHOST_RT_ZERO");
+            const char* e = std::getenv("HELIAS_RT_ZERO");
             return !(e && e[0] == '0');
         }();
         if (poison) {
@@ -2041,10 +2042,10 @@ RtImage* rt_image(std::uint64_t base, VkFormat format, std::uint32_t width, std:
 // rt_image() applies on every use: the pending clears.
 // A GX target's real extent from its view's texture
 // (GpuDrawInputs::color_extent) instead of guessing it from the scissor
-// (unpadded_width/height). BBHOST_GX_VIEW_EXTENTS=0 guesses as before; =2
+// (unpadded_width/height). HELIAS_GX_VIEW_EXTENTS=0 guesses as before; =2
 // guesses, and counts and logs where the guess and the texture disagree.
 const int g_view_extents = [] {
-    const char* e = std::getenv("BBHOST_GX_VIEW_EXTENTS");
+    const char* e = std::getenv("HELIAS_GX_VIEW_EXTENTS");
     return e ? std::atoi(e) : 1;
 }();
 std::uint64_t g_extent_used = 0, g_extent_guessed = 0, g_extent_checked = 0, g_extent_disagree = 0;  // under g.mu
@@ -2075,9 +2076,9 @@ RtImage* target_image(int slot, std::uint64_t base, VkFormat format, std::uint32
     // kept the old one: the new-character cutscenes' glare pyramid (392x331
     // at its base) left sizes the game's (314x265) then drew into the corner
     // of, and the glare sampled the stale rest - magenta, until a reload.
-    // BBHOST_RT_EXTENT_FROM_GX=0: the learned sizes only.
+    // HELIAS_RT_EXTENT_FROM_GX=0: the learned sizes only.
     static const bool extent_from_gx = [] {
-        const char* e = std::getenv("BBHOST_RT_EXTENT_FROM_GX");
+        const char* e = std::getenv("HELIAS_RT_EXTENT_FROM_GX");
         return !(e && e[0] == '0');
     }();
     if (!extent && extent_from_gx && !depth) {
@@ -2134,7 +2135,7 @@ VkImageAspectFlags aspect_of(const RtImage& r) {
 void ensure_initialised(RtImage& r) {
     if (r.initialised) return;
     begin_recording_locked();
-    // bbhost-vk: a layout change cannot be recorded inside dynamic rendering
+    // heliasdream-vk: a layout change cannot be recorded inside dynamic rendering
     // (VUID-vkCmdPipelineBarrier-None-09553/-09554/-01181, the validation
     // layer on the RX 9070 XT). A target made mid-pass - a post stand-in
     // (post_shadow_locked), a scene target at a live rescale - was given one
@@ -2246,10 +2247,10 @@ const FetchProgram* fetch_program_at(std::uint64_t va) {
 }
 
 // A binding the plan reads from a shader-resource view's record
-// finds its view by the view's id (texture_view_by_id); BBHOST_VIEW_BY_ID=0
+// finds its view by the view's id (texture_view_by_id); HELIAS_VIEW_BY_ID=0
 // by the T#'s words as before, =2 both, counting disagreements.
 const int g_view_by_id = [] {
-    const char* e = std::getenv("BBHOST_VIEW_BY_ID");
+    const char* e = std::getenv("HELIAS_VIEW_BY_ID");
     return e ? std::atoi(e) : 1;
 }();
 std::uint64_t g_view_by_id_disagree = 0;  // under g.mu
@@ -2258,10 +2259,10 @@ std::uint64_t g_view_by_id_disagree = 0;  // under g.mu
 // objects' ids (engine/gx_resources.h), which stand for what the object holds
 // for its life, so the program and the fetch shader are found once per object
 // instead of by code address at every draw (program_at checks 64 bytes of
-// code, fetch_program_at all of the fetch shader's). BBHOST_GX_PROGRAM_IDS=0
+// code, fetch_program_at all of the fetch shader's). HELIAS_GX_PROGRAM_IDS=0
 // finds them by address as before; =2 does both and counts disagreements.
 const int g_program_ids = [] {
-    const char* e = std::getenv("BBHOST_GX_PROGRAM_IDS");
+    const char* e = std::getenv("HELIAS_GX_PROGRAM_IDS");
     return e ? std::atoi(e) : 1;
 }();
 // A fetch shader's elements (plan_vertex_input: parse_fetch_elements).
@@ -2344,11 +2345,11 @@ int fetch_user_sgpr(const gcn::Program& vs) {
     return -1;
 }
 
-// BBHOST_DUMP_SPIRV=1: every module to build/spv/<name>.spv (for
+// HELIAS_DUMP_SPIRV=1: every module to build/spv/<name>.spv (for
 // spirv-val / spirv-dis when a driver compiler falls over) and a log line
 // before each pipeline is created.
 const bool g_dump_spirv = [] {
-    const char* e = std::getenv("BBHOST_DUMP_SPIRV");
+    const char* e = std::getenv("HELIAS_DUMP_SPIRV");
     return e && e[0] == '1';
 }();
 void dump_spirv(const std::string& name, const std::vector<std::uint32_t>& spirv) {
@@ -2361,7 +2362,7 @@ void dump_spirv(const std::string& name, const std::vector<std::uint32_t>& spirv
     }
 }
 
-// With BBHOST_DUMP_SPIRV: a module's storage-buffer bindings next to it (index,
+// With HELIAS_DUMP_SPIRV: a module's storage-buffer bindings next to it (index,
 // binding, pointer table or V#, path, dwords read), so an offline pass can
 // tell which of them survive dead-code elimination.
 void dump_buffers(const std::string& name, const gcn::TranslateResult& meta, std::uint32_t tables = ~0u) {
@@ -2384,7 +2385,7 @@ bool make_module(const std::vector<std::uint32_t>& spirv, VkShaderModule& out) {
     return vkCreateShaderModule(g.device, &smci, nullptr, &out) == VK_SUCCESS;
 }
 
-// BBHOST_DECOMP: which shaders run as typed lifts (gcn/lift.h) in their
+// HELIAS_DECOMP: which shaders run as typed lifts (gcn/lift.h) in their
 // no-fallback pipelines. "all" (the default since 2026-09-26) is every pixel
 // shader, and every vertex shader on vertex input, that the lifter accepts -
 // a rejection keeps the translation, so this can only change a shader the
@@ -2400,7 +2401,7 @@ bool make_module(const std::vector<std::uint32_t>& spirv, VkShaderModule& out) {
 bool decomp_selects(const std::string& ps_name) {
     static const std::pair<bool, std::set<std::string>> selection = [] {
         std::pair<bool, std::set<std::string>> s{true, {}};
-        const char* e = std::getenv("BBHOST_DECOMP");
+        const char* e = std::getenv("HELIAS_DECOMP");
         if (!e || !*e || std::strcmp(e, "all") == 0) return s;
         s.first = false;
         if (std::strcmp(e, "0") == 0) return s;
@@ -2668,10 +2669,10 @@ bool format_blends(VkFormat format) {
 
 void fixed_raster_depth(const DrawState& s, GfxFixedState& f) {
     f.topology = s.topo;
-    // BBHOST_DEBUG_NO_CULL=1 / BBHOST_DEBUG_NO_DEPTH=1: draw everything
+    // HELIAS_DEBUG_NO_CULL=1 / HELIAS_DEBUG_NO_DEPTH=1: draw everything
     // (is geometry reaching the target at all?).
-    static const bool no_cull = [] { const char* e = std::getenv("BBHOST_DEBUG_NO_CULL"); return e && e[0] == '1'; }();
-    static const bool no_depth = [] { const char* e = std::getenv("BBHOST_DEBUG_NO_DEPTH"); return e && e[0] == '1'; }();
+    static const bool no_cull = [] { const char* e = std::getenv("HELIAS_DEBUG_NO_CULL"); return e && e[0] == '1'; }();
+    static const bool no_depth = [] { const char* e = std::getenv("HELIAS_DEBUG_NO_DEPTH"); return e && e[0] == '1'; }();
     const bool stencil_aspect = s.depth && s.depth->format != VK_FORMAT_D32_SFLOAT && s.depth->format != VK_FORMAT_D16_UNORM;
     if (s.gx_raster && s.gx_depth) {
         const GxRasterDesc& r = *s.gx_raster;
@@ -2689,9 +2690,9 @@ void fixed_raster_depth(const DrawState& s, GfxFixedState& f) {
         f.back = gx_stencil_face(ds.back);
         // The depth bias the register path never read (PA_SU_POLY_OFFSET_*,
         // programmed by the rasterizer flush 0x2ad3370 with D3D11's meaning).
-        // BBHOST_DEPTH_BIAS=0 leaves it off, as before.
+        // HELIAS_DEPTH_BIAS=0 leaves it off, as before.
         static const bool depth_bias = [] {
-            const char* e = std::getenv("BBHOST_DEPTH_BIAS");
+            const char* e = std::getenv("HELIAS_DEPTH_BIAS");
             return !(e && e[0] == '0');
         }();
         if (depth_bias && (r.depth_bias || r.slope_bias != 0.0f)) {
@@ -2791,7 +2792,7 @@ GfxFixedState fixed_state(const DrawState& s) {
     return f;
 }
 
-// BBHOST_GX_STATE=2: at every draw with the three ids, the state the
+// HELIAS_GX_STATE=2: at every draw with the three ids, the state the
 // descriptions give against the register path's, field by field (the report
 // at exit). BLEND_BYPASS (a target format that cannot blend) turns blending
 // off on the register path only, so it is counted apart.
@@ -3042,7 +3043,7 @@ void apply_table_masks_locked() {
     }
 }
 
-// BBHOST_SET_LAYOUTS (on unless 0): each graphics pipeline's sets have a layout
+// HELIAS_SET_LAYOUTS (on unless 0): each graphics pipeline's sets have a layout
 // with only the params buffer and the bindings its stage's translation
 // declares, instead of the shared layout's 113, so allocating and binding a set
 // covers the descriptors the stage uses. Stages with the same bindings share a
@@ -3050,10 +3051,10 @@ void apply_table_masks_locked() {
 // no-fallback variant declares its base pipeline's bindings, so it takes the
 // sets written for them. Compute dispatches keep the shared layout.
 const bool g_set_layouts = [] {
-    const char* e = std::getenv("BBHOST_SET_LAYOUTS");
+    const char* e = std::getenv("HELIAS_SET_LAYOUTS");
     return !(e && e[0] == '0');
 }();
-// BBHOST_PIPELINE_LIBRARY=0: monolithic graphics pipelines. By default, where
+// HELIAS_PIPELINE_LIBRARY=0: monolithic graphics pipelines. By default, where
 // the driver fast-links VK_EXT_graphics_pipeline_library, graphics pipelines
 // link from pipeline libraries whose shaders are compiled when GX creates them:
 // a cold world load stalls 12.6 s
@@ -3062,7 +3063,7 @@ const bool g_set_layouts = [] {
 // (build_gfx_pipeline).
 bool use_pipeline_library() {
     static const bool on = [] {
-        const char* e = std::getenv("BBHOST_PIPELINE_LIBRARY");
+        const char* e = std::getenv("HELIAS_PIPELINE_LIBRARY");
         return !(e && e[0] == '0');
     }();
     return on && g.has_gpl && g_set_layouts;
@@ -3146,7 +3147,7 @@ VkPipelineLayout stage_pipeline_layout(VkDescriptorSetLayout vs, VkDescriptorSet
 // modules, and vkCreateGraphicsPipelines. Builds on the variant workers are
 // not counted (they do not stall the game). A stage's key covers its program
 // and the options that change its translation; stages the cache served are
-// counted as reused (with BBHOST_STAGE_CACHE=0, translations whose key was
+// counted as reused (with HELIAS_STAGE_CACHE=0, translations whose key was
 // seen before).
 thread_local bool t_pipeline_worker = false;
 std::atomic<std::uint64_t> g_pl_translate_us{0}, g_pl_module_us{0}, g_pl_create_us{0}, g_pl_stage_translations{0}, g_pl_stage_repeats{0};
@@ -3173,7 +3174,7 @@ std::uint64_t dims_modes_key(std::uint64_t h, const std::vector<std::pair<std::u
     return h;
 }
 
-// BBHOST_STAGE_CACHE=0 (checks): translate every pipeline's stages again. By
+// HELIAS_STAGE_CACHE=0 (checks): translate every pipeline's stages again. By
 // default a stage's translation and shader module are shared by every pipeline
 // whose stage has the same program and translation options: in a world-load
 // stall, 122 of 206 stage translations repeated an earlier one. Pipelines and
@@ -3181,10 +3182,10 @@ std::uint64_t dims_modes_key(std::uint64_t h, const std::vector<std::pair<std::u
 // Translation runs outside the lock; two threads racing on one key both
 // translate and the first to store wins.
 const bool g_stage_cache_on = [] {
-    const char* e = std::getenv("BBHOST_STAGE_CACHE");
+    const char* e = std::getenv("HELIAS_STAGE_CACHE");
     return !(e && e[0] == '0');
 }();
-// A lifted stage (BBHOST_DECOMP) is a different shader from the translation of
+// A lifted stage (HELIAS_DECOMP) is a different shader from the translation of
 // the same program, so it takes a key of its own rather than being left out of
 // the cache: the lift used to re-run for every pipeline that shared the stage,
 // which is the opposite of what turning it on is for.
@@ -3264,11 +3265,11 @@ void queue_vs_precompile(std::string name, std::vector<std::uint8_t> container);
 void queue_compute_precompile(std::string name, std::vector<std::uint8_t> container, std::uint64_t flip);
 void precompile_report();
 
-// BBHOST_PRECOMPILE_STAGES (checks): which graphics stages compile at creation,
+// HELIAS_PRECOMPILE_STAGES (checks): which graphics stages compile at creation,
 // bit 0 vertex shaders, bit 1 pixel shaders (default both).
 int precompile_stage_mask() {
     static const int mask = [] {
-        const char* e = std::getenv("BBHOST_PRECOMPILE_STAGES");
+        const char* e = std::getenv("HELIAS_PRECOMPILE_STAGES");
         return e ? std::atoi(e) : 3;
     }();
     return mask;
@@ -3300,7 +3301,7 @@ void record_shader_created(int creator, const std::uint8_t* container, std::size
         }
     }
     if (type >= 0) g_creations.types[creator][type] += 1;
-    if (type == 4) {  // compute shaders: compiled when created (gpu.cpp), unless BBHOST_PRECOMPILE=0
+    if (type == 4) {  // compute shaders: compiled when created (gpu.cpp), unless HELIAS_PRECOMPILE=0
         if (!name.empty() && compute_precompile_enabled() && note_compute_created(name, flip)) {
             queue_compute_precompile(name, std::vector<std::uint8_t>(container, container + size), flip);
         }
@@ -3447,7 +3448,7 @@ void vs_dependency_report() {
     host_log("render: vertex input element formats:%s", formats.c_str());
 }
 
-// BBHOST_PIPELINE_LIBRARY: libraries by key (vertex input interface,
+// HELIAS_PIPELINE_LIBRARY: libraries by key (vertex input interface,
 // pre-rasterization shaders, fragment shader, fragment output interface). A key
 // another thread is building waits for it.
 struct PipelineLibraries {
@@ -3460,10 +3461,10 @@ struct PipelineLibraries {
 };
 PipelineLibraries g_libs;
 
-// BBHOST_LOG_STAGE_TRANSLATIONS=1: each stage the command processor translates
+// HELIAS_LOG_STAGE_TRANSLATIONS=1: each stage the command processor translates
 // itself (a precompiled or cached stage would have saved it), with its
 // variant, for finding what the per-shader compiles miss.
-const bool g_log_stage_translations = std::getenv("BBHOST_LOG_STAGE_TRANSLATIONS") != nullptr;
+const bool g_log_stage_translations = std::getenv("HELIAS_LOG_STAGE_TRANSLATIONS") != nullptr;
 
 void note_stage_translation(int stage, const std::vector<std::uint32_t>& words, std::uint64_t key, bool lean) {
     const std::uint64_t program = fnv1a(words.data(), words.size() * 4);
@@ -3605,17 +3606,17 @@ const std::vector<std::uint8_t>& register_links() {
     }();
     return links;
 }
-// BBHOST_VERTEX_FORMAT_PARAMS=0 (checks): vertex shaders on vertex input convert
+// HELIAS_VERTEX_FORMAT_PARAMS=0 (checks): vertex shaders on vertex input convert
 // each element with its formats as constants, one translation per format set,
 // instead of reading them from their params (step 6c).
 const bool g_vertex_format_params = [] {
-    const char* e = std::getenv("BBHOST_VERTEX_FORMAT_PARAMS");
+    const char* e = std::getenv("HELIAS_VERTEX_FORMAT_PARAMS");
     return !(e && e[0] == '0');
 }();
-// BBHOST_PRECOMPILE_CHECK=1: a draw that finds a stage compiled at creation
+// HELIAS_PRECOMPILE_CHECK=1: a draw that finds a stage compiled at creation
 // translates it again with its own options and logs any difference.
 const bool g_precompile_check = [] {
-    const char* e = std::getenv("BBHOST_PRECOMPILE_CHECK");
+    const char* e = std::getenv("HELIAS_PRECOMPILE_CHECK");
     return e && e[0] == '1';
 }();
 void check_precompiled_stage(const char* stage, const std::string& name, const gcn::TranslateResult& cached, const gcn::TranslateResult& again) {
@@ -3693,10 +3694,10 @@ gcn::TranslateOptions ps_translate_options(const PsStageInputs& in) {
     po.ps_clip_discard = in.clip_discard;
     return po;
 }
-// BBHOST_CLIP_VARYING=0 (checks): clip distances go to the clipper again
+// HELIAS_CLIP_VARYING=0 (checks): clip distances go to the clipper again
 // (TranslateOptions::kVsOutCntlClipVarying).
 const bool g_clip_varying = [] {
-    const char* e = std::getenv("BBHOST_CLIP_VARYING");
+    const char* e = std::getenv("HELIAS_CLIP_VARYING");
     return !(e && e[0] == '0');
 }();
 // A draw's pixel shader discarding by its clip distances
@@ -3952,7 +3953,7 @@ VkShaderModule tess_hull_module(const DrawState& s, const std::string& dump_name
     return m;
 }
 
-// The stage manifest (<data root>/bbhost/stage-manifest.bin, BBHOST_STAGE_MANIFEST=0
+// The stage manifest (<data root>/heliasdream/stage-manifest.bin, HELIAS_STAGE_MANIFEST=0
 // turns it off): every stage a draw had to translate itself - the eboot's own
 // shaders, which GX never creates (YEBIS, Scaleform, the engine's full-screen
 // passes: 59 a soak), and the variants creation-time compiling does not guess -
@@ -4010,7 +4011,7 @@ struct StageManifest {
 StageManifest g_manifest;
 bool stage_manifest_on() {
     static const bool on = [] {
-        const char* e = std::getenv("BBHOST_STAGE_MANIFEST");
+        const char* e = std::getenv("HELIAS_STAGE_MANIFEST");
         return !(e && e[0] == '0');
     }();
     return on;
@@ -4131,13 +4132,13 @@ void manifest_note_hit(std::uint64_t key) {
     if (g_manifest.ready.count(key)) g_manifest.hits.fetch_add(1, std::memory_order_relaxed);
 }
 
-// BBHOST_TESS_PATCH_CULL=<clip w>: a patch whose centre is nearer the camera
+// HELIAS_TESS_PATCH_CULL=<clip w>: a patch whose centre is nearer the camera
 // plane than this is not drawn. A camera-facing quad beside or behind the eye
 // has no projection - the clipper turns it into a wedge across the frame, and
 // with the particles' additive blending the frame washes out. 0 turns it off.
 float tess_patch_cull_near() {
     static const float w = [] {
-        const char* e = std::getenv("BBHOST_TESS_PATCH_CULL");
+        const char* e = std::getenv("HELIAS_TESS_PATCH_CULL");
         return e ? static_cast<float>(std::atof(e)) : 0.0f;  // off: it does not stop the wash-out
     }();
     return w;
@@ -4194,7 +4195,7 @@ gcn::TranslateOptions vs_translate_options(const VsStageInputs& in, const gcn::P
         vo.domain_level = in.domain_level;
         vo.tess_lds_bound = tess_lds_bound();
         static const float near_cull = [] {
-            const char* e = std::getenv("BBHOST_TESS_NEAR_CULL");
+            const char* e = std::getenv("HELIAS_TESS_NEAR_CULL");
             return e ? static_cast<float>(std::atof(e)) : 0.0f;
         }();
         vo.tess_near_cull = near_cull;
@@ -4225,8 +4226,8 @@ GfxPipeline& build_gfx_pipeline(GfxPipeline& pl, const DrawState& s, const std::
     auto fail = [&](const std::string& why) -> GfxPipeline& {
         host_log("render: pipeline %s: %s", pl.name.c_str(), why.c_str());
         pl.failed = true;
-        // BBHOST_TRACE_DRAW=<name prefix>: disassemble the failing stages.
-        static const char* trace = std::getenv("BBHOST_TRACE_DRAW");
+        // HELIAS_TRACE_DRAW=<name prefix>: disassemble the failing stages.
+        static const char* trace = std::getenv("HELIAS_TRACE_DRAW");
         if (trace && pl.name.find(trace) == 0) {
             const gcn::Program vp = gcn::decode(vs_words.data(), vs_words.size());
             for (const gcn::Inst& in : vp.insts) host_log("  vs: %s", gcn::format(in).c_str());
@@ -4305,7 +4306,7 @@ GfxPipeline& build_gfx_pipeline(GfxPipeline& pl, const DrawState& s, const std::
             if (!g_stage_cache_on) note_stage_key(ps_key);
             if (!pl.ps.meta().ok()) return fail("PS: " + pl.ps.meta().errors[0]);
             manifest_note_ps(ps_key, ps_name, ps_in, ps_lift);
-            // BBHOST_DECOMP: the no-fallback variant of a selected pixel shader runs
+            // HELIAS_DECOMP: the no-fallback variant of a selected pixel shader runs
             // its typed lift. The lift declares the translation's bindings, so the
             // descriptor sets are unchanged; a rejection keeps the translation.
             if (ps_lift) {
@@ -4367,7 +4368,7 @@ GfxPipeline& build_gfx_pipeline(GfxPipeline& pl, const DrawState& s, const std::
                               vs_formats_from_params, stage_lean, &vs_dims, &vs_sampler_modes, s.domain_level,
                               s.tess_hw,    s.tess_control_points, s.tess_quads, s.tess_cw, s.tess_spacing, s.tess_attrs, s.tess_attr_vec4s,
                               s.tess_window};
-    // BBHOST_DECOMP: the no-fallback variant of a selected vertex shader on
+    // HELIAS_DECOMP: the no-fallback variant of a selected vertex shader on
     // vertex input runs its lift, under a key of its own.
     const bool vs_decomp = stage_lean && vertex_input && !g_vs_dispatcher && decomp_selects(vs_name);
     const std::uint64_t vs_key = lift_key(vs_stage_key(vs_in), vs_decomp);
@@ -4535,7 +4536,7 @@ GfxPipeline& build_gfx_pipeline(GfxPipeline& pl, const DrawState& s, const std::
     return pl;
 }
 
-// ---- pipeline libraries (BBHOST_PIPELINE_LIBRARY) --------------------------------
+// ---- pipeline libraries (HELIAS_PIPELINE_LIBRARY) --------------------------------
 // Per-shader compiles, step 3: a graphics pipeline is
 // linked, without link-time optimization, from four libraries. A pixel shader's
 // fragment-shader library and a vertex shader's pre-rasterization library are
@@ -4545,10 +4546,10 @@ GfxPipeline& build_gfx_pipeline(GfxPipeline& pl, const DrawState& s, const std::
 // on them.
 enum LibraryKind { kLibVertexInput = 0, kLibPreRaster = 1, kLibFragment = 2, kLibOutput = 3 };
 
-// BBHOST_LIBRARY_TRACE=1: log each library build's start and end, with the
+// HELIAS_LIBRARY_TRACE=1: log each library build's start and end, with the
 // shader that asked for it, so a driver crash inside one names its shader.
 const bool g_library_trace = [] {
-    const char* e = std::getenv("BBHOST_LIBRARY_TRACE");
+    const char* e = std::getenv("HELIAS_LIBRARY_TRACE");
     return e && e[0] == '1';
 }();
 thread_local const char* t_library_owner = nullptr;
@@ -4594,16 +4595,16 @@ VkPipeline pipeline_library(LibraryKind kind, std::uint64_t key, const char* wha
     return p;
 }
 
-// BBHOST_LIBRARY_RELINK=0: keep fast-linked pipelines. By default a worker links
+// HELIAS_LIBRARY_RELINK=0: keep fast-linked pipelines. By default a worker links
 // each one again from the same libraries with link-time optimization, and the
 // command processor swaps it in: fast-linked pipelines cost 3.7% more GPU time
 // in steady state (step 3).
 const bool g_library_relink = [] {
-    const char* e = std::getenv("BBHOST_LIBRARY_RELINK");
+    const char* e = std::getenv("HELIAS_LIBRARY_RELINK");
     return !(e && e[0] == '0');
 }();
 
-// BBHOST_PIPELINE_STATS=<name>[,<name>...]: the optimized link of each pipeline
+// HELIAS_PIPELINE_STATS=<name>[,<name>...]: the optimized link of each pipeline
 // whose name holds one of them ("9da6aacb+bb10e440", or a shader's hash alone)
 // asks the driver for its statistics and internal representations - RADV's are
 // registers, instruction counts, NIR, ACO's IR and the disassembly - and writes
@@ -4614,7 +4615,7 @@ bool pipeline_stats_wanted(const std::string& name) {
     static const std::vector<std::string> wanted = [] {
         std::vector<std::string> v;
         std::string cur;
-        for (const char* c = std::getenv("BBHOST_PIPELINE_STATS"); c && *c; ++c) {
+        for (const char* c = std::getenv("HELIAS_PIPELINE_STATS"); c && *c; ++c) {
             if (*c == ',') {
                 if (!cur.empty()) v.push_back(cur);
                 cur.clear();
@@ -4686,9 +4687,9 @@ void write_pipeline_stats(VkPipeline p, const std::string& name) {
     host_log("render: pipeline %s: statistics and disassembly in build/pipeline-stats", name.c_str());
 }
 
-// rc2, bbtest profile (BBHOST_SHADER_STATS=<file>): one line a pipeline
+// rc2, bbtest profile (HELIAS_SHADER_STATS=<file>): one line a pipeline
 // executable - the guest shader hashes (the pipeline's name, the pass label
-// the GPU sampler and BBHOST_GPU_PROFILE use: "<vs>+<ps>", a compute shader's
+// the GPU sampler and HELIAS_GPU_PROFILE use: "<vs>+<ps>", a compute shader's
 // own), the stage, the wave size and every statistic the driver reports
 // (RADV: SGPRs, VGPRs, spilled SGPRs/VGPRs, code size, LDS size, scratch,
 // subgroups per SIMD (the occupancy), instructions, latency ...). Tab-separated.
@@ -4701,13 +4702,13 @@ void shader_stats_note_impl(VkPipeline p, const char* kind, const std::string& n
     if (!props || !stats) return;
     static std::mutex mu;
     static FILE* f = [] {
-        FILE* out = std::fopen(std::getenv("BBHOST_SHADER_STATS"), "a");
+        FILE* out = std::fopen(std::getenv("HELIAS_SHADER_STATS"), "a");
         if (out) {
             std::fprintf(out, "# Helia's Dream shader statistics (bbtest profile; docs/vk/TESTING.md). t_s, kind, pipeline (the pass label), "
                               "executable index, stage, subgroup size, then each driver statistic as name=value\n");
             std::fflush(out);
         } else {
-            host_log("gpu: could not open the shader-stats file %s", std::getenv("BBHOST_SHADER_STATS"));
+            host_log("gpu: could not open the shader-stats file %s", std::getenv("HELIAS_SHADER_STATS"));
         }
         return out;
     }();
@@ -4879,7 +4880,7 @@ VkPipeline pre_raster_library(const ShaderStage& vs, const ShaderStage& gs, VkPo
 // The fragment stage's subgroup size: 32 for a program that computes the same
 // in a 32-lane subgroup (gcn/wave.h: TranslateResult::wave64_needs 0), the
 // device's own size for the others - asked for in so many words, so a stage
-// that needs its 64 lanes keeps them - or, with BBHOST_PS_WAVE32=driver, the
+// that needs its 64 lanes keeps them - or, with HELIAS_PS_WAVE32=driver, the
 // driver's choice. The census counts programs by their SPIR-V, for the report
 // line (ps_wave_census) and the log of a program kept at 64.
 struct PsWaveCensus {
@@ -4894,7 +4895,7 @@ struct PsWaveCensus {
 
 // Gives `si` (a fragment stage, pNext unused) its subgroup size through `req`
 // (or ALLOW_VARYING_SUBGROUP_SIZE). Returns false where the stage is left as
-// it was: BBHOST_PS_WAVE32=0, a device that cannot be asked, a program kept
+// it was: HELIAS_PS_WAVE32=0, a device that cannot be asked, a program kept
 // at a default the device cannot be asked for by name.
 bool fragment_stage_wave(const gcn::TranslateResult& meta, VkPipelineShaderStageCreateInfo& si,
                          VkPipelineShaderStageRequiredSubgroupSizeCreateInfo& req) {
@@ -5023,7 +5024,7 @@ VkPipeline fragment_library(const gcn::TranslateResult& meta, VkShaderModule mod
     });
 }
 
-// ---- per-shader compiles, step 4 (BBHOST_PIPELINE_LIBRARY; BBHOST_PRECOMPILE=0 turns it off) ----
+// ---- per-shader compiles, step 4 (HELIAS_PIPELINE_LIBRARY; HELIAS_PRECOMPILE=0 turns it off) ----
 // When GX creates a pixel shader, a worker translates it with what its binary
 // says (stage registers, flat inputs from its semantic table, image dimensions
 // predicted from the program, no-fallback, early fragment tests) and compiles
@@ -5031,7 +5032,7 @@ VkPipeline fragment_library(const gcn::TranslateResult& meta, VkShaderModule mod
 // stage and the library ready and only links its pipeline.
 bool precompile_enabled() {
     static const bool on = [] {
-        const char* e = std::getenv("BBHOST_PRECOMPILE");
+        const char* e = std::getenv("HELIAS_PRECOMPILE");
         return !(e && e[0] == '0');
     }();
     return on && use_pipeline_library();
@@ -5133,10 +5134,10 @@ Precompiler& precompiler() {
         const int hw = std::max(1, static_cast<int>(std::thread::hardware_concurrency()));
         w->steady = std::clamp(hw / 4, 2, 16);
         w->boot = std::clamp(hw / 2, w->steady, std::max(w->steady, 16));
-        // BBHOST_PRECOMPILE_THREADS=<n>: n workers at all times;
-        // BBHOST_PRECOMPILE_BOOT_THREADS=<n>: n of them while starting and loading.
-        if (const char* e = std::getenv("BBHOST_PRECOMPILE_THREADS")) w->steady = w->boot = std::clamp(std::atoi(e), 1, 64);
-        if (const char* e = std::getenv("BBHOST_PRECOMPILE_BOOT_THREADS")) w->boot = std::clamp(std::atoi(e), w->steady, 64);
+        // HELIAS_PRECOMPILE_THREADS=<n>: n workers at all times;
+        // HELIAS_PRECOMPILE_BOOT_THREADS=<n>: n of them while starting and loading.
+        if (const char* e = std::getenv("HELIAS_PRECOMPILE_THREADS")) w->steady = w->boot = std::clamp(std::atoi(e), 1, 64);
+        if (const char* e = std::getenv("HELIAS_PRECOMPILE_BOOT_THREADS")) w->boot = std::clamp(std::atoi(e), w->steady, 64);
         {
             // Published before the flag is read: a change that finds no pool
             // has set the flag already, and one that finds it sets the limit.
@@ -5145,7 +5146,7 @@ Precompiler& precompiler() {
             w->limit = g_precompile_boost.load() ? w->boot : w->steady;
         }
         host_log("render: precompile workers: %d until the first in-game frame and while loading, %d in game "
-                 "(BBHOST_PRECOMPILE_BOOT_THREADS, BBHOST_PRECOMPILE_THREADS)", w->boot, w->steady);
+                 "(HELIAS_PRECOMPILE_BOOT_THREADS, HELIAS_PRECOMPILE_THREADS)", w->boot, w->steady);
         for (int i = 0; i < w->boot; ++i) {
             std::thread([w, i] {
                 t_pipeline_worker = true;
@@ -5278,34 +5279,34 @@ void precompile_boost_update(const char* why) {
     if (from != to) host_log("render: precompile workers %d -> %d (%s); %zu jobs waiting", from, to, why, waiting);
 }
 
-// BBHOST_LIBRARY_RELINK: after a fast link, a worker links the same libraries
+// HELIAS_LIBRARY_RELINK: after a fast link, a worker links the same libraries
 // again with link-time optimization, behind the shaders GX created, and the
 // command processor swaps the result in (apply_relinks_locked).
 std::atomic<bool> g_relinks_ready{false};
-// BBHOST_RELINK_FORMATS=0: a relink keeps the vertex shader's library, which
+// HELIAS_RELINK_FORMATS=0: a relink keeps the vertex shader's library, which
 // reads the formats from params. By default a vertex shader built with
 // vertex_formats_from_params is compiled again for it with the pipeline's own
 // formats as constants - the pipeline key holds every element's word 3 - and
 // the driver folds the conversions and their selects away (~400 of the
 // Steam Deck's hot G-buffer vertex shader's 1018 instructions).
 const bool g_relink_formats = [] {
-    const char* e = std::getenv("BBHOST_RELINK_FORMATS");
+    const char* e = std::getenv("HELIAS_RELINK_FORMATS");
     return !(e && e[0] == '0');
 }();
-// BBHOST_RELINK_W3=0: a relink keeps the indexed loads' words 3 read from the
+// HELIAS_RELINK_W3=0: a relink keeps the indexed loads' words 3 read from the
 // params. By default the relink, queued at the pipeline's first draw, takes
 // that draw's words as constants (gcn::kCbW3SpecId) and the driver folds the
 // DST_SEL selects away (the Steam Deck's hot G-buffer vertex shader 771 -> 411
 // instructions); a later draw whose words differ binds the fast-linked
 // pipeline (spec_w3_matches).
 const bool g_relink_w3 = [] {
-    const char* e = std::getenv("BBHOST_RELINK_W3");
+    const char* e = std::getenv("HELIAS_RELINK_W3");
     return !(e && e[0] == '0');
 }();
-// BBHOST_RELINK_STRIDE=0: the same loads' strides stay read from the params;
+// HELIAS_RELINK_STRIDE=0: the same loads' strides stay read from the params;
 // by default they are constants too (gcn::kCbStrideSpecId), checked the same way.
 const bool g_relink_stride = [] {
-    const char* e = std::getenv("BBHOST_RELINK_STRIDE");
+    const char* e = std::getenv("HELIAS_RELINK_STRIDE");
     return !(e && e[0] == '0');
 }();
 std::atomic<std::uint64_t> g_spec_w3_misses{0}, g_spec_w3_draws{0};
@@ -5339,9 +5340,9 @@ void queue_library_relink(GfxPipeline& pl, const gcn::StageParams params[2]) {
         pl.spec_w3_mask[0] = job.w3_mask[0];
         pl.spec_w3_mask[1] = job.w3_mask[1];
     }
-    // BBHOST_RELINK_W3_LOG=1: what each relink's indexed loads had.
+    // HELIAS_RELINK_W3_LOG=1: what each relink's indexed loads had.
     static const bool w3_log = [] {
-        const char* e = std::getenv("BBHOST_RELINK_W3_LOG");
+        const char* e = std::getenv("HELIAS_RELINK_W3_LOG");
         return e && e[0] == '1';
     }();
     if (w3_log) {
@@ -5461,9 +5462,9 @@ std::string translation_error_kind(const std::string& e) {
     if (const std::size_t p = k.find(" ("); p != std::string::npos) k.resize(p);
     return "translation: " + k;
 }
-// BBHOST_EFT_TWINS: see precompile_ps.
+// HELIAS_EFT_TWINS: see precompile_ps.
 const bool g_eft_twins = [] {
-    const char* e = std::getenv("BBHOST_EFT_TWINS");
+    const char* e = std::getenv("HELIAS_EFT_TWINS");
     return !(e && e[0] == '0');
 }();
 std::atomic<std::uint64_t> g_eft_twins_built{0};
@@ -5557,7 +5558,7 @@ void precompile_ps(Precompiler& w, const PrecompileJob& job) {
     t_library_owner = nullptr;
     w.library_us.fetch_add(pl_us_since(t1), std::memory_order_relaxed);
     if (!library) return give_up("fragment-shader library");
-    // BBHOST_EFT_TWINS (on unless 0): a program that discards is compiled for
+    // HELIAS_EFT_TWINS (on unless 0): a program that discards is compiled for
     // early fragment tests, the variant the draws without depth writes (the
     // lights) ask for - and a draw of it with depth or stencil writes then
     // translated and built its twin on the command processor, nine of them in
@@ -5721,7 +5722,7 @@ void precompile_vs(Precompiler& w, const PrecompileJob& job) {
     std::size_t shdr = 0;
     while (shdr + 0x60 <= c.size() && shdr < 0x100 && std::memcmp(c.data() + shdr, "Shdr", 4) != 0) ++shdr;
     if (shdr + 0x60 > c.size() || shdr >= 0x100 || !gcn::shader_code(c, code) || code.type != 1) return give_up("not a vertex-shader container");
-    if (!g_vertex_format_params) return give_up("formats are constants (BBHOST_VERTEX_FORMAT_PARAMS=0)");
+    if (!g_vertex_format_params) return give_up("formats are constants (HELIAS_VERTEX_FORMAT_PARAMS=0)");
     std::uint32_t regs[16];
     std::memcpy(regs, c.data() + shdr + 16, sizeof(regs));
     const std::size_t base = shdr + 16;
@@ -6309,11 +6310,11 @@ bool create_gfx_pipeline(GfxPipeline& pl, const DrawState& s, const VertexInputP
         }
     }
     g.gfx_pipelines.fetch_add(1);
-    // BBHOST_LOG_PIPELINES=<name prefix>[,<prefix>...] or `all`: log those
+    // HELIAS_LOG_PIPELINES=<name prefix>[,<prefix>...] or `all`: log those
     // pipelines' creation too, past the first 40.
     static const std::vector<std::string> log_names = [] {
         std::vector<std::string> names;
-        const char* e = std::getenv("BBHOST_LOG_PIPELINES");
+        const char* e = std::getenv("HELIAS_LOG_PIPELINES");
         for (std::string rest = e ? e : ""; !rest.empty();) {
             const std::size_t comma = rest.find(',');
             names.push_back(rest.substr(0, comma));
@@ -6394,20 +6395,20 @@ bool same_bindings(const gcn::TranslateResult& a, const gcn::TranslateResult& b)
     return true;
 }
 
-// BBHOST_ASYNC_PIPELINES (on unless 0): the first draw whose constant buffers
+// HELIAS_ASYNC_PIPELINES (on unless 0): the first draw whose constant buffers
 // all bind created its pipeline's no-fallback variant on the command
 // processor's thread, and the translation and driver compile stalled the game
 // (tens to hundreds of milliseconds with a cold shader cache). A worker builds
 // the variant instead, and draws use the fallback pipeline, which renders the
 // same, until the command processor hands the variant to its base pipeline.
-// Dump and check modes still build in place. BBHOST_DECOMP lifts on the
+// Dump and check modes still build in place. HELIAS_DECOMP lifts on the
 // workers too: kept in place, its variants cost the command processor 25 s
 // more stall time over a cold world load.
 const bool g_async_pipelines = [] {
-    const char* e = std::getenv("BBHOST_ASYNC_PIPELINES");
+    const char* e = std::getenv("HELIAS_ASYNC_PIPELINES");
     return !(e && e[0] == '0');
 }();
-// BBHOST_LAYOUT_FROM_LEAN (on unless 0; needs BBHOST_LEAN_FIRST): a new
+// HELIAS_LAYOUT_FROM_LEAN (on unless 0; needs HELIAS_LEAN_FIRST): a new
 // pipeline was translated twice on the command processor, the fallback
 // variant for its bindings (descriptor sets are written from them) and the
 // no-fallback variant it then draws with. The two bind the same resources, so
@@ -6421,19 +6422,19 @@ const bool g_async_pipelines = [] {
 // became the default that left out every pipeline: 277 fallbacks translated
 // on the command processor in a soak, three in four of its translations.
 const bool g_layout_from_lean = [] {
-    const char* e = std::getenv("BBHOST_LAYOUT_FROM_LEAN");
+    const char* e = std::getenv("HELIAS_LAYOUT_FROM_LEAN");
     return !(e && e[0] == '0');
 }();
 std::atomic<std::uint64_t> g_fallbacks_deferred{0}, g_fallbacks_translated{0}, g_fallback_binding_mismatch{0};
 
-// BBHOST_LEAN_FIRST (on unless 0): a pipeline's fallback variant, which walks
+// HELIAS_LEAN_FIRST (on unless 0): a pipeline's fallback variant, which walks
 // the page table for unbound constant buffers, is created only when a draw
 // binds it. The first draw whose constant buffers all bind builds the
 // no-fallback variant in place instead of waiting on a worker. On a cold
 // world load the command processor compiled 166 fallback pipelines, 156 of
 // them for pipelines that then built a no-fallback variant as well.
 const bool g_lean_first = [] {
-    const char* e = std::getenv("BBHOST_LEAN_FIRST");
+    const char* e = std::getenv("HELIAS_LEAN_FIRST");
     return !(e && e[0] == '0');
 }();
 struct LeanBuildJob {
@@ -6571,9 +6572,9 @@ void end_pass_for_draw_locked() {
     }
     g_pass.active = false;
     if (DrawCmds* c = DrawCmds::open(); !c || !c->end_rendering(false)) rec().end_rendering(false);
-    // bbhost-vk: the pass's timestamp pair is closed here too, as
+    // heliasdream-vk: the pass's timestamp pair is closed here too, as
     // render_end_pass_locked closes it. Left open, a GPU-sampled frame
-    // (BBHOST_GPU_PROFILE=3, the F11 sampler) had a query never written, and
+    // (HELIAS_GPU_PROFILE=3, the F11 sampler) had a query never written, and
     // retire_slot_locked's vkGetQueryPoolResults(WAIT) waited for it forever:
     // the game hung in its first loading screen with lazy barriers on.
     if (g_pass.profiled) {
@@ -6659,7 +6660,7 @@ void begin_pass(const DrawState& s, std::uint64_t key, bool hazard = false) {
         profile_begin_locked(g_pass_profile_name);
         g_pass.profiled = true;
     }
-    if (g.debug_labels) debug_label_locked(g_pass_profile_name);  // rc4: BBHOST_RGP_LABELS=1
+    if (g.debug_labels) debug_label_locked(g_pass_profile_name);  // rc4: HELIAS_RGP_LABELS=1
     if (DrawCmds* c = DrawCmds::open(); !c || !c->begin_rendering(ri)) vkCmdBeginRendering(g_cmd(), &ri);
     g_pass.active = true;
     g_pass.key = key;
@@ -6882,10 +6883,10 @@ bool resolve_binding(const gcn::ResourcePath& path, const std::uint32_t* user, c
 // to draw. A plan keeps the first part, keyed by the translation and
 // GxStageRecords::desc_fp, and a draw checks a bit and copies a record per
 // binding: the descriptor lookups and the decode were ~10% of the command
-// processor with index_gx_stage. BBHOST_BINDING_PLANS=0 resolves every
+// processor with index_gx_stage. HELIAS_BINDING_PLANS=0 resolves every
 // binding as before; =2 does both and counts disagreements.
 const int g_binding_plans = [] {
-    const char* e = std::getenv("BBHOST_BINDING_PLANS");
+    const char* e = std::getenv("HELIAS_BINDING_PLANS");
     return e ? std::atoi(e) : 1;
 }();
 struct GxBindingPlan {
@@ -6924,20 +6925,20 @@ PlanSlot g_plan_slots[kPlanSlots];
 constexpr std::size_t kPlanFront = 4096;
 GxStagePlan* g_plan_front[kPlanFront] = {};
 std::uint64_t g_plans_built = 0, g_plans_used = 0, g_plans_disagreed = 0, g_plans_evicted = 0;
-// BBHOST_CP_STAGE_CACHE=0: resolve every stage's key words at every draw, as
-// before rc7 (BBHOST_STAGE_CACHE is the translation cache's switch). =2
+// HELIAS_CP_STAGE_CACHE=0: resolve every stage's key words at every draw, as
+// before rc7 (HELIAS_STAGE_CACHE is the translation cache's switch). =2
 // (checks): on every memo hit resolve again as well and count (and log the
 // first 8) disagreements.
 const int g_cp_stage_cache = [] {
-    const char* e = std::getenv("BBHOST_CP_STAGE_CACHE");
+    const char* e = std::getenv("HELIAS_CP_STAGE_CACHE");
     return e && *e ? std::atoi(e) : 1;
 }();
 std::uint64_t g_key_memo_hits = 0, g_key_memo_misses = 0, g_key_memo_off = 0, g_key_memo_disagreed = 0;  // under g.mu (draw_impl)
 // GX stages whose user data was not built because nothing would
-// read it, and those built (draw_impl). BBHOST_SKIP_USER_DATA=0 builds all.
+// read it, and those built (draw_impl). HELIAS_SKIP_USER_DATA=0 builds all.
 std::uint64_t g_ud_skipped = 0, g_ud_built = 0, g_ud_partial = 0;
 const bool g_skip_user_data = [] {
-    const char* e = std::getenv("BBHOST_SKIP_USER_DATA");
+    const char* e = std::getenv("HELIAS_SKIP_USER_DATA");
     return !(e && e[0] == '0');
 }();
 
@@ -7341,9 +7342,9 @@ void fill_layers(const RtImage& r, std::uint64_t va, std::size_t bytes, std::uin
 // sRGB target is placed 0x28000 bytes into the old one, cleared, then drawn.
 // Treating it as the old target's clear wiped the old image and left the new
 // one as the image heap left it - a rat's blood layer came out as rainbow
-// noise (2026-10-01, F12 flip 16124). BBHOST_FILL_INSIDE=0: as before.
+// noise (2026-10-01, F12 flip 16124). HELIAS_FILL_INSIDE=0: as before.
 const bool g_fill_inside = [] {
-    const char* e = std::getenv("BBHOST_FILL_INSIDE");
+    const char* e = std::getenv("HELIAS_FILL_INSIDE");
     return !(e && e[0] == '0');
 }();
 std::atomic<std::uint64_t> g_fills_inside{0};
@@ -7409,10 +7410,10 @@ RtImage* find_rt_for_fill_walk(std::uint64_t va, std::size_t bytes) {
 // The game fills the same memory every frame, so the answer for (va, bytes)
 // is kept while no target or snapshot comes or goes (g_rt_gen: every insert
 // and erase of either map bumps it). The walk down the targets was ~1% of a
-// Steam Deck's command processor. BBHOST_FILL_MEMO=0: walked every time.
+// Steam Deck's command processor. HELIAS_FILL_MEMO=0: walked every time.
 RtImage* find_rt_for_fill(std::uint64_t va, std::size_t bytes) {
     static const bool on = [] {
-        const char* e = std::getenv("BBHOST_FILL_MEMO");
+        const char* e = std::getenv("HELIAS_FILL_MEMO");
         return !(e && e[0] == '0');
     }();
     if (!on) return find_rt_for_fill_walk(va, bytes);
@@ -7516,9 +7517,9 @@ void apply_pending_clear(RtImage& r) {
     if (g_pending_clears.empty()) return;
     // Nothing came or went since this target last looked: the same answer
     // (~1% of a Steam Deck's command processor was these scans finding
-    // nothing). BBHOST_PENDING_SEEN=0: scanned every time.
+    // nothing). HELIAS_PENDING_SEEN=0: scanned every time.
     static const bool seen_on = [] {
-        const char* e = std::getenv("BBHOST_PENDING_SEEN");
+        const char* e = std::getenv("HELIAS_PENDING_SEEN");
         return !(e && e[0] == '0');
     }();
     if (seen_on && r.pending_seen == g_pending_gen) return;
@@ -7564,10 +7565,10 @@ void apply_pending_clear(RtImage& r) {
     r.pending_seen = g_pending_gen;
 }
 
-// BBHOST_FILL_TEXTURES=0 (checks): a fill with no target leaves the textures
+// HELIAS_FILL_TEXTURES=0 (checks): a fill with no target leaves the textures
 // under it as they were uploaded.
 const bool g_fill_textures = [] {
-    const char* e = std::getenv("BBHOST_FILL_TEXTURES");
+    const char* e = std::getenv("HELIAS_FILL_TEXTURES");
     return !(e && e[0] == '0');
 }();
 
@@ -7658,7 +7659,7 @@ void render_report() {
         host_log("render: binding plans: %llu built (%llu pushed out of the table), %llu reused%s",
                  static_cast<unsigned long long>(g_plans_built), static_cast<unsigned long long>(g_plans_evicted),
                  static_cast<unsigned long long>(g_plans_used), checked.c_str());
-        host_log("render: stage memo (rc7; BBHOST_CP_STAGE_CACHE=0 turns it off): %llu stages kept their key words, %llu resolved, "
+        host_log("render: stage memo (rc7; HELIAS_CP_STAGE_CACHE=0 turns it off): %llu stages kept their key words, %llu resolved, "
                  "%llu without a plan or with it off%s",
                  static_cast<unsigned long long>(g_key_memo_hits), static_cast<unsigned long long>(g_key_memo_misses),
                  static_cast<unsigned long long>(g_key_memo_off),
@@ -7688,7 +7689,7 @@ void render_report() {
              static_cast<unsigned long long>(g_paths_taken.load()), static_cast<unsigned long long>(g_paths_translated.load()));
     if (g_fallbacks_deferred.load()) {
         host_log("render: fallback pipelines laid out from their no-fallback stages %llu; translated later for a draw %llu, binding "
-                 "differently %llu (BBHOST_LAYOUT_FROM_LEAN)",
+                 "differently %llu (HELIAS_LAYOUT_FROM_LEAN)",
                  static_cast<unsigned long long>(g_fallbacks_deferred.load()), static_cast<unsigned long long>(g_fallbacks_translated.load()),
                  static_cast<unsigned long long>(g_fallback_binding_mismatch.load()));
     }
@@ -7725,8 +7726,8 @@ void render_report() {
                  static_cast<unsigned long long>(g_tess_refused.load()));
         host_log("render: tessellated draws the game's hull shader ran for %llu (%llu patches); LDS buffer accesses %s",
                  static_cast<unsigned long long>(g_tess_hull_draws.load()), static_cast<unsigned long long>(g_tess_hull_patches.load()),
-                 tess_lds_bound() ? "bounded to their window and region (BBHOST_TESS_LDS_BOUND=0: unchecked)"
-                                  : "unchecked (BBHOST_TESS_LDS_BOUND=0)");
+                 tess_lds_bound() ? "bounded to their window and region (HELIAS_TESS_LDS_BOUND=0: unchecked)"
+                                  : "unchecked (HELIAS_TESS_LDS_BOUND=0)");
     }
     host_log("render: targets re-created in another format: %llu with their pixels carried over, %llu with them lost (another size "
              "or texel size), %llu of those starting with the fill their old image had last taken; new targets nothing "
@@ -7956,12 +7957,12 @@ bool render_copy_target_locked(std::uint64_t src_base, std::uint64_t dst_base, s
     mb_skip_touched(dst_base);
     post_touch_locked(src_base, "a copy");  // test10
     post_touch_locked(dst_base, "a copy");
-    // BBHOST_WATCH_COPY_DST=0x<base>: every whole-target copy into that
+    // HELIAS_WATCH_COPY_DST=0x<base>: every whole-target copy into that
     // address, with the flip. A frame can go wrong without any draw being
     // different - the engine also moves whole surfaces around, and a copy from
     // a differently laid out surface would land as a full-screen wash.
     static const std::uint64_t watch_dst = [] {
-        const char* e = std::getenv("BBHOST_WATCH_COPY_DST");
+        const char* e = std::getenv("HELIAS_WATCH_COPY_DST");
         return e ? std::strtoull(e, nullptr, 0) : 0ull;
     }();
     if (watch_dst && dst_base == watch_dst) {
@@ -8085,7 +8086,7 @@ bool render_copy_target_locked(std::uint64_t src_base, std::uint64_t dst_base, s
     mb.dstAccessMask = by_compute ? VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT : VK_ACCESS_TRANSFER_READ_BIT | VK_ACCESS_TRANSFER_WRITE_BIT;
     rec().pipeline_barrier(VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
                          by_compute ? VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT : VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 1, &mb, 0, nullptr, 0, nullptr);
-    // BBHOST_GPU_PROFILE: the copy as an entry of its own, by kind and size.
+    // HELIAS_GPU_PROFILE: the copy as an entry of its own, by kind and size.
     static std::map<std::string, std::string> copy_names;
     if (g.profile) {
         char key[96];
@@ -8294,7 +8295,7 @@ bool resolve_key_stage(const gcn::TranslateResult* paths, const std::uint32_t* s
                     !words_equal(check.samplers, out.samplers)) {
                     if (g_key_memo_disagreed++ < 8)
                         host_log("render: stage memo disagreed with resolving again (%zu images, %zu samplers); "
-                                 "taking the resolution (BBHOST_CP_STAGE_CACHE=2)", paths->images.size(), paths->samplers.size());
+                                 "taking the resolution (HELIAS_CP_STAGE_CACHE=2)", paths->images.size(), paths->samplers.size());
                     std::swap(check.dims, out.dims);
                     std::swap(check.modes, out.modes);
                     std::swap(check.images, out.images);
@@ -8721,7 +8722,7 @@ std::uint64_t g_reuse_sweeps = 0, g_reuse_sweep_us = 0, g_reuse_sweep_max_us = 0
 
 void image_reuse_sweep_locked() {
     static const bool on = [] {
-        const char* e = std::getenv("BBHOST_IMG_RETIRE_REUSED");
+        const char* e = std::getenv("HELIAS_IMG_RETIRE_REUSED");
         return !(e && e[0] == '0');
     }();
     if (!on) return;
@@ -8794,7 +8795,7 @@ static RecordedState g_recorded;
 
 namespace {
 
-// BBHOST_ARENA_MONITOR=1: which GPU reads land in the game's command-arena
+// HELIAS_ARENA_MONITOR=1: which GPU reads land in the game's command-arena
 // chunks. Storage-buffer
 // constants, index buffers and indirect arguments are read when the GPU
 // executes the draw, so a chunk freed when the CP walks its retirement could be
@@ -8875,7 +8876,7 @@ bool draw_window_locked(std::uint64_t base, std::uint64_t bytes, Located& out) {
 // indexes it from cb_bias_dw. A V# outside imported memory, not on a dword
 // boundary, or too long for one binding stays on the page-table path
 // (cb_valid bit clear) and gets the dummy buffer.
-// bbhost-vk Phase 2: the stage (0 VS, 1 PS) and shaders whose buffers
+// heliasdream-vk Phase 2: the stage (0 VS, 1 PS) and shaders whose buffers
 // resolve_stage_buffers is resolving for a draw, while the temporal inputs
 // watch the draws (host/temporal_inputs.h); -1 otherwise.
 thread_local int t_temporal_stage = -1;
@@ -8901,7 +8902,7 @@ void resolve_stage_buffers(const gcn::TranslateResult& meta, const std::uint32_t
         if (b.indexed) {
             const std::uint32_t stride = (words[1] >> 16) & 0x3fff;
             shape = stride != 0 && stride % 4 == 0;
-            // BBHOST_CB_RECORDS=1 (with BBHOST_ROBUST=1): bind exactly the V#'s
+            // HELIAS_CB_RECORDS=1 (with HELIAS_ROBUST=1): bind exactly the V#'s
             // records, not the larger of that and the shader's highest dword.
             // GCN bounds-checks a buffer load against num_records and returns
             // zero past it; ours indexes an SSBO with no check, so an index
@@ -8910,7 +8911,7 @@ void resolve_stage_buffers(const gcn::TranslateResult& meta, const std::uint32_t
             // address on the frame that flashes, with the same contents. Only
             // what lies past them differs.
             static const bool exact_records = [] {
-                const char* e = std::getenv("BBHOST_CB_RECORDS");
+                const char* e = std::getenv("HELIAS_CB_RECORDS");
                 return e && e[0] == '1';
             }();
             bytes = exact_records && words[2] ? static_cast<VkDeviceSize>(words[2]) * stride
@@ -8921,7 +8922,7 @@ void resolve_stage_buffers(const gcn::TranslateResult& meta, const std::uint32_t
         // A V# keeps memory-type bits above its 40-bit address; a pointer pair is the address.
         const std::uint64_t hi = b.pointer ? words[1] : (words[1] & 0xff);
         const std::uint64_t base = resolved ? static_cast<std::uint64_t>(words[0]) | (hi << 32) : 0;
-        // bbhost-vk Phase 2: the scene constants, bone palettes and velocity
+        // heliasdream-vk Phase 2: the scene constants, bone palettes and velocity
         // scales by the V#'s own size (records x stride; records are bytes
         // when the stride is 0).
         if (t_temporal_stage >= 0 && base) {
@@ -8961,7 +8962,7 @@ void resolve_stage_buffers(const gcn::TranslateResult& meta, const std::uint32_t
             const VkDeviceSize start = loc.offset & ~(g.ssbo_align - 1);
             const VkDeviceSize bias = loc.offset - start;
             outcome = kTooLong;
-            // BBHOST_CB_ALIGN16=1: refuse a binding whose base is not a whole
+            // HELIAS_CB_ALIGN16=1: refuse a binding whose base is not a whole
             // number of vec4s into the bound range, and let it take the page
             // table instead. A buffer read by index lands at bias + k*stride,
             // and a bias that is not a multiple of four dwords cannot be
@@ -8969,21 +8970,21 @@ void resolve_stage_buffers(const gcn::TranslateResult& meta, const std::uint32_t
             // a record off. The menu flash is that: the same bytes at an
             // 8-byte-aligned address instead of a 16-byte one.
             static const bool align16 = [] {
-                const char* e = std::getenv("BBHOST_CB_ALIGN16");
+                const char* e = std::getenv("HELIAS_CB_ALIGN16");
                 return e && e[0] == '1';
             }();
-            // BBHOST_CB_REALIGN=1: when the base is not on a vec4, copy the
+            // HELIAS_CB_REALIGN=1: when the base is not on a vec4, copy the
             // records into a scratch ring and bind *that* at bias 0. The
             // earlier test refused the binding instead, which sent it to the
             // page-table walk - a different path that could share the fault,
             // so it proved nothing. This changes only the alignment.
-            // On unless BBHOST_CB_REALIGN=0. =2 copies only the *already
+            // On unless HELIAS_CB_REALIGN=0. =2 copies only the *already
             // aligned* buffers instead, which is how the two things this copy
             // does were told apart: it aligns the binding and it snapshots the
             // bytes, and mode 2 - snapshot without realignment - still flashes,
             // while mode 1 does not. The alignment is what matters.
             static const int realign_mode = [] {
-                const char* e = std::getenv("BBHOST_CB_REALIGN");
+                const char* e = std::getenv("HELIAS_CB_REALIGN");
                 return e ? std::atoi(e) : 1;
             }();
             // =3 (checks): every constant buffer, aligned or not, copied as
@@ -8991,7 +8992,7 @@ void resolve_stage_buffers(const gcn::TranslateResult& meta, const std::uint32_t
             // write to that memory cannot reach a draw still in flight.
             bool realign = realign_mode == 1 ? (bias % 16) != 0 : realign_mode == 2 ? (bias % 16) == 0 : realign_mode == 3;
             if (t_snapshot_cbs && !realign) {
-                realign = true;  // BBHOST_SF_SNAPSHOT: the bytes as recorded
+                realign = true;  // HELIAS_SF_SNAPSHOT: the bytes as recorded
                 g_sf_cb_snapshots.fetch_add(1, std::memory_order_relaxed);
             }
             if (glitch_watching_draw()) {
@@ -9001,7 +9002,7 @@ void resolve_stage_buffers(const gcn::TranslateResult& meta, const std::uint32_t
                                          static_cast<unsigned long long>(bytes), b.indexed ? params.cb_stride[i] : 0u, words[3],
                                          static_cast<unsigned long long>(bias), realign ? ", realigned" : "",
                                          b.pointer ? ", a pointer" : "");
-                realign = realign || glitch_snapshot_draw();  // BBHOST_GLITCH_SNAPSHOT: the bytes as recorded
+                realign = realign || glitch_snapshot_draw();  // HELIAS_GLITCH_SNAPSHOT: the bytes as recorded
             }
             static DevBuffer scratch;
             static VkDeviceSize scratch_next = 0;
@@ -9070,7 +9071,7 @@ void resolve_stage_buffers(const gcn::TranslateResult& meta, const std::uint32_t
                      static_cast<unsigned long long>(g_windows_past.load()));
             host_log("render:   %llu of them copied to an aligned scratch (%llu MiB): a base that is not on a vec4 is read wrongly "
                      "through the binding, which is the menu flash; %llu of those a Scaleform draw's, copied as recorded "
-                     "(BBHOST_SF_SNAPSHOT)",
+                     "(HELIAS_SF_SNAPSHOT)",
                      static_cast<unsigned long long>(g_cb_realigned.load()),
                      static_cast<unsigned long long>(g_cb_realigned_bytes.load() >> 20),
                      static_cast<unsigned long long>(g_sf_cb_snapshots.load()));
@@ -9156,7 +9157,7 @@ DrawScissor draw_scissor(const GpuDrawInputs& in, bool vport) {
     return s;
 }
 
-// BBHOST_GX_BACKEND=2: the inputs the GX backend built for a draw against the
+// HELIAS_GX_BACKEND=2: the inputs the GX backend built for a draw against the
 // ones from the register file, counting only what the decode would use:
 // targets outside CB_TARGET_MASK, depth-target fields without a depth target,
 // stencil values with the test off, PS input entries past the PS's inputs,
@@ -9305,7 +9306,7 @@ void compare_draw_inputs(const GpuDrawInputs& r, const GpuDrawInputs& x) {
     }
 }
 
-// BBHOST_GX_BACKEND=2: a GX draw's geometry from the call
+// HELIAS_GX_BACKEND=2: a GX draw's geometry from the call
 // against its draw packet, and the input layout's fetch shader against the one
 // the VS user data binds.
 struct GeometryCompare {
@@ -9400,7 +9401,7 @@ std::uint64_t place_vertex_table(const GxDrawObjects& o) {
     return va;
 }
 
-// BBHOST_LOG_FETCH=1: each distinct fetch shader, with the
+// HELIAS_LOG_FETCH=1: each distinct fetch shader, with the
 // formats and strides of the vertex table built at the call, logged once, to
 // see which shapes the GX input layouts generate before replacing them with
 // Vulkan vertex input. Under g.mu.
@@ -9503,14 +9504,14 @@ bool vertex_format_usable(VkFormat f) {
 // now, as the fetch shader would read them on the GPU, and the draw can take
 // Vulkan vertex input like the rest instead of walking the page table for
 // every vertex. False when the fetch shader loads from more than one pair or
-// a record is unreadable. BBHOST_VERTEX_TABLE_FROM_MEMORY=1 turns it on: it
+// a record is unreadable. HELIAS_VERTEX_TABLE_FROM_MEMORY=1 turns it on: it
 // moved ~174k draws a run onto vertex input but paid for nothing - the Steam
 // Deck at the spawn within noise (GPU 16.80/16.73 against 16.76/16.69 ms a
 // frame, windowed 57.1/57.1 against 57.0/57.3 fps), and on the RTX 4070 two of
 // those pipelines got slower (72 -> 183 and 64 -> 97 us a draw: their vertex
 // data stays in host memory, which its fixed-function fetch reads over PCIe).
 const bool g_vertex_table_from_memory = [] {
-    const char* e = std::getenv("BBHOST_VERTEX_TABLE_FROM_MEMORY");
+    const char* e = std::getenv("HELIAS_VERTEX_TABLE_FROM_MEMORY");
     return e && e[0] == '1';
 }();
 bool vertex_table_from_memory(const std::vector<std::uint32_t>& fetch_words, std::uint64_t fetch_hash, const std::uint32_t* vs_user,
@@ -9973,7 +9974,7 @@ GxUserResult build_gx_user_data(const GxStageRecords& st, GxUserData& out, std::
     return kUserBuilt;
 }
 
-// BBHOST_GX_BACKEND=2: a stage's user data built from its
+// HELIAS_GX_BACKEND=2: a stage's user data built from its
 // records against the command stream's. Plain dwords compare directly;
 // tables compare each masked slot's bytes and extended blocks each written
 // dword, against the guest's copy at the command stream's pointer.
@@ -10046,7 +10047,7 @@ void compare_gx_user_data(const std::uint32_t* reg, const GxStageRecords& st, in
     }
 }
 
-// BBHOST_GX_BACKEND=2: each V# record a GX draw's fetch shader
+// HELIAS_GX_BACKEND=2: each V# record a GX draw's fetch shader
 // loads (SMRD from the table in VS user data) against the record the call
 // built natively (build_vertex_table in gx_trace.cpp). One compared draw in
 // 64; `gx-vertex:` lines.
@@ -10492,7 +10493,7 @@ void compare_gx_bindings(const GfxPipeline& pl, const std::uint32_t* vs_user, co
 
 }  // namespace
 
-// BBHOST_LOG_DRAW_STATE=<first flip>,<last flip>[,<file>]: one line per draw in
+// HELIAS_LOG_DRAW_STATE=<first flip>,<last flip>[,<file>]: one line per draw in
 // those flips, with where it came from (a host-draw token, a GX draw packet or
 // another draw packet) and the inputs it is decoded from, so two runs can be
 // compared draw by draw. Default file: build/draw-state.log.
@@ -10503,14 +10504,14 @@ static void log_draw_state(const GpuDraw& d, const GpuDrawInputs& in) {
     };
     static const Config config = [] {
         Config c;
-        const char* e = std::getenv("BBHOST_LOG_DRAW_STATE");
+        const char* e = std::getenv("HELIAS_LOG_DRAW_STATE");
         unsigned long long first = 0, last = 0;
         char path[512] = "build/draw-state.log";
         if (!e || std::sscanf(e, "%llu,%llu,%511s", &first, &last, path) < 2) return c;
         c.first = first;
         c.last = last;
         c.file = std::fopen(path, "w");
-        if (!c.file) host_log("render: BBHOST_LOG_DRAW_STATE: cannot open %s", path);
+        if (!c.file) host_log("render: HELIAS_LOG_DRAW_STATE: cannot open %s", path);
         return c;
     }();
     if (!config.file) return;
@@ -10523,13 +10524,13 @@ static void log_draw_state(const GpuDraw& d, const GpuDrawInputs& in) {
 }
 
 namespace {
-// BBHOST_TESS_PROBE=1: for each distinct tessellated draw (VGT_SHADER_STAGES_EN
+// HELIAS_TESS_PROBE=1: for each distinct tessellated draw (VGT_SHADER_STAGES_EN
 // with LS/HS on) - which the renderer cannot draw yet - log its tessellation
 // registers once and write its LS, HS, VS (the domain shader) and PS code to
 // tmp/tess/<stage>-<address>.bin for tools/gcndis.
 void probe_tessellated_draw(const GpuDraw& d) {
     static const bool on = [] {
-        const char* e = std::getenv("BBHOST_TESS_PROBE");
+        const char* e = std::getenv("HELIAS_TESS_PROBE");
         return e && e[0] == '1';
     }();
     const std::uint32_t stages = d.ctx[0x2d5];
@@ -10643,7 +10644,7 @@ struct TessDraw {
     bool hw = false;
     std::uint32_t control_points = 1;
     float outer[4] = {1, 1, 1, 1}, inner[2] = {1, 1};
-    // BBHOST_TESS_HW=2: and the LS is the pipeline's own vertex stage, so
+    // HELIAS_TESS_HW=2: and the LS is the pipeline's own vertex stage, so
     // there is no compute pass and no buffer between them.
     bool attrs = false;
     std::uint32_t attr_vec4s = 8;
@@ -10700,10 +10701,10 @@ void put_tess_constants(const GxStageRecords& st, const std::uint32_t vsharp[4],
 std::uint32_t tess_vertices_a_patch(std::uint32_t level) { return level <= 1 ? 6u : 12u * level; }
 
 // How fine a patch may be drawn: one quad, which is what a hull shader that
-// writes factors of 1 asks for exactly. BBHOST_TESS_LEVEL raises it, to work
+// writes factors of 1 asks for exactly. HELIAS_TESS_LEVEL raises it, to work
 // on the freeze the finer levels bring.
 const std::uint32_t kTessLevelCap = [] {
-    const char* e = std::getenv("BBHOST_TESS_LEVEL");
+    const char* e = std::getenv("HELIAS_TESS_LEVEL");
     return e ? static_cast<std::uint32_t>(std::clamp(std::atoi(e), 1, 8)) : 1u;
 }();
 
@@ -10790,12 +10791,12 @@ const GpuDrawInputs* tess_gx(const GpuDraw& d) {
 
 void probe_ls_input(std::uint64_t fetch_va, const std::uint32_t* user, std::uint64_t ds_va, const GxDrawObjects* gx);  // below
 
-// BBHOST_TESS_PROBE=1 for a GX draw (its stages are in the GX inputs, not the
+// HELIAS_TESS_PROBE=1 for a GX draw (its stages are in the GX inputs, not the
 // register file probe_tessellated_draw reads): once per program set, its
 // tessellation state and the four programs in tmp/tess/.
 void probe_refused_gx_tess(const GpuDraw& d, const GpuDrawInputs& gi, const char* why) {
     static const bool on = [] {
-        const char* e = std::getenv("BBHOST_TESS_PROBE");
+        const char* e = std::getenv("HELIAS_TESS_PROBE");
         return e && e[0] == '1';
     }();
     if (!on) return;
@@ -10950,8 +10951,8 @@ bool tess_plan(const GpuDraw& d, TessDraw& t) {
     // at work (the Forbidden Woods' meshes), which runs as the control stage
     // when its GX objects say how its LDS is laid out.
     const bool many = in_cp != 1 || out_cp != 1;
-    static const bool hull_on = [] {  // BBHOST_TESS_HULL=0: refuse them, as before 2026-10-02
-        const char* e = std::getenv("BBHOST_TESS_HULL");
+    static const bool hull_on = [] {  // HELIAS_TESS_HULL=0: refuse them, as before 2026-10-02
+        const char* e = std::getenv("HELIAS_TESS_HULL");
         return !(e && e[0] == '0');
     }();
     if ((stages & 3) != 1 || !(stages & 4) || (stages & 0x38) || ((stages >> 6) & 3) != 1) why = "stages other than LS, HS and a domain VS";
@@ -10971,7 +10972,7 @@ bool tess_plan(const GpuDraw& d, TessDraw& t) {
         }
         return false;
     }
-    if (t.hull && gi) probe_refused_gx_tess(d, *gi, "the game's hull runs it");  // BBHOST_TESS_PROBE: its stages too
+    if (t.hull && gi) probe_refused_gx_tess(d, *gi, "the game's hull runs it");  // HELIAS_TESS_PROBE: its stages too
     t.count = d.index_count;
     t.control_points = std::max<std::uint32_t>(1, in_cp);
     if (t.hull) {
@@ -10990,10 +10991,10 @@ bool tess_plan(const GpuDraw& d, TessDraw& t) {
 
 // Pass 1: the LS over the draw's control points, into a region of the LDS ring.
 // Cells a side for this draw's patches: the hull shader's constant factor,
-// clamped as the hardware clamps it. BBHOST_TESS_LEVEL=<n> overrides it.
+// clamped as the hardware clamps it. HELIAS_TESS_LEVEL=<n> overrides it.
 std::uint32_t tess_level_locked(const TessDraw& t) {
     static const std::uint32_t level_env = [] {
-        const char* e = std::getenv("BBHOST_TESS_LEVEL");
+        const char* e = std::getenv("HELIAS_TESS_LEVEL");
         return e ? static_cast<std::uint32_t>(std::clamp(std::atoi(e), 1, 8)) : 0u;
     }();
     if (level_env) return level_env;
@@ -11014,7 +11015,7 @@ std::uint32_t tess_level_locked(const TessDraw& t) {
     return static_cast<std::uint32_t>(std::clamp(std::ceil(f), 1.0f, 8.0f));
 }
 
-// BBHOST_TESS_HW=1 draws these patches with the host's own
+// HELIAS_TESS_HW=1 draws these patches with the host's own
 // tessellator instead of the topology the domain prologue invents. It needs
 // the device to support tessellation and the hull shader's factors to be
 // constants in it, which is what these hull shaders write; anything else keeps
@@ -11025,10 +11026,10 @@ bool tess_hw_locked(TessDraw& t) {
     // washed out, and with the LS as the pipeline's vertex stage it costs
     // nothing measurable - 11.99 ms of main-loop work a frame against 12.14
     // for the emulation, which is inside the run-to-run spread.
-    // BBHOST_TESS_HW=0 goes back to the emulation, 1 keeps the LS in its own
+    // HELIAS_TESS_HW=0 goes back to the emulation, 1 keeps the LS in its own
     // compute pass (which costs 8 ms), 2 is the default.
     static const int want = [] {
-        const char* e = std::getenv("BBHOST_TESS_HW");
+        const char* e = std::getenv("HELIAS_TESS_HW");
         return e ? std::atoi(e) : 2;
     }();
     if (want <= 0 || !g.has_tessellation) return false;
@@ -11111,25 +11112,25 @@ bool tess_ls_pass_locked(const GpuDraw& d, TessDraw& t) {
     // the fan it asks for freezes the game a few seconds in, with the guest's
     // own loop still running while it stops asking for frames and the
     // renderer, the GPU and the presenting thread all idle, so the
-    // finer levels wait for that (BBHOST_TESS_LEVEL forces one).
+    // finer levels wait for that (HELIAS_TESS_LEVEL forces one).
     if (t.level > kTessLevelCap && !t.hw) {
         g_tess_refused.fetch_add(1, std::memory_order_relaxed);
         static std::atomic<int> logs{0};
         if (logs.fetch_add(1) == 0) {
-            host_log("render: patches asking for %u cells a side are not drawn (BBHOST_TESS_LEVEL=%u draws them)", t.level, t.level);
+            host_log("render: patches asking for %u cells a side are not drawn (HELIAS_TESS_LEVEL=%u draws them)", t.level, t.level);
         }
         t.level = kTessLevelCap;
         return false;
     }
-    // BBHOST_TESS_SKIP=<hash>[,<hash>]: leave those domain shaders' patches
-    // undrawn, and BBHOST_TESS_ONLY=<hash>[,...] draws only theirs - for
+    // HELIAS_TESS_SKIP=<hash>[,<hash>]: leave those domain shaders' patches
+    // undrawn, and HELIAS_TESS_ONLY=<hash>[,...] draws only theirs - for
     // finding which effect a bad patch belongs to.
     static const std::string skip = [] {
-        const char* e = std::getenv("BBHOST_TESS_SKIP");
+        const char* e = std::getenv("HELIAS_TESS_SKIP");
         return std::string(e ? e : "");
     }();
     static const std::string only = [] {
-        const char* e = std::getenv("BBHOST_TESS_ONLY");
+        const char* e = std::getenv("HELIAS_TESS_ONLY");
         return std::string(e ? e : "");
     }();
     {
@@ -11139,7 +11140,7 @@ bool tess_ls_pass_locked(const GpuDraw& d, TessDraw& t) {
         CachedProgram* ds = program_at(ds_va);
         if (ds) {
             static const bool zpass_trace = [] {
-                const char* e = std::getenv("BBHOST_ZPASS_TRACE");
+                const char* e = std::getenv("HELIAS_ZPASS_TRACE");
                 return e && e[0] == '1';
             }();
             if (zpass_trace) {
@@ -11334,9 +11335,9 @@ bool tess_ls_pass_locked(const GpuDraw& d, TessDraw& t) {
     // Device-local: the stages behind it read and write it all draw long - the
     // game's own hull shaders and their domain shaders, at up to 16 cells a
     // side, cost 26 ms of GPU a frame in the Forbidden Woods with it in host
-    // memory. Host-visible only for BBHOST_TESS_DEBUG and
-    // BBHOST_DUMP_ON_BRIGHT, which read it back.
-    static const bool ring_read_back = std::getenv("BBHOST_TESS_DEBUG") || std::getenv("BBHOST_DUMP_ON_BRIGHT");
+    // memory. Host-visible only for HELIAS_TESS_DEBUG and
+    // HELIAS_DUMP_ON_BRIGHT, which read it back.
+    static const bool ring_read_back = std::getenv("HELIAS_TESS_DEBUG") || std::getenv("HELIAS_DUMP_ON_BRIGHT");
     if (!ring.buffer) {
         if (!create_dev_buffer(ring, kRingBytes, ring_read_back, ring_read_back)) return false;
         std::lock_guard<std::mutex> lk(g_tess_lds_mu);
@@ -11434,10 +11435,10 @@ bool tess_ls_pass_locked(const GpuDraw& d, TessDraw& t) {
     infos.reserve(pl.meta.images.size() + pl.meta.samplers.size() + 1);
     bind_stage_images(set, pl.meta, images, writes, infos, pl.name.c_str());
     vkUpdateDescriptorSets(g.device, static_cast<std::uint32_t>(writes.size()), writes.data(), 0, nullptr);
-    // BBHOST_TESS_CLEAR=1: zero the region first, so a patch the LS does not
+    // HELIAS_TESS_CLEAR=1: zero the region first, so a patch the LS does not
     // write draws as a degenerate quad instead of whatever the ring held.
     static const bool clear_region = [] {
-        const char* e = std::getenv("BBHOST_TESS_CLEAR");
+        const char* e = std::getenv("HELIAS_TESS_CLEAR");
         return e && e[0] == '1';
     }();
     if (clear_region) {
@@ -11458,7 +11459,7 @@ bool tess_ls_pass_locked(const GpuDraw& d, TessDraw& t) {
     mb.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
     mb.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
     vkCmdPipelineBarrier(g_cmd(), VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_VERTEX_SHADER_BIT, 0, 1, &mb, 0, nullptr, 0, nullptr);
-    // BBHOST_TESS_DEBUG=4: where each patch of a draw lands on the screen,
+    // HELIAS_TESS_DEBUG=4: where each patch of a draw lands on the screen,
     // to find the one that fills the frame. The domain shader builds a world
     // position out of the patch's three rows and the domain coordinate -
     // component k is row k dotted with (u, v, dword 2, dword 3), dwords 0-3
@@ -11467,7 +11468,7 @@ bool tess_ls_pass_locked(const GpuDraw& d, TessDraw& t) {
     // space. Read a flip later, when the LS pass has certainly run, rather
     // than flushing the GPU for every draw.
     static const int scan = [] {
-        const char* e = std::getenv("BBHOST_TESS_DEBUG");
+        const char* e = std::getenv("HELIAS_TESS_DEBUG");
         return e ? std::atoi(e) : 0;
     }();
     if (ring.map && (scan == 4 || g_dump_patches.load(std::memory_order_relaxed))) {
@@ -11576,9 +11577,9 @@ bool tess_ls_pass_locked(const GpuDraw& d, TessDraw& t) {
         }
         while (pending.size() > 4096) pending.pop_front();
     }
-    // BBHOST_TESS_DEBUG=1: the first draws' control points as the LS wrote them.
+    // HELIAS_TESS_DEBUG=1: the first draws' control points as the LS wrote them.
     static const bool debug = [] {
-        const char* e = std::getenv("BBHOST_TESS_DEBUG");
+        const char* e = std::getenv("HELIAS_TESS_DEBUG");
         return e && e[0] == '1';
     }();
     static int debug_logs = 0;
@@ -11602,15 +11603,15 @@ bool tess_ls_pass_locked(const GpuDraw& d, TessDraw& t) {
 }
 
 
-// The LS's input (BBHOST_TESS_PROBE=1, once per domain shader): the V#s its
+// The LS's input (HELIAS_TESS_PROBE=1, once per domain shader): the V#s its
 // fetch shader loads from the vertex table (s_load_dwordx4 from a user-SGPR
 // pair plus an offset), resolved from the draw's user data - the
-// control-point buffer the game's particle code wrote. BBHOST_TESS_WATCH=
+// control-point buffer the game's particle code wrote. HELIAS_TESS_WATCH=
 // <domain hash> arms a write watch on the first one for a draw whose domain
 // shader has that hash, so the watch report names the writer.
 void probe_ls_input(std::uint64_t fetch_va, const std::uint32_t* user, std::uint64_t ds_va, const GxDrawObjects* gx) {
     static const bool on = [] {
-        const char* e = std::getenv("BBHOST_TESS_PROBE");
+        const char* e = std::getenv("HELIAS_TESS_PROBE");
         return e && e[0] == '1';
     }();
     if (!on) return;
@@ -11673,13 +11674,13 @@ void probe_ls_input(std::uint64_t fetch_va, const std::uint32_t* user, std::uint
     host_log("tess: %s LS fetch 0x%llx (%zu words) user %08x %08x %08x %08x V#s:%s", dsp->name.c_str(),
              static_cast<unsigned long long>(fetch_va), fp ? fp->words.size() : 0, user[0], user[1], user[2], user[3],
              line.empty() ? " (none)" : line.c_str());
-    static const char* want = std::getenv("BBHOST_TESS_WATCH");
+    static const char* want = std::getenv("HELIAS_TESS_WATCH");
     static bool armed = false;
     if (want && want[0] && !armed && first_base && dsp->name.find(want) != std::string::npos) {
         armed = true;
         // The buffer's home, where the game writes before the GX renames
         // and copies it; through the GPU alias when direct memory has one.
-        static const bool cpu_view = std::getenv("BBHOST_TESS_WATCH_CPU") != nullptr;  // the CPU view instead of the alias
+        static const bool cpu_view = std::getenv("HELIAS_TESS_WATCH_CPU") != nullptr;  // the CPU view instead of the alias
         const std::uint64_t alias = cpu_view ? 0 : hle_kernel_gpu_alias(first_base);
         const std::uint64_t at = alias ? alias : first_base;
         host_log("tess: watching the LS input of %s: [0x%llx, +0x%llx) (first page%s)", dsp->name.c_str(),
@@ -11697,10 +11698,10 @@ static bool draw_impl(const GpuDraw& d);
 // One tessellated draw (or one chunk of an instanced hull draw's
 // instances): its LS pass and its draw.
 static bool tess_draw_one(const GpuDraw& d, TessDraw& t) {
-    // BBHOST_TESS_HULL_TRACE=1: every draw the game's own hull runs for -
+    // HELIAS_TESS_HULL_TRACE=1: every draw the game's own hull runs for -
     // which, how many control points, and how far it got.
     static const bool hull_trace = [] {
-        const char* e = std::getenv("BBHOST_TESS_HULL_TRACE");
+        const char* e = std::getenv("HELIAS_TESS_HULL_TRACE");
         return e && e[0] == '1';
     }();
     {
@@ -11723,7 +11724,7 @@ static bool tess_draw_one(const GpuDraw& d, TessDraw& t) {
         }
     }
     static const int tess_debug = [] {  // 2: the LS pass alone, no draw (a diagnostic)
-        const char* e = std::getenv("BBHOST_TESS_DEBUG");
+        const char* e = std::getenv("HELIAS_TESS_DEBUG");
         return e ? std::atoi(e) : 0;
     }();
     if (tess_debug == 2) return true;
@@ -11736,11 +11737,11 @@ static bool tess_draw_one(const GpuDraw& d, TessDraw& t) {
     // all.
     if (!t.attrs) dd.index_va = 0;
     dd.index_count = t.hull ? t.count * t.instances : t.hw ? t.count * t.control_points : t.count * tess_vertices_a_patch(t.level);
-    // BBHOST_TESS_DEBUG=7: record the draw with nothing to draw. Everything
+    // HELIAS_TESS_DEBUG=7: record the draw with nothing to draw. Everything
     // it does apart from running vertices - its pipeline, its sets, its
     // parameters, its state - still happens.
     static const bool no_vertices = [] {
-        const char* e = std::getenv("BBHOST_TESS_DEBUG");
+        const char* e = std::getenv("HELIAS_TESS_DEBUG");
         return e && e[0] == '7';
     }();
     if (no_vertices) dd.index_count = 0;
@@ -11773,7 +11774,7 @@ static bool tess_draw_one(const GpuDraw& d, TessDraw& t) {
         if (logs.fetch_add(1, std::memory_order_relaxed) < 4) {
             host_log("render: the game's hull draws %u patches (%u points x %u instances) into %u bytes of LDS ring, windows of %u bytes, "
                      "accesses %s: %s",
-                     patches, t.count, t.instances, t.lds_bytes, t.window, tess_lds_bound() ? "bounded" : "unchecked (BBHOST_TESS_LDS_BOUND=0)",
+                     patches, t.count, t.instances, t.lds_bytes, t.window, tess_lds_bound() ? "bounded" : "unchecked (HELIAS_TESS_LDS_BOUND=0)",
                      ok ? "drawn" : "draw failed");
         }
     }
@@ -11801,8 +11802,8 @@ bool host_gpu_draw(const GpuDraw& d) {
         if (!(gi ? gi->stages & 0x7 : d.ctx[0x2d5] & 0x7)) return draw_impl(d);
     }
     g.draw_calls.fetch_add(1, std::memory_order_relaxed);
-    static const bool tess_on = [] {  // BBHOST_TESS=0: tessellated draws are skipped, as before 2026-09-19
-        const char* e = std::getenv("BBHOST_TESS");
+    static const bool tess_on = [] {  // HELIAS_TESS=0: tessellated draws are skipped, as before 2026-09-19
+        const char* e = std::getenv("HELIAS_TESS");
         return !(e && e[0] == '0');
     }();
     if (!tess_on) {
@@ -11814,11 +11815,11 @@ bool host_gpu_draw(const GpuDraw& d) {
         draw_failed(kFailTessPlan);
         return false;
     }
-    // BBHOST_TESS_HULL_SKIP=<points>[:<k>]: a diagnostic - leave out the hull
+    // HELIAS_TESS_HULL_SKIP=<points>[:<k>]: a diagnostic - leave out the hull
     // draws of that many control points (only the k-th of them in a flip).
     if (t.hull) {
         static const std::pair<std::uint32_t, int> skip = [] {
-            const char* e = std::getenv("BBHOST_TESS_HULL_SKIP");
+            const char* e = std::getenv("HELIAS_TESS_HULL_SKIP");
             if (!e) return std::pair<std::uint32_t, int>{0, -1};
             const char* c = std::strchr(e, ':');
             return std::pair<std::uint32_t, int>{static_cast<std::uint32_t>(std::atoi(e)), c ? std::atoi(c + 1) : -1};
@@ -11873,11 +11874,11 @@ static bool draw_impl(const GpuDraw& d) {
     g_draw_dummies = 0;  // the draw record takes the count of this draw's
     t_draw_pipeline = nullptr;
     g.draw_calls.fetch_add(1, std::memory_order_relaxed);
-    // BBHOST_PASS_BREAK=<n>: end the render pass before every n-th draw, the
+    // HELIAS_PASS_BREAK=<n>: end the render pass before every n-th draw, the
     // way a tessellated draw's compute pass has to. A check on whether that
     // churn is what washes a frame out.
     static const std::uint64_t pass_break = [] {
-        const char* e = std::getenv("BBHOST_PASS_BREAK");
+        const char* e = std::getenv("HELIAS_PASS_BREAK");
         return e ? std::strtoull(e, nullptr, 10) : 0ull;
     }();
     if (pass_break) {
@@ -11888,17 +11889,17 @@ static bool draw_impl(const GpuDraw& d) {
                 begin_recording_locked();
                 transfer_flush_locked();
                 render_end_pass_locked();
-                // BBHOST_PASS_BREAK_SUBMIT=1: submit there too, as a draw that
+                // HELIAS_PASS_BREAK_SUBMIT=1: submit there too, as a draw that
                 // runs out of parameter slots makes the renderer do.
                 static const bool also_submit = [] {
-                    const char* e = std::getenv("BBHOST_PASS_BREAK_SUBMIT");
+                    const char* e = std::getenv("HELIAS_PASS_BREAK_SUBMIT");
                     return e && e[0] == '1';
                 }();
                 if (also_submit) submit_locked();
             }
         }
     }
-    // test7, BBHOST_SUBMIT_SPLIT=<n> (off by default): hand the GPU what is
+    // test7, HELIAS_SUBMIT_SPLIT=<n> (off by default): hand the GPU what is
     // recorded so far when it has run dry (gpu.cpp).
     submit_split_point();
     // Everything below runs under the one GPU mutex, so book the time spent
@@ -11927,7 +11928,7 @@ static bool draw_impl(const GpuDraw& d) {
         ~CurrentDraw() { g_draw_cmds = prev; }
     } current_draw(&cmds);
     const std::uint32_t* cx = d.ctx;
-    // BBHOST_GX_BACKEND=1: the state comes from the GX objects the engine's
+    // HELIAS_GX_BACKEND=1: the state comes from the GX objects the engine's
     // draw call used instead of the register file. A draw
     // GX describes whole reads no register: the file is read only for the
     // draws that take it (packets, YEBIS's partial descriptions) and to
@@ -12096,10 +12097,10 @@ static bool draw_impl(const GpuDraw& d) {
         // all) has a zero mask and writes none - not whatever a fragment
         // shader without that output leaves in the attachment.
         s.color_mask[t] = mask & ((in.cb_shader_mask >> (4 * t)) & 0xf);
-        // BBHOST_TESS_DEBUG=6: a tessellated draw writes no colour, so what is
+        // HELIAS_TESS_DEBUG=6: a tessellated draw writes no colour, so what is
         // left of it is its state and its pass, not its pixels.
         static const bool no_colour = [] {
-            const char* e = std::getenv("BBHOST_TESS_DEBUG");
+            const char* e = std::getenv("HELIAS_TESS_DEBUG");
             return e && e[0] == '6';
         }();
         if (no_colour && t_tess) s.color_mask[t] = 0;
@@ -12297,7 +12298,7 @@ static bool draw_impl(const GpuDraw& d) {
     const bool gx_geometry_compare = gx_geometry && d.gx_compare && !d.gx_render;
     std::uint64_t vertex_table = 0;  // render mode: the draw's vertex table in the host ring
     static thread_local VertexInputPlan vertex_input;
-    bool use_vertex_input = false;  // BBHOST_VERTEX_INPUT: vertex_input replaces the fetch shader
+    bool use_vertex_input = false;  // HELIAS_VERTEX_INPUT: vertex_input replaces the fetch shader
     if (gx_geometry_compare) compare_gx_geometry(d, *gx_geometry);
     {
         if (vs_cp->fetch_sgpr == -2) {
@@ -12326,7 +12327,7 @@ static bool draw_impl(const GpuDraw& d) {
             fetch_hash = fetch->hash;
             if (gx_geometry_compare) probe_gx_vertex_table(fetch->words, s.vs_user, *gx_geometry);
             static const bool log_fetch = [] {
-                const char* e = std::getenv("BBHOST_LOG_FETCH");
+                const char* e = std::getenv("HELIAS_LOG_FETCH");
                 return e && e[0] == '1';
             }();
             if (log_fetch && gx_geometry) log_fetch_shader(fetch_hash, fetch->words, *gx_geometry);
@@ -12351,7 +12352,7 @@ static bool draw_impl(const GpuDraw& d) {
     const std::uint64_t ps_hash = ps_cp ? ps_cp->hash : 0;
     // Rendering from GX resolves resources from the draw's
     // records where they cover a binding.
-    // BBHOST_SF_SNAPSHOT=0: Scaleform draws read their constant buffers from
+    // HELIAS_SF_SNAPSHOT=0: Scaleform draws read their constant buffers from
     // guest memory when the GPU runs them, like every other draw. The game
     // writes a frame's UI uniforms (per-quad transforms and colours, ~100
     // bytes a draw) at the same addresses the frame before used, trusting
@@ -12362,7 +12363,7 @@ static bool draw_impl(const GpuDraw& d) {
     // Scaleform draws). Copied when the command processor records the draw,
     // they are what it saw with everything else it resolved then.
     static const bool sf_snapshot = [] {
-        const char* e = std::getenv("BBHOST_SF_SNAPSHOT");
+        const char* e = std::getenv("HELIAS_SF_SNAPSHOT");
         return !(e && e[0] == '0');
     }();
     t_snapshot_cbs = sf_snapshot && d.gx_token && d.gx_token_kind && std::strcmp(d.gx_token_kind, "scaleform") == 0;
@@ -12391,7 +12392,7 @@ static bool draw_impl(const GpuDraw& d) {
     index_gx_stage(0, g_binding_plans ? nullptr : gx_stage[0]);
     index_gx_stage(1, g_binding_plans ? nullptr : gx_stage[1]);
     if (g_render_cost_enabled && gx_records) {
-        // BBHOST_GX_COST: sampled constant buffers against their contents at the call.
+        // HELIAS_GX_COST: sampled constant buffers against their contents at the call.
         for (int k = 0; k < 2; ++k) {
             const GxStageRecords& st = gx_records->stage[k];
             if (!st.cb_hashed) continue;
@@ -12407,11 +12408,11 @@ static bool draw_impl(const GpuDraw& d) {
                 g_cb_check_bytes.fetch_add(bytes, std::memory_order_relaxed);
                 if (render_cb_fnv(addr, bytes) != st.cb_hash[j]) {
                     g_cb_check_changed.fetch_add(1, std::memory_order_relaxed);
-                    // BBHOST_WATCH_CHANGED_CB=1: watch the first buffer seen changing
+                    // HELIAS_WATCH_CHANGED_CB=1: watch the first buffer seen changing
                     // after its call, to find the code that writes it (the watch
                     // report prints at exit).
                     static const bool watch_changed = [] {
-                        const char* e = std::getenv("BBHOST_WATCH_CHANGED_CB");
+                        const char* e = std::getenv("HELIAS_WATCH_CHANGED_CB");
                         return e && e[0] == '1';
                     }();
                     static std::atomic<bool> watched{false};
@@ -12484,7 +12485,7 @@ static bool draw_impl(const GpuDraw& d) {
     }
     draw_stamp.to(kRenderCostKey);
     GpuPhaseTimer pipeline_timer(kPhasePipeline, phase_weight);
-    // BBHOST_LEAN_FIRST: translate and lay out the fallback pipeline, but create
+    // HELIAS_LEAN_FIRST: translate and lay out the fallback pipeline, but create
     // its Vulkan pipeline only when a draw binds it (below).
     const bool lean_first = g_lean_first && g.cb_lean;
     const bool layout_only = lean_first && g_layout_from_lean && !gfx_lookup(key);
@@ -12550,7 +12551,7 @@ static bool draw_impl(const GpuDraw& d) {
         InDraw() : was(t_in_draw) { t_in_draw = true; }
         ~InDraw() { t_in_draw = was; }
     } in_draw;
-    bool fsr3_replaced = false;  // bbhost-vk Phase 3: FSR 3.1 wrote this scale pass's target
+    bool fsr3_replaced = false;  // heliasdream-vk Phase 3: FSR 3.1 wrote this scale pass's target
     {
         GpuPhaseTimer t(kPhasePrefetch, phase_weight);
         if (!pl.paths_checked) {
@@ -12561,9 +12562,9 @@ static bool draw_impl(const GpuDraw& d) {
         for (int st = 0; st < 2; ++st) bump(pl.paths_match[st] ? g_prefetch_key_words : g_prefetch_resolved);
         t_resolve_site = kSitePrefetch;
         t_draw_pipeline = pl.name.c_str();
-        // BBHOST_GLITCH_ORIGIN=<pipeline prefix>: where that pipeline's draws
+        // HELIAS_GLITCH_ORIGIN=<pipeline prefix>: where that pipeline's draws
         // come from, every time it changes (the first 60 changes).
-        static const char* origin_of = std::getenv("BBHOST_GLITCH_ORIGIN");
+        static const char* origin_of = std::getenv("HELIAS_GLITCH_ORIGIN");
         if (origin_of && glitch_on() && pl.name.compare(0, std::strlen(origin_of), origin_of) == 0) {
             static std::string last;
             static int changes = 0;
@@ -12591,7 +12592,18 @@ static bool draw_impl(const GpuDraw& d) {
         if (t_bilinear_samplers) note_scale_pass(pl.name);
         prefetch_stage_images(pl.ps.meta(), s.ps_user, stage_images[1], gx_stage[1], pl.paths_match[1] ? &key_stages[1] : nullptr);
         t_bilinear_samplers = false;
-        // bbhost-vk Phase 2: the scene is complete - motion vectors, camera
+        // Helia's Dream, HDR with the UI kept apart (host/hdr_ui.h): the frame
+        // before its first UI draw, and that copy following it into a display buffer.
+        if (s.color[0] && hdr_ui_wanted()) {
+            if (temporal::is_ui_vs(pl.orb_vs)) hdr_ui_before_ui_locked(s.color[0]);
+            if (hle_video_is_display_buffer(s.color[0]->base)) {
+                RtImage* from = !stage_images[1].images.empty() && stage_images[1].images[0].resolved
+                                    ? find_render_target(tsharp_base(stage_images[1].images[0].w))
+                                    : nullptr;
+                hdr_ui_display_written_locked(s.color[0], from);
+            }
+        }
+        // heliasdream-vk Phase 2: the scene is complete - motion vectors, camera
         // history, the next jitter phase (host/temporal_inputs.h).
         if (pl.scale_pass == 1 && temporal_watching()) {
             RtImage* scene = nullptr;
@@ -12602,9 +12614,9 @@ static bool draw_impl(const GpuDraw& d) {
             // the largest Resolution entry (host/fsr3_pass.h).
             const temporal::OutputRect out_rect = s.color[0] ? fsr3_output_rect_locked(s.color[0], s.vport) : temporal::OutputRect{};
             temporal_scale_pass_locked(scene, out_rect.w, out_rect.h);
-            // bbhost-vk Phase 3: FSR 3.1 writes the pass's target instead of
+            // heliasdream-vk Phase 3: FSR 3.1 writes the pass's target instead of
             // the game's draw (host/fsr3_pass.h); the draw is dropped below,
-            // where BBHOST_SKIP_PASS drops one.
+            // where HELIAS_SKIP_PASS drops one.
             if (upscaler_scene_pass() == ScenePass::Fsr31 && s.color[0]) {
                 ensure_initialised(*s.color[0]);
                 // test10: the scene goes to A's render-size stand-in; FSR
@@ -12615,11 +12627,11 @@ static bool draw_impl(const GpuDraw& d) {
         t_resolve_site = kSiteBuffers;
     }
     draw_stamp.to(kRenderCostPrefetch);
-    // BBHOST_CAPTURE_DRAW (draw_capture.h): run everything recorded so far
+    // HELIAS_CAPTURE_DRAW (draw_capture.h): run everything recorded so far
     // before this draw's sets exist, so memory and images hold its inputs.
     const bool capture = capture_candidate(pl.name, d.index_count, hle_video_flip_count(), pl.lean_variant && !pl.lean_variant->failed);
     if (capture) capture_settle_locked();
-    // BBHOST_WATCH_PS_IMAGE=<pipeline prefix>:<image index>: for every draw of
+    // HELIAS_WATCH_PS_IMAGE=<pipeline prefix>:<image index>: for every draw of
     // that pipeline, resolve the image's T# and hash the memory behind it, and
     // log a line whenever either changes. One draw's detail says what a pass
     // reads; this says *when* what it reads changed, which is the question
@@ -12856,12 +12868,12 @@ static bool draw_impl(const GpuDraw& d) {
             }
         }
     }
-    // BBHOST_ONLY_PASS=<prefix>@0x<target>: into that target, draw only that
+    // HELIAS_ONLY_PASS=<prefix>@0x<target>: into that target, draw only that
     // pass. Everything else there is dropped, so what reaches the screen is
     // exactly what the pass puts on it - which answers "does one of its quads
     // cover the screen?" by looking, with no readback and no broken render
     // pass, the two things this driver will not take.
-    static const char* only_pass = std::getenv("BBHOST_ONLY_PASS");
+    static const char* only_pass = std::getenv("HELIAS_ONLY_PASS");
     if (only_pass) {
         static const std::string oname = [] {
             const std::string t(only_pass);
@@ -12888,20 +12900,20 @@ static bool draw_impl(const GpuDraw& d) {
                      t.width, t.height, static_cast<int>(t.format));
         }
     }
-    // test8/test10, BBHOST_AB_SECONDS=<s>: every s seconds post-at-render
-    // (BBHOST_POST_AT_RENDER) goes off or on again, and each half's frame times (scale pass to scale pass)
+    // test8/test10, HELIAS_AB_SECONDS=<s>: every s seconds post-at-render
+    // (HELIAS_POST_AT_RENDER) goes off or on again, and each half's frame times (scale pass to scale pass)
     // are logged as `ab:` lines - both numbers from one run, same spot.
     if (pl.scale_pass == 1) {
         static const long ab_s = [] {
-            const char* e = std::getenv("BBHOST_AB_SECONDS");
+            const char* e = std::getenv("HELIAS_AB_SECONDS");
             return e ? std::strtol(e, nullptr, 10) : 0L;
         }();
         static std::uint64_t last_ns = 0, phase_start_ns = 0, frames = 0, over8 = 0, over833 = 0, over12 = 0;
         static double sum_ms = 0, max_ms = 0;
         static std::uint64_t last_flip = ~0ull;
         const std::uint64_t flip = hle_video_flip_count();
-        static const bool ab_post = [] {  // test11: the A/B flips the present pacing unless BBHOST_AB_TOGGLE=post
-            const char* w = std::getenv("BBHOST_AB_TOGGLE");
+        static const bool ab_post = [] {  // test11: the A/B flips the present pacing unless HELIAS_AB_TOGGLE=post
+            const char* w = std::getenv("HELIAS_AB_TOGGLE");
             return w && std::strcmp(w, "post") == 0;
         }();
         if (ab_s > 0 && ab_post && post_mode() && flip != last_flip) {
@@ -12932,13 +12944,13 @@ static bool draw_impl(const GpuDraw& d) {
             }
         }
     }
-    // test8, BBHOST_POST_CHAIN_LOG=<flips> (default 3600; 0 off): every that many
+    // test8, HELIAS_POST_CHAIN_LOG=<flips> (default 3600; 0 off): every that many
     // flips, one frame's draws from the scale pass to the first UI draw - the
     // post chain the render-size work moves - with each draw's target, its
     // viewport, blending, and every image it samples (size and format).
     {
         static const long chain_every = [] {
-            const char* e = std::getenv("BBHOST_POST_CHAIN_LOG");
+            const char* e = std::getenv("HELIAS_POST_CHAIN_LOG");
             return e ? std::strtol(e, nullptr, 10) : 3600L;  // one frame a minute at 60, half a minute at 120
         }();
         static std::uint64_t chain_flip = ~0ull, chain_next = 600;
@@ -12997,7 +13009,7 @@ static bool draw_impl(const GpuDraw& d) {
             }
         }
     }
-    // test10, BBHOST_POST_AT_RENDER: inside the window, the moved programs draw
+    // test10, HELIAS_POST_AT_RENDER: inside the window, the moved programs draw
     // into their output-size targets' render-size stand-ins; any other
     // program closes it (FSR upscales the last stand-in first).
     // rc2: a draw joins the window by what it does, not only by its program
@@ -13077,14 +13089,14 @@ static bool draw_impl(const GpuDraw& d) {
             }
         }
     }
-    // test8, BBHOST_MOTION_BLUR_SKIP=1: with motion blur off, its two draws
+    // test8, HELIAS_MOTION_BLUR_SKIP=1: with motion blur off, its two draws
     // copy A to B and back (host/temporal/mblur_skip.h); once that is proven
     // for 120 frames in a row, both are left out.
     if (mb_draw && s.color[0]) {
         static bool said = false;
         if (!said) {
             said = true;
-            host_log("render: motion blur skip on (BBHOST_MOTION_BLUR_SKIP=0 turns it off): with motion blur off, its two draws become one copy once proven to pass the picture through");
+            host_log("render: motion blur skip on (HELIAS_MOTION_BLUR_SKIP=0 turns it off): with motion blur off, its two draws become one copy once proven to pass the picture through");
         }
         RtImage& t = *s.color[0];
         if (t.base == g_mb_skip.watched()) g_mb_b_bound = false;  // draw 1 bound B: the pattern itself
@@ -13145,7 +13157,7 @@ static bool draw_impl(const GpuDraw& d) {
             return true;
         }
     }
-    // BBHOST_SKIP_PASS=<prefix>[,<prefix>...]: drop those draws. Readbacks
+    // HELIAS_SKIP_PASS=<prefix>[,<prefix>...]: drop those draws. Readbacks
     // cost a broken render pass and this driver will not take many of those,
     // so the safe way to ask "is it this pass?" is to remove it and look at
     // the screen. No copies, no pass breaks, no risk to the run.
@@ -13156,7 +13168,7 @@ static bool draw_impl(const GpuDraw& d) {
         if (g_pending_clears.erase(t.base)) ++g_pending_gen;
         return true;
     }
-    static const char* skip_pass = std::getenv("BBHOST_SKIP_PASS");
+    static const char* skip_pass = std::getenv("HELIAS_SKIP_PASS");
     if (skip_pass) {
         static const std::vector<std::string> names = [] {
             std::vector<std::string> out;
@@ -13175,7 +13187,7 @@ static bool draw_impl(const GpuDraw& d) {
             if (pl.name.find(n) == 0) {
                 static std::atomic<std::uint64_t> skipped{0};
                 if (skipped.fetch_add(1) % 100000 == 0) {
-                    host_log("render: skipping %s (BBHOST_SKIP_PASS), %llu so far", pl.name.c_str(),
+                    host_log("render: skipping %s (HELIAS_SKIP_PASS), %llu so far", pl.name.c_str(),
                              static_cast<unsigned long long>(skipped.load()));
                 }
                 return true;
@@ -13273,7 +13285,7 @@ static bool draw_impl(const GpuDraw& d) {
             }
         }
     }
-    static const char* watch_img = std::getenv("BBHOST_WATCH_PS_IMAGE");
+    static const char* watch_img = std::getenv("HELIAS_WATCH_PS_IMAGE");
     if (watch_img) {
         static const std::string wname = [] {
             const std::string t(watch_img);
@@ -13313,11 +13325,11 @@ static bool draw_impl(const GpuDraw& d) {
             }
         }
     }
-    static const char* trace_draw_name = std::getenv("BBHOST_TRACE_DRAW");
+    static const char* trace_draw_name = std::getenv("HELIAS_TRACE_DRAW");
     if (trace_draw_name) {
-        // BBHOST_TRACE_MIN_FLIP=N: trace the first matching draw from flip N on.
+        // HELIAS_TRACE_MIN_FLIP=N: trace the first matching draw from flip N on.
         static const std::uint64_t trace_min_flip = [] {
-            const char* e = std::getenv("BBHOST_TRACE_MIN_FLIP");
+            const char* e = std::getenv("HELIAS_TRACE_MIN_FLIP");
             return e ? std::strtoull(e, nullptr, 10) : 0ull;
         }();
         static std::atomic<int> detail{0};
@@ -13403,11 +13415,11 @@ static bool draw_impl(const GpuDraw& d) {
                         const std::uint64_t vb = static_cast<std::uint64_t>(w[0]) | (static_cast<std::uint64_t>(w[1] & 0xff) << 32);
                         host_log("  fetch V#%d: %08x %08x %08x %08x base=0x%llx stride=%u records=%u dfmt=%u nfmt=%u dst_sel=%03x", k, w[0], w[1], w[2], w[3],
                                  static_cast<unsigned long long>(vb), (w[1] >> 16) & 0x3fff, w[2], (w[3] >> 15) & 0xf, (w[3] >> 12) & 7, w[3] & 0xfff);
-                        // BBHOST_WATCH_FILL=1: watch this fill draw's first vertex
+                        // HELIAS_WATCH_FILL=1: watch this fill draw's first vertex
                         // buffer so the next frame's CPU write to it reveals the
                         // guest GFx code that computes the (zero) corners.
                         static const bool watch_fill = [] {
-                            const char* e = std::getenv("BBHOST_WATCH_FILL");
+                            const char* e = std::getenv("HELIAS_WATCH_FILL");
                             return e && e[0] == '1';
                         }();
                         if (watch_fill && k == 0 && vb) {
@@ -13540,7 +13552,7 @@ static bool draw_impl(const GpuDraw& d) {
     bool all_bound = true, any_buffers = false;  // every constant buffer of both stages bound
     gcn::StageParams stage_params[2]{};
     std::size_t stage_first_buffer[2] = {};
-    // BBHOST_GX_SKIP_TABLES: the tables the draw's no-fallback variant reads,
+    // HELIAS_GX_SKIP_TABLES: the tables the draw's no-fallback variant reads,
     // when that variant exists (the only one that can skip any).
     std::uint32_t table_masks[2] = {~0u, ~0u};
     std::uint16_t skipped_tables[2] = {};
@@ -13750,7 +13762,7 @@ static bool draw_impl(const GpuDraw& d) {
             // its fetch shader are wanted; everything else keeps what the
             // command stream had.
             std::memcpy(params.vertex_formats, s.ls_user, sizeof(params.vertex_formats));
-            // BBHOST_GLITCH_WATCH: what the LS fetches, through the page table
+            // HELIAS_GLITCH_WATCH: what the LS fetches, through the page table
             // rather than a binding - the V#s in the table its fetch shader
             // loads from s[2:3], as a vertex shader's does.
             if (glitch_watching_draw()) {
@@ -14032,7 +14044,7 @@ static bool draw_impl(const GpuDraw& d) {
         if (!pl.lean_variant && !pl.lean_building) {
             const std::uint64_t lean_key = fnv1a("cb-lean", 7, key);
             // A worker builds the variant only while a created fallback can draw
-            // meanwhile; otherwise (BBHOST_LEAN_FIRST) it is built here, and the
+            // meanwhile; otherwise (HELIAS_LEAN_FIRST) it is built here, and the
             // fallback is never created unless a draw lacks a binding.
             if (g_async_pipelines && pl.pipeline && !g_dump_spirv && !g_token_user_data_check) {
                 queue_lean_variant(pl, lean_key, s, vs_words, fetch_words, ps_words, vs_name, ps_name, vs_dims, ps_dims, vs_sampler_modes,
@@ -14239,7 +14251,7 @@ static bool draw_impl(const GpuDraw& d) {
             }
         }
     }
-    // bbhost-vk Phase 2: the scene colour as it is before its first blended
+    // heliasdream-vk Phase 2: the scene colour as it is before its first blended
     // draw - the opaque snapshot the upscalers' reactive masks start from.
     if (temporal_watching() && s.color[0] && s.depth &&
         (s.gx_blend ? s.gx_blend->rt[0].enable != 0 : temporal::blend_enabled(s.blend[0])))
@@ -14272,7 +14284,7 @@ static bool draw_impl(const GpuDraw& d) {
         g_recorded = RecordedState{};
         g_recorded.serial = g.record_serial;
     }
-    // BBHOST_LAYOUT_FROM_LEAN: a draw that reads constant buffers through the
+    // HELIAS_LAYOUT_FROM_LEAN: a draw that reads constant buffers through the
     // page table needs the fallback's own translation. Without constant
     // buffers the two variants translate alike, and its stages serve.
     if (!bind_pl->pipeline && bind_pl->layout_only && !bind_pl->failed && any_buffers) {
@@ -14292,7 +14304,7 @@ static bool draw_impl(const GpuDraw& d) {
             return false;
         }
     }
-    // BBHOST_LEAN_FIRST: the fallback pipeline is created by the first draw that binds it.
+    // HELIAS_LEAN_FIRST: the fallback pipeline is created by the first draw that binds it.
     if (!bind_pl->pipeline && (bind_pl->failed || !create_gfx_pipeline(*bind_pl, s, vertex_plan, fetch_words.size()))) {
         draw_failed(kFailPipelineCreate);
         return false;
@@ -14324,7 +14336,7 @@ static bool draw_impl(const GpuDraw& d) {
         // them all again, not only what changed.
         if (!bind_pl->library) g_recorded.library_set = false;
     }
-    if (bind_pl->library) {  // BBHOST_PIPELINE_LIBRARY: rasterizer, depth and stencil state per draw
+    if (bind_pl->library) {  // HELIAS_PIPELINE_LIBRARY: rasterizer, depth and stencil state per draw
         GfxFixedState d;
         fixed_raster_depth(s, d);
         DrawLibraryState now;
@@ -14336,10 +14348,10 @@ static bool draw_impl(const GpuDraw& d) {
         now.bounds_test = d.depth_bounds_test;
         now.stencil_test = d.stencil_test;
         now.depth_compare = d.depth_compare;
-        // BBHOST_DEPTH_ALWAYS=<pipeline prefix> (checks): that pipeline's depth
+        // HELIAS_DEPTH_ALWAYS=<pipeline prefix> (checks): that pipeline's depth
         // test always passes - whether a multipass surface loses pixels to its
         // own first pass's depth.
-        static const char* depth_always = std::getenv("BBHOST_DEPTH_ALWAYS");
+        static const char* depth_always = std::getenv("HELIAS_DEPTH_ALWAYS");
         if (depth_always && *depth_always && bind_pl->name.rfind(depth_always, 0) == 0) now.depth_compare = VK_COMPARE_OP_ALWAYS;
         now.front_ops = d.front;
         now.back_ops = d.back;
@@ -14391,7 +14403,7 @@ static bool draw_impl(const GpuDraw& d) {
         vp.minDepth = 0.0f;
         vp.maxDepth = 1.0f;
     }
-    // bbhost-vk Phase 2: the scene's geometry draws shifted by the frame's
+    // heliasdream-vk Phase 2: the scene's geometry draws shifted by the frame's
     // Halton jitter (temporal upscalers only; host/temporal_inputs.h).
     if (temporal_watching()) {
         float jx = 0.0f, jy = 0.0f;
@@ -14604,7 +14616,7 @@ static bool draw_impl(const GpuDraw& d) {
         std::memcpy(dyn.blend_constants, blend_const, sizeof(blend_const));
         capture_finish_locked(std::move(capture_session), dyn);
     }
-    // BBHOST_TRACE_TARGET=0xbase: for the frame after F12 (or "0xbase@flip",
+    // HELIAS_TRACE_TARGET=0xbase: for the frame after F12 (or "0xbase@flip",
     // that flip), after every draw that binds that colour target, read it
     // back and log each draw that raises a channel's largest value - which
     // draw put a value there. Float targets only (RGBA16F, R11G11B10). Slow:
@@ -14612,7 +14624,7 @@ static bool draw_impl(const GpuDraw& d) {
     // emissive went green in the Hunter's Dream.
     static std::uint64_t trace_flip = 0;
     static const std::uint64_t trace_target = [] {
-        const char* e = std::getenv("BBHOST_TRACE_TARGET");
+        const char* e = std::getenv("HELIAS_TRACE_TARGET");
         if (!e) return 0ull;
         if (const char* at = std::strchr(e, '@')) trace_flip = std::strtoull(at + 1, nullptr, 0);
         return std::strtoull(e, nullptr, 0);
@@ -14642,11 +14654,11 @@ static bool draw_impl(const GpuDraw& d) {
             }
         }
     }
-    // BBHOST_DUMP_AT_DRAW=<pipeline name prefix>:<occurrence>: after that
+    // HELIAS_DUMP_AT_DRAW=<pipeline name prefix>:<occurrence>: after that
     // draw, wait for the GPU and write every colour target to
     // build/rtd-<base>.ppm (the state in the middle of a frame).
     static const std::string dump_at = [] {
-        const char* e = std::getenv("BBHOST_DUMP_AT_DRAW");
+        const char* e = std::getenv("HELIAS_DUMP_AT_DRAW");
         return std::string(e ? e : "");
     }();
     if (!dump_at.empty()) {
@@ -14893,7 +14905,7 @@ namespace gpu {
 bool dump_rt_locked(RtImage& r, const char* path);
 }
 
-// Writes the displayed render target to a binary PPM (BBHOST_DUMP_FRAME).
+// Writes the displayed render target to a binary PPM (HELIAS_DUMP_FRAME).
 // Called from the watchdog when the game has stopped flipping, so the thread
 // that is stuck is very likely holding g.mu: read the draw ring WITHOUT the
 // lock. The values can be torn; a torn line is still better than no report.
@@ -14960,13 +14972,13 @@ std::string capture_dir_shown(const std::string& dir) {
 }
 
 // A folder of its own for each F12 capture, beside the logs: logs/ when
-// there is one (the packages' run-bbhost writes its logs there), else
-// build/; BBHOST_CAPTURE_DIR names another place. Made at the key press, so
+// there is one (the packages' run-heliasdream writes its logs there), else
+// build/; HELIAS_CAPTURE_DIR names another place. Made at the key press, so
 // a folder that cannot be made is in the log then.
 std::string new_capture_dir() {
     std::error_code ec;
     std::string base;
-    if (const char* e = std::getenv("BBHOST_CAPTURE_DIR"); e && e[0]) {
+    if (const char* e = std::getenv("HELIAS_CAPTURE_DIR"); e && e[0]) {
         base = e;
     } else {
         base = std::filesystem::is_directory("logs", ec) ? "logs" : "build";
@@ -15011,13 +15023,13 @@ std::string host_gpu_capture_dir() {
 // disk and opens in any image viewer, for 4 s of a background thread.
 const char* host_gpu_capture_ext() {
     static const bool png = [] {
-        const char* e = std::getenv("BBHOST_F12_PNG");
+        const char* e = std::getenv("HELIAS_F12_PNG");
         return e && e[0] == '1';
     }();
     return png ? ".png" : ".ppm";
 }
 
-// BBHOST_RT_REFILL_TEST=1 (video.cpp, once): the blood layers' lost clear on
+// HELIAS_RT_REFILL_TEST=1 (video.cpp, once): the blood layers' lost clear on
 // the real device, at an address no guest resource uses. A 128x128 sRGB
 // target takes a fill of a 256x256 RGBA8 target's bytes, then a 256x256 UNORM
 // target is asked for there: every texel must be the fill. Then the same with
@@ -15133,9 +15145,9 @@ void host_gpu_refill_selftest() {
     }
 }
 
-// BBHOST_DUMP_ALL=1 also writes every colour target as build/rt-<base>.ppm.
+// HELIAS_DUMP_ALL=1 also writes every colour target as build/rt-<base>.ppm.
 // `all_targets` (F12) does the same, named next to `path`.
-// BBHOST_DUMP_DRAWS=<n> logs the draw list on its own - same lines, no images.
+// HELIAS_DUMP_DRAWS=<n> logs the draw list on its own - same lines, no images.
 namespace {
 // A colour or depth target's texels, read back, to be written as a PPM
 // (write_target_image) - on the renderer's thread or, for F12, on one of its own.
@@ -15163,9 +15175,9 @@ bool write_target_image(const TargetPixels& t);
 // all under the renderer's lock - two minutes of a frozen game on NFS. Now
 // the draw list is built in memory, the targets the recorded draws used are
 // read back with one wait, and a thread of its own writes the files.
-// BBHOST_F12_ALL_TARGETS=1 takes every target again; BBHOST_F12_TEXTURES=1
+// HELIAS_F12_ALL_TARGETS=1 takes every target again; HELIAS_F12_TEXTURES=1
 // also saves the sampled textures (on the renderer's lock, as before).
-// BBHOST_STALL_TEST=<flip>:<ms>: hold the renderer's lock that long at that
+// HELIAS_STALL_TEST=<flip>:<ms>: hold the renderer's lock that long at that
 // flip, the way a frame dump does. The game has to survive a stalled frame -
 // F12 used to stall it for minutes and the game froze behind it.
 void host_gpu_stall_test(unsigned ms) {
@@ -15178,31 +15190,31 @@ void host_gpu_stall_test(unsigned ms) {
              std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count());
 }
 
-// BBHOST_DUMP_ON_BRIGHT=<mean>: watch how bright the frame the game just
+// HELIAS_DUMP_ON_BRIGHT=<mean>: watch how bright the frame the game just
 // flipped is, and ask for a dump of the next one when it goes over. A frame
 // that washes out is over in a moment and nobody can press F12 in time; this
 // catches it with its draw list. The display is blitted down to 16x16 on the
 // GPU and read back a flip later, so no frame waits for it.
 void host_gpu_watch_display(std::uint64_t display_va) {
     static const double bright = [] {
-        const char* e = std::getenv("BBHOST_DUMP_ON_BRIGHT");
+        const char* e = std::getenv("HELIAS_DUMP_ON_BRIGHT");
         return e ? std::atof(e) : 0.0;
     }();
-    // BBHOST_DUMP_ON_CHANGE=<mean abs difference, 0..1>: catch a frame that is
+    // HELIAS_DUMP_ON_CHANGE=<mean abs difference, 0..1>: catch a frame that is
     // simply *unlike* the one before it, whatever colour it went. A threshold
     // on brightness has to be guessed per symptom - the frame that flashes
     // green passes 0.35, a grey one may not - and a frame that jumps and jumps
     // back is the shape all of these have in common.
     static const double change = [] {
-        const char* e = std::getenv("BBHOST_DUMP_ON_CHANGE");
+        const char* e = std::getenv("HELIAS_DUMP_ON_CHANGE");
         return e ? std::atof(e) : 0.0;
     }();
-    // BBHOST_DUMP_ON_CHANGE_ALSO=0x<base>: keep this target beside the display
+    // HELIAS_DUMP_ON_CHANGE_ALSO=0x<base>: keep this target beside the display
     // one, for the same flips. The display target is the end of the chain, so
     // on its own it cannot say whether a frame went wrong in the last pass or
     // arrived wrong - keeping that pass's input answers it in one run.
     static const std::uint64_t also = [] {
-        const char* e = std::getenv("BBHOST_DUMP_ON_CHANGE_ALSO");
+        const char* e = std::getenv("HELIAS_DUMP_ON_CHANGE_ALSO");
         return e ? std::strtoull(e, nullptr, 0) : 0ull;
     }();
     if ((bright <= 0 && change <= 0) || !display_va) return;
@@ -15241,7 +15253,7 @@ void host_gpu_watch_display(std::uint64_t display_va) {
         bool filled = false;
     };
     struct Kept {
-        KeptOne t[2];  // [0] the display target, [1] BBHOST_DUMP_ON_CHANGE_ALSO
+        KeptOne t[2];  // [0] the display target, [1] HELIAS_DUMP_ON_CHANGE_ALSO
         std::uint64_t flip = ~0ull, landed_at = 0;
         std::uint64_t rec_at = 0;  // g_draw_rec_next when this frame was kept
     };
@@ -15602,7 +15614,7 @@ void host_gpu_watch_display(std::uint64_t display_va) {
             }
         }
     }
-    // BBHOST_SYNC_FRAME=1: wait for the GPU at every flip. The game
+    // HELIAS_SYNC_FRAME=1: wait for the GPU at every flip. The game
     // double-buffers the dynamic vertex and constant buffers a menu pass
     // reads, rotating between two addresses a frame; if our submissions run
     // behind, the GPU reads one the guest has already started rewriting. Every
@@ -15610,7 +15622,7 @@ void host_gpu_watch_display(std::uint64_t display_va) {
     // exactly what a race like that looks like from the CPU. If the flash goes
     // when the GPU is kept in step, that is the mechanism.
     static const bool sync_frame = [] {
-        const char* e = std::getenv("BBHOST_SYNC_FRAME");
+        const char* e = std::getenv("HELIAS_SYNC_FRAME");
         return e && e[0] == '1';
     }();
     // Submit these copies now rather than letting them wait for the frame's
@@ -15652,21 +15664,21 @@ bool host_gpu_dump_display(std::uint64_t display_va, const char* path, bool all_
     std::lock_guard<GpuMutex> lock(g.mu);
     if (!g.ok) return false;
     flush_locked();
-    // BBHOST_DUMP_ALL=1 keeps the default window of recorded draws;
-    // BBHOST_DUMP_ALL=<n> lists the last n, up to the ring size, which is what
+    // HELIAS_DUMP_ALL=1 keeps the default window of recorded draws;
+    // HELIAS_DUMP_ALL=<n> lists the last n, up to the ring size, which is what
     // it takes to see a whole world frame.
     static const std::size_t dump_all_env = [] {
-        const char* e = std::getenv("BBHOST_DUMP_ALL");
+        const char* e = std::getenv("HELIAS_DUMP_ALL");
         if (!e || !e[0]) return std::size_t{0};
         const long v = std::strtol(e, nullptr, 10);
         return v <= 1 ? std::size_t{400} : std::min<std::size_t>(static_cast<std::size_t>(v), kDrawRecs);
     }();
-    // BBHOST_DUMP_DRAWS=<n> is the draw list **without** the target images.
+    // HELIAS_DUMP_DRAWS=<n> is the draw list **without** the target images.
     // Reading back every colour target is what costs the memory - 140 of them
     // at a world frame - and the list is what says which draw wrote what, so
     // asking for one without the other is worth a switch of its own.
     static const std::size_t dump_draws_env = [] {
-        const char* e = std::getenv("BBHOST_DUMP_DRAWS");
+        const char* e = std::getenv("HELIAS_DUMP_DRAWS");
         if (!e || !e[0]) return std::size_t{0};
         const long v = std::strtol(e, nullptr, 10);
         return v <= 1 ? std::size_t{400} : std::min<std::size_t>(static_cast<std::size_t>(v), kDrawRecs);
@@ -15691,11 +15703,11 @@ bool host_gpu_dump_display(std::uint64_t display_va, const char* path, bool all_
     // as <stem>-tex-<base> (.png or .ppm, as the display's), which is what the
     // draws actually sampled.
     static const bool f12_textures = [] {
-        const char* e = std::getenv("BBHOST_F12_TEXTURES");
+        const char* e = std::getenv("HELIAS_F12_TEXTURES");
         return e && e[0] == '1';
     }();
     static const bool f12_all_targets = [] {
-        const char* e = std::getenv("BBHOST_F12_ALL_TARGETS");
+        const char* e = std::getenv("HELIAS_F12_ALL_TARGETS");
         return e && e[0] == '1';
     }();
     const auto f12_start = std::chrono::steady_clock::now();
@@ -15769,12 +15781,12 @@ bool host_gpu_dump_display(std::uint64_t display_va, const char* path, bool all_
             tex_events_write(f);
             std::fclose(f);
             host_log("dump: %s - %zu textures described, %d saved%s", txt.c_str(), seen.size(), saved,
-                     f12_textures ? "" : " (BBHOST_F12_TEXTURES=1 saves them)");
+                     f12_textures ? "" : " (HELIAS_F12_TEXTURES=1 saves them)");
         }
     }
     if (all_targets) {
         // The targets the recorded draws wrote, the display, and with
-        // BBHOST_F12_ALL_TARGETS every colour target there is.
+        // HELIAS_F12_ALL_TARGETS every colour target there is.
         std::string ext;
         const std::string stem = image_stem(path, &ext);
         std::set<std::uint64_t> want;
@@ -15848,7 +15860,7 @@ bool host_gpu_dump_display(std::uint64_t display_va, const char* path, bool all_
         }
         return have_display;
     }
-    if (dump_all) {  // BBHOST_DUMP_ALL without F12 (F12 returned above)
+    if (dump_all) {  // HELIAS_DUMP_ALL without F12 (F12 returned above)
         for (auto& kv : g_rts) {
             if (kv.second.depth || !kv.second.initialised) continue;
             char p[64];
@@ -15856,11 +15868,11 @@ bool host_gpu_dump_display(std::uint64_t display_va, const char* path, bool all_
             dump_rt_locked(kv.second, p);
         }
     }
-    // BBHOST_DUMP_TEXTURE=0xbase[,0xbase..]: the sampled surfaces at those
+    // HELIAS_DUMP_TEXTURE=0xbase[,0xbase..]: the sampled surfaces at those
     // guest addresses (as the shaders see them) to build/tex-<base>.ppm.
     static const std::vector<std::uint64_t> tex_bases = [] {
         std::vector<std::uint64_t> v;
-        const char* e = std::getenv("BBHOST_DUMP_TEXTURE");
+        const char* e = std::getenv("HELIAS_DUMP_TEXTURE");
         while (e && *e) {
             char* end = nullptr;
             const unsigned long long b = std::strtoull(e, &end, 0);
@@ -15874,8 +15886,8 @@ bool host_gpu_dump_display(std::uint64_t display_va, const char* path, bool all_
         char p[96];
         std::snprintf(p, sizeof(p), "build/tex-%llx.ppm", static_cast<unsigned long long>(b));
         if (!texture_dump_locked(b, p)) host_log("render: no sampled surface at 0x%llx to dump", static_cast<unsigned long long>(b));
-        // BBHOST_DUMP_TEXTURE_LEVELS=1: every level and layer too, as -l<level>-s<layer>.
-        if (std::getenv("BBHOST_DUMP_TEXTURE_LEVELS")) {
+        // HELIAS_DUMP_TEXTURE_LEVELS=1: every level and layer too, as -l<level>-s<layer>.
+        if (std::getenv("HELIAS_DUMP_TEXTURE_LEVELS")) {
             for (std::uint32_t lv = 0; lv < 16; ++lv) {
                 for (std::uint32_t ly = 0; ly < 6; ++ly) {
                     char q[128];
@@ -15912,7 +15924,7 @@ std::uint8_t tone8(float v) {
 }  // namespace
 
 // The largest finite value of each colour channel of a float target
-// (RGBA16F or R11G11B10); waits for the GPU. BBHOST_TRACE_TARGET's readback.
+// (RGBA16F or R11G11B10); waits for the GPU. HELIAS_TRACE_TARGET's readback.
 bool gpu::rt_float_max_locked(RtImage& r, float* out3) {
     const bool half4 = r.format == VK_FORMAT_R16G16B16A16_SFLOAT;
     if (r.depth || (!half4 && r.format != VK_FORMAT_B10G11R11_UFLOAT_PACK32)) return false;
@@ -16214,7 +16226,7 @@ std::string host_gpu_ps_wave_report() { return gpu::ps_wave_census(true); }
 
 bool host_gpu_draw_window(std::uint64_t dst, const void* data, std::uint32_t bytes) {
     static const bool gpu_writes = [] {
-        const char* e = std::getenv("BBHOST_YEBIS_WINDOWS");
+        const char* e = std::getenv("HELIAS_YEBIS_WINDOWS");
         return e && std::strcmp(e, "gpu") == 0;
     }();
     if (gpu_writes || !bytes || bytes > (64u << 10) || !hle_kernel_va_mapped(dst, bytes)) return false;

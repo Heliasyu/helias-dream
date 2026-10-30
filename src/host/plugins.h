@@ -1,7 +1,7 @@
 // Plugins: shared libraries in <exe dir>/plugins and
-// <data>/plugins that get the C API in include/bbhost_plugin.h. Two phases:
+// <data>/plugins that get the C API in include/heliasdream_plugin.h. Two phases:
 // before the eboot is loaded (log, config, register_hle) and after it is
-// loaded and patched (read, write, patch, hook). BBHOST_PLUGINS=0 loads
+// loaded and patched (read, write, patch, hook). HELIAS_PLUGINS=0 loads
 // none.
 #pragma once
 
@@ -24,7 +24,7 @@ void plugins_event_flag(unsigned id, bool value);
 #include <string>
 #include <vector>
 
-// One setting a plugin declares (bbhost_plugin.h BbOption), copied.
+// One setting a plugin declares (heliasdream_plugin.h BbOption), copied.
 struct PluginOptionDesc {
     std::uint32_t type = 0;  // BB_OPT_*, without BB_OPT_LIVE
     bool live = false;       // takes effect at once in game

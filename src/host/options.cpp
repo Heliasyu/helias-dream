@@ -1,12 +1,18 @@
 #include "host/options.h"
 #include "host/updater.h"
 #include "host/settings.h"
+#include "host/upscaler_presets.h"
+#include "host/menu_i18n.h"
 
 #include "host/bindings.h"
 #include "host/overlay.h"
 #include "host/window.h"
 #include "core/config.h"
+#include "core/host_clock.h"
 #include "engine/live_resolution.h"
+#include "engine/menu_pointer.h"
+#include "engine/scene_split.h"
+#include "host/dlss_pass.h"
 #include "hle/modules.h"
 #include "hle/np.h"
 #include "net/account.h"
@@ -17,14 +23,17 @@
 #include <atomic>
 #include <chrono>
 #include <fstream>
+#include <iterator>
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
+#include <cctype>
 #include <cstring>
 #include <string>
 #include <mutex>
 #include <thread>
 #include <utility>
+#include <deque>
 #include <vector>
 
 #if defined(_WIN32)
@@ -32,7 +41,7 @@
 #include <windows.h>
 #endif
 
-#if defined(BBHOST_HAVE_SDL3)
+#if defined(HELIAS_HAVE_SDL3)
 #include <SDL3/SDL.h>
 #endif
 
@@ -52,6 +61,15 @@ struct Setting {
     const char* note = nullptr;      // shown under the row when it is selected
     bool restart = false;            // takes effect on the next run
 };
+
+// "lo", "lo+1" .. "hi": a setting in steps of one (HDR's nits). The strings
+// live as long as the program.
+std::vector<const char*> number_labels(int lo, int hi) {
+    static std::deque<std::string> kept;
+    std::vector<const char*> out;
+    for (int v = lo; v <= hi; ++v) out.push_back(kept.emplace_back(std::to_string(v)).c_str());
+    return out;
+}
 
 enum SettingId {
     kWindowMode,
@@ -88,7 +106,7 @@ enum SettingId {
     kChangeAppearance,
     kRebirth,
     kFivePlayers,
-    // bbhost-vk (docs/vk/PLAN.md): the upscaler and its debug views. Phase 0
+    // heliasdream-vk (docs/vk/PLAN.md): the upscaler and its debug views. Phase 0
     // saves and shows them; nothing renders differently yet (host/upscaler.h).
     kUpscaler,
     kUpscaleQuality,
@@ -103,6 +121,44 @@ enum SettingId {
     kAdaptiveTriggers,
     kTriggerStrength,
     kMenuHaptics,
+    // engine/live_resolution.h: read once at the start.
+    kLiveResolution,
+    // Helia's Dream: the FPS counter's look, the picture's grade, HDR, the menu's key.
+    kFpsPosition,
+    kFpsSize,
+    kFpsColour,
+    kFpsOpacity,
+    kFpsBackground,
+    kFpsBackgroundOpacity,
+    kFpsBorder,
+    kFpsShowRate,
+    kFpsShowFrameTime,
+    kFpsShowUpscaler,
+    kFpsShowCpu,
+    kFpsShowGpu,
+    kBrightness,
+    kContrast,
+    kHue,
+    kHdr,
+    kHdrPaperWhite,
+    kHdrPeakAuto,
+    kHdrPeak,
+    kHdrBoost,
+    kMenuKey,
+    kTrophyPopups,
+    kMipBias,
+    kPadIcons,
+    kCompileNote,
+    kGameLanguage,
+    kMenuLanguage,
+    kHdrUi,
+    // More > Performance (experimental): HELIAS_SUBMIT_SPLIT as a setting.
+    kSubmitSplit,
+    // More > Performance (experimental): Lantern Engine's "Graphics threads
+    // first" and "Sharper motion (FSR 4)", as ours (core/host_clock.h,
+    // host/fsr4v07_pass.h).
+    kThreadPriority,
+    kFsr4SharpMotion,
     // rc2: vk.1's present_pace and post_at_render switches are gone: those
     // are permanent (env vars for debugging only); a saved key is ignored.
     kSettingCount,
@@ -125,7 +181,7 @@ struct Row {
 
 Setting g_set[kSettingCount] = {
     {"window_mode", "Window mode", {"Windowed", "Fullscreen"}, 0,
-     "Fullscreen is borderless: the desktop resolution, no mode switch.", false},
+     "Fullscreen is a borderless window over the whole display: the desktop resolution, no mode switch, and overlays and pop-ups show over it.", false},
     {"vsync", "V-Sync", {"On", "Off"}, 0,
      "Off presents as soon as a frame is ready, and can tear.", false},
     // The game's own pace (engine/frame_rate.h), the same five the game's Frame
@@ -163,9 +219,9 @@ Setting g_set[kSettingCount] = {
     // angle a count at each step (engine/mouse_camera.h), 5 its default.
     {"mouse_sens", "Mouse sensitivity", {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10"}, 5,
      "How far a given mouse movement turns the camera.", false},
-    {"mouse_invert_x", "Mouse X-axis", {"Off", "On"}, 0,
+    {"mouse_invert_x", "Invert mouse X", {"Off", "On"}, 0,
      "Reverses the mouse's horizontal camera movement.", false},
-    {"mouse_invert_y", "Mouse Y-axis", {"Off", "On"}, 0,
+    {"mouse_invert_y", "Invert mouse Y", {"Off", "On"}, 0,
      "Reverses the mouse's vertical camera movement.", false},
     // Off by default: with the mouse the camera stays where it is put, as
     // the community's "Disable Camera Auto Rotation" patch has it - but only
@@ -191,8 +247,8 @@ Setting g_set[kSettingCount] = {
     // test7: Auto (the default) is Off while FSR 4.1.1 upscales - it
     // smooths edges itself, and the game's AA pass costs ~0.35 ms at 4K -
     // and On otherwise (FSR 3.1, FSR 1, native, or FSR 4.1.1 not running).
-    {"anti_alias", "Anti-aliasing", {"On", "Off", "Auto"}, 2,
-     "The game's own AA pass. Auto: off while FSR 4.1.1 upscales (a quality below Native AA: it smooths edges itself), on otherwise.", false},
+    {"anti_alias", "Game anti-aliasing", {"On", "Off", "Auto"}, 2,
+     "The game's own AA pass. Auto: off while FSR 4.1.1, FSR 4 or DLSS upscales (a quality below Native AA: they smooth edges themselves) and with Native TAA, on otherwise.", false},
     {"depth_of_field", "Depth of field", {"On", "Off"}, 0,
      "Blurs distant scenery; indoors there is rarely anything far enough to blur.", false},
     {"chromatic_aberration", "Chromatic aberration", {"On", "Off"}, 0,
@@ -242,7 +298,7 @@ Setting g_set[kSettingCount] = {
      "The three logos before the title screen, and the warning that the last session did not end with Exit Game.", true},
     // The old switch for the developers' debug menu, which the Debug Menu
     // plugin replaced (engine/debug_menu.h): no row shows it, and an "On" an
-    // older bbhost saved turns the plugin on once (main.cpp).
+    // older heliasdream saved turns the plugin on once (main.cpp).
     {"debug_menu", "Debug menu", {"Off", "On"}, 0, "Replaced by the Debug Menu plugin.", true},
     // Lance McDonald's "Restore Debug Camera" (patches/debug-camera.toml). Its
     // code takes the place of a debug-only load-test step, so the debug menu's
@@ -251,7 +307,7 @@ Setting g_set[kSettingCount] = {
      "Hold Interact (E) and press L3 (Left Ctrl) to cycle the free camera's modes.", true},
     // The PC enhancements: additions to the game itself, each read once at
     // start (main.cpp hands them to config_set_enhancements), all on unless
-    // bbhost.toml's [world] says otherwise. Off, all three, is the game as it
+    // HeliasDream.toml's [world] says otherwise. Off, all three, is the game as it
     // shipped. (The Old Hunters, a fourth in v0.2.9, is the patch old-hunters.)
     {"change_appearance", "Hunter's Dream mirror", {"On", "Off"}, 0,
      "The Dream's mirror opens the appearance editor (the unused \"Put on Disguise\").", true},
@@ -259,35 +315,34 @@ Setting g_set[kSettingCount] = {
      "With the Yharnam Stone, the Altar of Despair resets level and attributes.", true},
     {"five_players", "Five players", {"On", "Off"}, 0,
      "Two invaders in Mensis, Mergo's Loft, the Frontier and the DLC; all players need it.", true},
-    // bbhost-vk's upscaler (host/upscaler.h). FSR 1 is what bbhost always did:
+    // heliasdream-vk's upscaler (host/upscaler.h). FSR 1 is what heliasdream always did:
     // the presenter's EASU + RCAS when the game renders smaller than the
     // window (host/fsr.cpp). Phase 1: with an upscaler on, the quality renders the
     // scene smaller than the output (engine/scene_split.h).
-    {"upscaler", "Upscaler", {"Off", "FSR 1", "FSR 3.1", "FSR 4.1.1"}, 1,
-     "FSR 1 is bbhost's own. FSR 3.1 is temporal: it upscales the 3D scene from Upscaling quality's size using motion vectors (falls back to a bilinear copy if it cannot start). FSR 4.1.1 replays AMD's 4.1.1 upscaler from assets built once from your own DLL (tools/fsr4cap); without them it is FSR 3.1.",
-     true},
+    {"upscaler", "Upscaler", {"Off", "FSR 1", "FSR 3.1", "FSR 4.1.1", "Native TAA", "FSR 4", "DLSS"}, 1,
+     "FSR 1 is simple and light. FSR 3.1 is temporal, from Upscaling quality's size. FSR 4 and FSR 4.1.1 are AMD's machine-learning upscalers, sharper; they need their assets (the launcher sets them up), else FSR 3.1 runs. Native TAA is anti-aliasing at the full resolution. DLSS needs an NVIDIA RTX GPU and applies from the next start; elsewhere FSR 3.1 runs.",
+     false},
     // Output size / render size: 1.0, 1.5, 1.7, 2.0, 3.0 (AMD's presets).
     {"upscale_quality", "Upscaling quality",
      {"Native AA", "Quality", "Balanced", "Performance", "Ultra Performance"}, 0,
-     "Render scale for FSR 3.1 / 4.1.1: Native AA 100%, Quality 67%, Balanced 58%, Performance 50%, Ultra Performance 33%. "
-     "The 3D scene renders at this share of the Resolution setting; menus, text and post-processing stay at the Resolution. Native AA (and Upscaler Off) is stock. "
-     "Changes live, a moment after the menu closes.",
+     "The 3D scene's share of the Resolution: Native AA 100%, Quality 67%, Balanced 58%, Performance 50%, Ultra Performance 33%. "
+     "Menus and text stay at the Resolution. Changes live, a moment after the menu closes.",
      false},
     // 0..1 like FSR 3's sharpness; 0.8 is RCAS at 0.2 stops, what FSR 1 uses.
     {"upscale_sharpness", "Upscaling sharpness", {"0.0", "0.1", "0.2", "0.3", "0.4", "0.5", "0.6", "0.7", "0.8", "0.9", "1.0"}, 8,
-     "How much FSR 3.1 and FSR 4.1.1 sharpen (0 turns it off). 0.8 matches FSR 1 as bbhost ships it; FSR 1 itself keeps its own sharpening.", false},
-    // bbhost-vk Phase 3: the reactive mask (host/temporal_inputs.h).
+     "How much the temporal upscalers sharpen (0 turns it off). 0.8 matches FSR 1's own.", false},
+    // heliasdream-vk Phase 3: the reactive mask (host/temporal_inputs.h).
     {"upscale_reactive", "Upscaler reactive mask", {"Off", "On"}, 1,
      "FSR 3.1: marks particles, fog, Blood Echoes, the lantern's glow and other transparent effects so they do not smear or ghost. Off for comparison.",
      false},
-    // bbhost-vk: the scene's sub-pixel jitter (host/temporal_inputs.h), for testers.
+    // heliasdream-vk: the scene's sub-pixel jitter (host/temporal_inputs.h), for testers.
     {"upscale_jitter", "Upscaler jitter", {"Off", "On"}, 1,
-     "FSR 3.1 / 4.1.1: the 3D scene shifts by a fraction of a pixel each frame so the upscaler can rebuild detail. Off for comparison (a softer, more aliased picture); FSR 1 and Off never jitter.",
+     "The 3D scene shifts by a fraction of a pixel each frame so a temporal upscaler can rebuild detail. Off for comparison: a softer, more aliased picture.",
      false},
     {"debug_motion_vectors", "Show motion vectors", {"Off", "On"}, 0,
-     "Debug: draws the scene's motion vectors over the picture - red/green how far a pixel moved sideways/up-down, blue where a moving object (not the camera) moved it, dark where there is no camera. Needs the scene/UI split; computes motion vectors even with no temporal upscaler.", false},
+     "Debug: draws the scene's motion vectors over the picture (red and green: sideways and up-down movement; blue: moving objects).", false},
     {"debug_upscaler_time", "Show upscaler GPU time", {"Off", "On"}, 0,
-     "Debug: the GPU time of FSR 3.1's dispatch and of the presenter's passes (the upscale, the whole present) under the FPS counter, and in the log.",
+     "Debug: the upscaler's and the presenter's GPU time under the FPS counter, and in the log.",
      false},
     // The controller (host/haptics.h).
     {"haptics", "Haptics", {"Off", "Rumble", "HD"}, 2,
@@ -306,6 +361,94 @@ Setting g_set[kSettingCount] = {
      "HD: a light tap as the cursor moves through the title menu, the pause menu, the inventory and the System menu, "
      "and a firmer one for a decide or back.",
      false},
+    // On: the Resolution setting applies in the game (engine/live_resolution.h). What it costs
+    // is memory set aside at the start for the largest display's size - display buffers and
+    // the render-target heap - and, when the game starts below that size, buffers larger than
+    // the picture that are cleared every frame. Off sizes everything for the starting
+    // resolution; a change applies at the next start.
+    {"live_resolution", "Live resolution change", {"On", "Off"}, 0,
+     "On: a new Resolution applies in the game. Off: it applies at the next start, and the memory and buffers kept "
+     "ready for larger sizes are not set aside (a little faster when the game runs below your display's size).",
+     true},
+    // The FPS counter (host/window.cpp): where, how large, its colours, and what it shows.
+    {"fps_position", "Position", {"Top right", "Top left", "Bottom right", "Bottom left", "Top centre"}, 0,
+     "Where the FPS counter sits on the screen.", false},
+    {"fps_size", "Size", {"75%", "100%", "125%", "150%", "175%", "200%"}, 1, "How large the FPS counter's text is.", false},
+    {"fps_colour", "Text colour", {"White", "Yellow", "Green", "Cyan", "Red", "Orange", "Pink", "Black"}, 0,
+     "The FPS counter's text colour.", false},
+    {"fps_opacity", "Text opacity", {"10%", "20%", "30%", "40%", "50%", "60%", "70%", "80%", "90%", "100%"}, 9, "How solid the FPS counter's text is.", false},
+    {"fps_background", "Background", {"Dark grey", "Black", "Dark red", "Dark blue", "White"}, 0,
+     "The colour of the box behind the FPS counter.", false},
+    {"fps_background_opacity", "Background opacity", {"0%", "10%", "20%", "30%", "40%", "50%", "60%", "70%", "80%", "90%", "100%"}, 6, "How solid the box behind the FPS counter is; 0% hides it.", false},
+    {"fps_border", "Border", {"Off", "On"}, 0, "A thin outline round the FPS counter's box.", false},
+    {"fps_show_rate", "Show frame rate", {"On", "Off"}, 0, "Frames per second actually shown.", false},
+    {"fps_show_frame_time", "Show frame time", {"Off", "On"}, 0, "Milliseconds a frame, averaged like the rate.", false},
+    {"fps_show_upscaler", "Show upscaler", {"Off", "On"}, 0, "The upscaler and quality preset running.", false},
+    {"fps_show_cpu", "Show CPU usage", {"Off", "On"}, 0, "How much of the CPU the game uses (100% is every core).", false},
+    {"fps_show_gpu", "Show GPU usage", {"On", "Off"}, 0, "How busy the game keeps the GPU.", false},
+    // The picture's grade, at the presenter (host/present_pass.cpp): the game's
+    // picture only, the menus and counter as they are.
+    {"brightness", "Brightness", {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10"}, 5,
+     "The picture's brightness. 5 is the game's own; each step is about 10% lighter or darker.", false},
+    {"contrast", "Contrast", {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10"}, 5,
+     "The picture's contrast around mid grey. 5 is the game's own.", false},
+    {"hue", "Hue shift", {"-180", "-165", "-150", "-135", "-120", "-105", "-90", "-75", "-60", "-45", "-30", "-15", "0", "15", "30", "45", "60", "75", "90", "105", "120", "135", "150", "165", "180"}, 12, "Turns every colour round the colour wheel, in degrees. 0 is the game's own.", false},
+    // HDR output (host/window.cpp's swapchain, host/present_pass.cpp's encode):
+    // the game's SDR frame on an HDR10 display, its highlights expanded.
+    {"hdr", "HDR output", {"Off", "On"}, 0,
+     "The picture on an HDR screen in HDR10, with brighter highlights. Needs HDR turned on for the display in your "
+     "desktop's settings (KDE: Display Configuration).",
+     false},
+    {"hdr_paper_white", "Paper white", number_labels(10, 500), 190, "How bright the game's white is on an HDR screen, in nits.", false},
+    {"hdr_peak_auto", "Peak from the display", {"On", "Off"}, 0,
+     "On: the peak brightness the display reports (its EDID). Off: Peak brightness below.", false},
+    {"hdr_peak", "Peak brightness", number_labels(10, 4000), 990,
+     "Your display's peak brightness, in nits, when it is not taken from the display.", false},
+    {"hdr_boost", "Highlight boost", {"Off", "Low", "Medium", "High", "Max"}, 1,
+     "How far the brightest parts of the picture (lamps, fire, the moon) rise above paper white. Off keeps the SDR look.", false},
+    // The key that opens this menu (host/window.cpp reads it).
+    {"menu_key", "Menu key", {"F10", "Insert", "Home", "F1"}, 0, "The key that opens this menu. F10 always works too.", false},
+    {"trophy_popups", "Trophy pop-ups", {"On", "Off"}, 0,
+     "A card in the top right corner when you earn a trophy, with its grade and your progress.", false},
+    // The samplers' LOD bias (host/textures.cpp): with the scene rendered below
+    // the output, textures fall to smaller mips sooner than they would at the
+    // output's size; Auto puts back what the render scale took (log2 of it).
+    {"mip_bias", "Texture detail", {"Auto", "-2.0", "-1.5", "-1.0", "-0.5", "0.0", "+0.5", "+1.0"}, 5,
+     "The texture sharpness bias. Auto matches the upscaler's render scale (sharper textures when upscaling; can shimmer). "
+     "0.0 is the game's own; below 0 sharper, above 0 softer.",
+     false},
+    // engine/key_prompts.h: with a controller's icons showing, the game's own
+    // (PlayStation) or an Xbox pad's buttons by name. Auto follows the pad.
+    {"pad_icons", "Controller icons", {"Auto", "PlayStation", "Xbox"}, 0,
+     "The button icons a controller's prompts show. Auto: PlayStation's with a PlayStation controller, the Xbox buttons by name with any other.", false},
+    // host/window.cpp's pump: a small note under the FPS counter's corner while
+    // a frame waits on a pipeline compile (perf::compiling_recently).
+    {"compile_note", "Building shaders note", {"On", "Off"}, 0,
+     "\"Building shaders\" in a corner while the game builds shaders for something it shows for the first time (a brief stutter is normal then).", false},
+    // hle/system.cpp's SCE_SYSTEM_SERVICE_PARAM_ID_LANG: the game's text and
+    // voices in that language (the disc carries their message bundles).
+    {"game_language", "Game language", {"English", "French", "Spanish", "German", "Italian", "Russian", "Japanese"}, 0,
+     "The game's own text and voices. Takes effect at the next start.", true},
+    // host/menu_i18n.h: this menu's own language; each language by its own name.
+    {"menu_language", "Menu language", {"English", "Русский", "Español", "Português (Brasil)", "Français", "Deutsch", "Italiano", "Polski", "Türkçe"}, 0,
+     "The language of this menu. The game's own text follows Game language.", false},
+    // host/hdr_ui.h: HDR with the UI told apart from the picture, at this
+    // brightness (times paper white); the first value leaves it expanded.
+    {"hdr_ui_brightness", "UI brightness",
+     {"Like the picture", "50%", "60%", "70%", "80%", "90%", "100%", "110%", "120%", "130%", "140%", "150%", "160%", "170%", "180%", "190%", "200%"}, 0,
+     "HDR: the HUD, menus and subtitles at this share of paper white, kept out of the highlight boost. Like the picture: they are boosted as the rest.", false},
+    // test7's HELIAS_SUBMIT_SPLIT (host/gpu.cpp submit_split_point): every n-th
+    // draw, if the GPU has run dry, the recording so far is submitted mid-job.
+    // Live; the env var wins. Launcher only (More > Performance), no F10 row.
+    {"submit_split", "Submit split", {"Off", "32", "64", "128", "256"}, 0,
+     "Experimental: every N draws, if the GPU has nothing left to do, hand it the work recorded so far instead of waiting for the job's end.", false},
+    // core/host_clock.h host_threads_set_priority. Live. Launcher only.
+    {"thread_priority", "Graphics threads first", {"Off", "On"}, 0,
+     "Experimental: the engine's graphics threads and the game's main and render threads run at a higher CPU priority than its other threads.", false},
+    // host/fsr4v07_pass.h: Performance and Ultra Performance use FSR 4's
+    // balanced model. Live (the context is remade). Launcher only.
+    {"fsr4_sharp_motion", "Sharper motion (FSR 4)", {"Off", "On"}, 0,
+     "Experimental: FSR 4 uses its balanced model at Performance and Ultra Performance - fewer trails behind moving characters, a little more GPU time.", false},
 };
 
 // rc2: fewer sections, by what a setting is about (vk1-dream's F10 report:
@@ -318,29 +461,58 @@ const Row g_rows[] = {
     {Row::Option, nullptr, kWindowMode},
     {Row::Option, nullptr, kVsync},
     {Row::Option, nullptr, kFrameCap},
+    {Row::Option, nullptr, kLiveResolution},
+    {Row::Option, nullptr, kMenuKey},
+    {Row::Header, "FPS COUNTER"},
+    {Row::Option, nullptr, kFpsCounter},
+    {Row::Option, nullptr, kFpsPosition},
+    {Row::Option, nullptr, kFpsSize},
+    {Row::Option, nullptr, kFpsColour},
+    {Row::Option, nullptr, kFpsOpacity},
+    {Row::Option, nullptr, kFpsBackground},
+    {Row::Option, nullptr, kFpsBackgroundOpacity},
+    {Row::Option, nullptr, kFpsBorder},
+    {Row::Option, nullptr, kFpsShowRate},
+    {Row::Option, nullptr, kFpsShowFrameTime},
+    {Row::Option, nullptr, kFpsShowUpscaler},
+    {Row::Option, nullptr, kFpsShowCpu},
+    {Row::Option, nullptr, kFpsShowGpu},
+    {Row::Option, nullptr, kCompileNote},
+    {Row::Header, "HDR"},
+    {Row::Option, nullptr, kHdr},
+    {Row::Option, nullptr, kHdrPaperWhite},
+    {Row::Option, nullptr, kHdrPeakAuto},
+    {Row::Option, nullptr, kHdrPeak},
+    {Row::Option, nullptr, kHdrBoost},
+    {Row::Option, nullptr, kHdrUi},
+    {Row::Header, "UPSCALING"},
     {Row::Option, nullptr, kUpscaler},
     {Row::Option, nullptr, kUpscaleQuality},
     {Row::Option, nullptr, kUpscaleSharpness},
     {Row::Option, nullptr, kUpscaleReactive},
     {Row::Option, nullptr, kUpscaleJitter},
-    {Row::Option, nullptr, kFpsCounter},
-    {Row::Header, "GRAPHICS & EFFECTS"},
+    {Row::Option, nullptr, kAntiAlias},
+    {Row::Option, nullptr, kMipBias},
+    {Row::Header, "GRAPHICS"},
+    {Row::Option, nullptr, kSsao},
     {Row::Option, nullptr, kMotionBlur},
     {Row::Option, nullptr, kDepthOfField},
     {Row::Option, nullptr, kChromaticAberration},
+    {Row::Option, nullptr, kVignette},
     {Row::Option, nullptr, kBloom},
     {Row::Option, nullptr, kFog},
-    {Row::Option, nullptr, kAntiAlias},
-    {Row::Option, nullptr, kSsao},
     {Row::Option, nullptr, kAoStrength},
-    {Row::Option, nullptr, kVignette},
     {Row::Option, nullptr, kSaturation},
+    {Row::Option, nullptr, kBrightness},
+    {Row::Option, nullptr, kContrast},
+    {Row::Option, nullptr, kHue},
     {Row::Option, nullptr, kShadowDistance},
     {Row::Option, nullptr, kModelDetail},
-    {Row::Header, "CAMERA & CONTROLS"},
+    {Row::Header, "CAMERA"},
     {Row::Option, nullptr, kFov},
     {Row::Option, nullptr, kCameraDistance},
     {Row::Option, nullptr, kCameraHeight},
+    {Row::Header, "CONTROLS"},
     {Row::Option, nullptr, kMouseMenu},
     {Row::Option, nullptr, kMouseCamera},
     {Row::Option, nullptr, kMouseSens},
@@ -349,6 +521,7 @@ const Row g_rows[] = {
     {Row::Option, nullptr, kMouseAutoRotation},
     {Row::Option, nullptr, kDrawCursor},
     {Row::Option, nullptr, kButtonPrompts},
+    {Row::Option, nullptr, kPadIcons},
     {Row::Header, "CONTROLLER"},
     {Row::Option, nullptr, kHaptics},
     {Row::Option, nullptr, kHapticsStrength},
@@ -360,10 +533,13 @@ const Row g_rows[] = {
     {Row::Option, nullptr, kRebirth},
     {Row::Option, nullptr, kFivePlayers},
     {Row::Option, nullptr, kSkipLogos},
+    {Row::Option, nullptr, kTrophyPopups},
+    {Row::Option, nullptr, kGameLanguage},
+    {Row::Option, nullptr, kMenuLanguage},
     // The private server's account. No passwords: link this PC to
     // the account signed into on the website with Discord, or make one held
     // by this PC with a recovery code. The token is kept in the options file.
-    {Row::Header, "ONLINE & ACCOUNT"},
+    {Row::Header, "ONLINE"},
     {Row::Info, nullptr, -1, 0},
     {Row::Info, nullptr, -1, 1},
     {Row::Action, "Link with Discord", -1, 0},
@@ -390,7 +566,8 @@ int g_sel = 1;  // the first selectable row
 // Where each row was drawn last frame, so the pointer hit-tests what it sees
 // rather than what the layout would be at some other display size.
 float g_row_y[kRowCount] = {};
-float g_row_h = 0.0f, g_row_x = 0.0f, g_row_w = 0.0f;
+float g_row_h = 0.0f;
+float g_row_xs[kRowCount] = {}, g_row_ws[kRowCount] = {};  // each row's left and width (two columns)
 // And where an option row's value was: from just left of its "<" (g_row_vl)
 // to its middle (g_row_vm) is the side a click steps back on.
 float g_row_vl[kRowCount] = {}, g_row_vm[kRowCount] = {};
@@ -398,9 +575,23 @@ bool g_laid_out = false;
 bool g_dirty = false;  // something changed since the last save
 
 // What every setting starts with: the table's own indices, taken before
-// anything is loaded over them, then whatever bbhost.toml sets for it - the
+// anything is loaded over them, then whatever HeliasDream.toml sets for it - the
 // frame cap, the logos, and a package's resolution and window mode (the
 // Steam Deck kit's) - so the menus' Defaults go back to those.
+// The table is indexed by SettingId: its entries must be in the enum's order.
+// A few checked here, so an entry put in the wrong place fails at once.
+const bool g_table_order_ok = [] {
+    const auto at = [](int id, const char* key) {
+        if (std::strcmp(g_set[id].key, key) == 0) return true;
+        std::fprintf(stderr, "options: g_set[%d] is \"%s\", not \"%s\" - the table and SettingId disagree\n", id, g_set[id].key, key);
+        std::abort();
+    };
+    return at(kUpscaler, "upscaler") && at(kHaptics, "haptics") && at(kHdr, "hdr") && at(kMipBias, "mip_bias") && at(kPadIcons, "pad_icons") &&
+           at(kCompileNote, "compile_note") && at(kGameLanguage, "game_language") && at(kMenuLanguage, "menu_language") &&
+           at(kHdrUi, "hdr_ui_brightness") && at(kSubmitSplit, "submit_split") &&
+           at(kThreadPriority, "thread_priority") && at(kFsr4SharpMotion, "fsr4_sharp_motion");
+}();
+
 std::array<int, kSettingCount> g_default_index = [] {
     std::array<int, kSettingCount> a{};
     for (int id = 0; id < kSettingCount; ++id) a[static_cast<std::size_t>(id)] = g_set[id].index;
@@ -419,6 +610,118 @@ bool selectable(int r) {
     return r >= 0 && r < kRowCount && g_rows[r].kind != Row::Header && g_rows[r].kind != Row::Info;
 }
 
+// The sections: each header row starts one, shown as a tab.
+int g_sections[16];
+int g_section_count = [] {
+    int n = 0;
+    for (int r = 0; r < kRowCount && n < 16; ++r)
+        if (g_rows[r].kind == Row::Header) g_sections[n++] = r;
+    return n;
+}();
+int g_section_sel[16] = {};  // the row last selected in each section
+
+int section_of(int r) {
+    int s = 0;
+    for (int i = 0; i < g_section_count; ++i)
+        if (g_sections[i] <= r) s = i;
+    return s;
+}
+
+// The notes of the action rows (by field: 0..4 the account's, 10.. the
+// updates'), and the key guide: file scope, so --menu-strings lists them.
+const char* const kNotes[] = {
+    "Shows a code and opens the website: sign in there with Discord and approve it.",
+    "Makes an account held by this PC under the name above; write down its recovery code.",
+    "The name and recovery code above give this PC the account back (other PCs are signed out).",
+    "A one-time code to sign in on the website's account page with this PC's account.",
+    "Forgets the token; the game is signed out if the server requires an account.",
+};
+const char* const kUpdateNotes[] = {
+    "Asks GitHub for the newest release.",
+    "Opens the newer release's page in your browser, to download it from there.",
+};
+const char* const kKeys[][2] = {
+    {"Up / Down", "move"}, {"Left / Right", "change"}, {"Q / E", "section"}, {"Enter", "toggles"}, {"Esc / F10", "closes"}};
+// The menu's other words.
+const char* const kOtherStrings[] = {"Settings apply live in the game", "(type here)", "RESTART", "Saves on close.",
+                                     "Enter or click to type; Enter keeps it, Escape drops it.", "Fullscreen (borderless)"};
+
+// A tab's name: the header's words, capitalised as a title.
+const char* section_name(int s) {
+    static std::string names[16];
+    std::string& n = names[s];
+    if (n.empty()) {
+        const char* h = g_rows[g_sections[s]].text;
+        bool start = true;
+        for (const char* c = h; *c; ++c) {
+            const char ch = *c;
+            n += start ? ch : static_cast<char>(std::tolower(static_cast<unsigned char>(ch)));
+            start = ch == ' ';
+        }
+        if (n == "Fps counter") n = "FPS Counter";
+        if (n == "Hdr") n = "HDR";
+    }
+    return menu_tr(n.c_str());
+}
+
+// Up and Down: the next selectable row inside the section, round its end.
+void move_in_section(int step) {
+    const int s = section_of(g_sel);
+    const int first = g_sections[s] + 1, end = s + 1 < g_section_count ? g_sections[s + 1] : kRowCount;
+    const int n = end - first;
+    if (n <= 0) return;
+    int r = g_sel;
+    for (int i = 0; i < n; ++i) {
+        r = first + ((r - first + step) % n + n) % n;
+        if (selectable(r)) { g_sel = r; break; }
+    }
+    g_section_sel[s] = g_sel;
+}
+
+// A tab: the row last chosen there, else its first selectable one.
+void go_section(int s) {
+    s = ((s % g_section_count) + g_section_count) % g_section_count;
+    g_section_sel[section_of(g_sel)] = g_sel;
+    const int first = g_sections[s] + 1, end = s + 1 < g_section_count ? g_sections[s + 1] : kRowCount;
+    int r = g_section_sel[s];
+    if (r < first || r >= end || !selectable(r)) {
+        r = first;
+        while (r < end && !selectable(r)) ++r;
+    }
+    if (r < end) g_sel = r;
+}
+
+// The controller's selected setting (host_options_pad): the row whose value
+// takes Left and Right, -1 for none. Only while it is still the row selected
+// (the pointer may have moved the selection), and cleared by moving off it, a
+// tab, back, a key, or closing.
+int g_pad_edit_row = -1;
+bool pad_editing() { return g_pad_edit_row >= 0 && g_pad_edit_row == g_sel; }
+
+// Left / Right while browsing: the row level with this one in the column on
+// that side, as the last frame laid them out.
+void move_across(int dir) {
+    const int s = section_of(g_sel);
+    const int first = g_sections[s] + 1, end = s + 1 < g_section_count ? g_sections[s + 1] : kRowCount;
+    const float cx = g_row_xs[g_sel], cy = g_row_y[g_sel];
+    int best = -1;
+    float best_d = 1e9f;
+    for (int r = first; r < end; ++r) {
+        if (r == g_sel || !selectable(r) || g_row_y[r] < -9000.0f) continue;
+        const float dx = g_row_xs[r] - cx;
+        if (dir > 0 ? dx < 1.0f : dx > -1.0f) continue;
+        const float d = std::fabs(g_row_y[r] - cy) + std::fabs(dx) * 0.01f;
+        if (d < best_d) {
+            best_d = d;
+            best = r;
+        }
+    }
+    if (best >= 0) {
+        g_sel = best;
+        g_section_sel[s] = g_sel;
+    }
+}
+
 // Whether the resolution entry `index` changes while the game runs. One past
 // what this run's render-target heap was grown for at its start (5120x2160
 // after a smaller start) applies on the next run like any restart setting.
@@ -426,6 +729,23 @@ bool res_live(int index) {
     unsigned w = 0, h = 0;
     return live_resolution_available() && std::sscanf(g_set[kResolution].values[static_cast<std::size_t>(index)], "%ux%u", &w, &h) == 2 &&
            live_resolution_can(w, h);
+}
+
+// Whether the value `index` of setting `id` waits for the next start - the
+// row's RESTART badge. Resolution: past what this run's heap was grown for.
+// Upscaler and Upscaling quality change live, except into a split scene when
+// the run started unsplit (its display buffers are not the output's size)
+// and into DLSS when the device was made without NGX's extensions.
+bool waits_for_restart(int id, int index) {
+    if (id == kResolution) return g_set[id].restart && !res_live(index);
+    if (id == kUpscaler || id == kUpscaleQuality) {
+        const int up = id == kUpscaler ? index : g_set[kUpscaler].index;
+        const int quality = id == kUpscaleQuality ? index : g_set[kUpscaleQuality].index;
+        if (up == upscaler::kDlss && !gpu::dlss_device_ready()) return true;
+        const bool splits = up != 0 && (quality > 0 || up == upscaler::kTaa);
+        return splits && !scene_split_live();
+    }
+    return g_set[id].restart;
 }
 
 // The account rows. The fields are typed through the window's text entry
@@ -621,21 +941,21 @@ int fps_index(int fps) {
 }
 
 std::string options_path() {
-    // BBHOST_OPTIONS_PATH: a file of its own, so a scripted test that changes
+    // HELIAS_OPTIONS_PATH: a file of its own, so a scripted test that changes
     // settings (tools/menu_drive.sh) never writes the player's.
-    if (const char* e = std::getenv("BBHOST_OPTIONS_PATH"); e && e[0]) {
+    if (const char* e = std::getenv("HELIAS_OPTIONS_PATH"); e && e[0]) {
         return e;
     }
     // The per-user folder (config_user_dir), beside the per-user config: the
-    // F10 settings and the account outlive any copy of bbhost. A --config is a
-    // profile with a file of its own (bbhost-options-<name>.toml), so a dev
+    // F10 settings and the account outlive any copy of heliasdream. A --config is a
+    // profile with a file of its own (HeliasDream-options-<name>.toml), so a dev
     // server's account never mixes with the live one's. The file from before
     // (beside that config, or the config a package or tree used, or in the
     // working directory) is copied over the first time: nobody is signed out.
     static const std::string path = [] {
         const HostConfig& c = config();
         const std::string mine = config_user_dir() + "/" +
-                                 (c.profile.empty() ? std::string("bbhost-options.toml") : "bbhost-options-" + c.profile + ".toml");
+                                 (c.profile.empty() ? std::string("HeliasDream-options.toml") : "HeliasDream-options-" + c.profile + ".toml");
         std::ifstream have(mine);
         if (have) return mine;
         const auto beside = [](const std::string& f) {
@@ -649,11 +969,11 @@ std::string options_path() {
             for (const char* f : {"bbhost.toml"}) old.push_back(beside(f));
             old.push_back(beside(config_exe_dir() + "/bbhost.toml"));
         }
-        // A folder of its own (BBHOST_CONFIG_DIR: every test harness) takes the
+        // A folder of its own (HELIAS_CONFIG_DIR: every test harness) takes the
         // settings but not the [account]: one old file beside several test
         // configs signed each of their profiles in as that player, with a
         // token long replaced, and the server refused them all day.
-        const char* own_dir = std::getenv("BBHOST_CONFIG_DIR");
+        const char* own_dir = std::getenv("HELIAS_CONFIG_DIR");
         const bool keep_account = !(own_dir && own_dir[0]);
         for (const std::string& f : old) {
             if (f == mine) continue;
@@ -669,7 +989,7 @@ std::string options_path() {
                 }
                 out << line << '\n';
             }
-            if (out) host_log("options: copied %s to %s (the per-user settings every copy of bbhost reads)%s", f.c_str(),
+            if (out) host_log("options: copied %s to %s (the per-user settings every copy of heliasdream reads)%s", f.c_str(),
                               mine.c_str(), dropped ? ", not its account (a folder of its own)" : "");
             break;
         }
@@ -685,6 +1005,7 @@ void apply(int id) {
     switch (id) {
         case kWindowMode: host_window_set_fullscreen(s.index == 1); break;
         case kVsync: host_window_set_vsync(s.index == 0); break;
+        case kHdr: host_window_set_hdr(s.index == 1); break;
         case kFrameCap:
             hle_video_set_fps_cap(fps_from_label(s.values[static_cast<std::size_t>(s.index)]));
             break;
@@ -696,6 +1017,14 @@ void apply(int id) {
         case kMouseAutoRotation:
         case kDrawCursor:
         case kButtonPrompts:
+        case kPadIcons:
+        case kCompileNote:
+        case kGameLanguage:
+        case kMenuLanguage:
+        case kHdrUi:
+        case kSubmitSplit:
+        case kThreadPriority:
+        case kFsr4SharpMotion:
             break;  // the settings object carries them (host/settings.h)
         case kSsao:
         case kMotionBlur:
@@ -705,9 +1034,9 @@ void apply(int id) {
         case kResolution: {
             unsigned w = 0, h = 0;
             // A change the player made asks to be kept (g_res_prev set by
-            // set_index); going back, and the start, ask nothing. BBHOST_RES
+            // set_index); going back, and the start, ask nothing. HELIAS_RES
             // wins here too, or applying the settings at the start undid it.
-            const char* forced = std::getenv("BBHOST_RES");
+            const char* forced = std::getenv("HELIAS_RES");
             if ((forced && forced[0] && std::sscanf(forced, "%ux%u", &w, &h) == 2) ||
                 std::sscanf(s.values[static_cast<std::size_t>(s.index)], "%ux%u", &w, &h) == 2)
                 live_resolution_request(w, h, g_res_prev >= 0 && !g_res_reverting);
@@ -722,7 +1051,7 @@ void apply(int id) {
             break;  // read by the loader before any of this exists
         case kUpscaler:
         case kUpscaleQuality:
-            // bbhost-vk Phase 1: the scene's size follows (engine/scene_split.h).
+            // heliasdream-vk Phase 1: the scene's size follows (engine/scene_split.h).
             live_resolution_scale_changed();
             break;
         case kUpscaleSharpness:
@@ -754,7 +1083,7 @@ void save() {
         host_log("options: cannot write %s", path.c_str());
         return;
     }
-    std::fprintf(f, "# bbhost PC port options. Written by the options screen (F10).\n");
+    std::fprintf(f, "# heliasdream PC port options. Written by the options screen (F10).\n");
     std::fprintf(f, "[options]\n");
     std::fprintf(f, "version = \"%d\"\n", kOptionsVersion);
     for (const Setting& s : g_set) {
@@ -788,6 +1117,10 @@ HostSettings g_settings;
 bool on_of(int id) { return reads_on(g_set[id], g_set[id].index); }
 int index_of(int id) { return g_set[id].index; }
 
+std::atomic<float> g_mip_bias{0.0f};  // host_opt_mip_bias(): the samplers read it on every lookup
+std::atomic<unsigned> g_submit_split{0};  // host_opt_submit_split(): read at every draw
+std::atomic<bool> g_fsr4_sharp_motion{false};  // host_opt_fsr4_sharp_motion(): read at each FSR 4 frame
+
 void rebuild_settings() {
     HostSettings h;
     h.serial = g_serial.load(std::memory_order_acquire);
@@ -795,11 +1128,37 @@ void rebuild_settings() {
     h.vsync = index_of(kVsync) == 0;
     h.frame_cap = fps_from_label(g_set[kFrameCap].values[static_cast<std::size_t>(index_of(kFrameCap))]);
     h.fps_counter = on_of(kFpsCounter);
+    h.fps_position = index_of(kFpsPosition);
+    h.fps_scale = 0.75f + 0.25f * static_cast<float>(index_of(kFpsSize));
     {
-        // BBHOST_RES=WxH still wins, so an A/B run started with one behaves
+        static constexpr std::uint32_t kColours[] = {0xffffffu, 0xffd54au, 0x7cfc8au, 0x6fe3ffu, 0xff5a5au, 0xffa040u, 0xff8ad8u, 0x000000u};
+        static constexpr std::uint32_t kBacks[] = {0x0f0f0fu, 0x000000u, 0x3a0a0au, 0x0a1a3au, 0xffffffu};
+        h.fps_colour = kColours[std::clamp(index_of(kFpsColour), 0, 7)];
+        h.fps_background = kBacks[std::clamp(index_of(kFpsBackground), 0, 4)];
+    }
+    h.fps_opacity = 0.1f * static_cast<float>(index_of(kFpsOpacity) + 1);
+    h.fps_background_opacity = 0.1f * static_cast<float>(index_of(kFpsBackgroundOpacity));
+    h.fps_border = on_of(kFpsBorder);
+    h.fps_show_rate = on_of(kFpsShowRate);
+    h.fps_show_frame_time = on_of(kFpsShowFrameTime);
+    h.fps_show_upscaler = on_of(kFpsShowUpscaler);
+    h.fps_show_cpu = on_of(kFpsShowCpu);
+    h.fps_show_gpu = on_of(kFpsShowGpu);
+    h.brightness = 1.0f + 0.1f * static_cast<float>(index_of(kBrightness) - 5);
+    h.contrast = 1.0f + 0.08f * static_cast<float>(index_of(kContrast) - 5);
+    h.hue_degrees = static_cast<float>(-180 + 15 * index_of(kHue));
+    h.hdr = on_of(kHdr);
+    h.hdr_paper_white = std::strtof(g_set[kHdrPaperWhite].values[static_cast<std::size_t>(index_of(kHdrPaperWhite))], nullptr);
+    h.hdr_peak_auto = on_of(kHdrPeakAuto);
+    h.hdr_peak = std::strtof(g_set[kHdrPeak].values[static_cast<std::size_t>(index_of(kHdrPeak))], nullptr);
+    h.hdr_boost = 0.25f * static_cast<float>(index_of(kHdrBoost));
+    h.menu_key = index_of(kMenuKey);
+    h.trophy_popups = on_of(kTrophyPopups);
+    {
+        // HELIAS_RES=WxH still wins, so an A/B run started with one behaves
         // the way its command line says.
         unsigned w = 0, hh = 0;
-        const char* e = std::getenv("BBHOST_RES");
+        const char* e = std::getenv("HELIAS_RES");
         if (!(e && e[0] && std::sscanf(e, "%ux%u", &w, &hh) == 2)) {
             const Setting& r = g_set[kResolution];
             if (std::sscanf(r.values[static_cast<std::size_t>(r.index)], "%ux%u", &w, &hh) != 2) w = hh = 0;
@@ -810,12 +1169,12 @@ void rebuild_settings() {
         }
     }
     // Distance and height: 5 is the game's own, 10% a step either way. Field
-    // of view: 0 is the game's own, 5% wider a step (BBHOST_FOV overrides).
+    // of view: 0 is the game's own, 5% wider a step (HELIAS_FOV overrides).
     const auto around = [](int id) { return 0.5f + 0.1f * static_cast<float>(index_of(id)); };
     h.camera_distance_scale = around(kCameraDistance);
     h.camera_height_scale = around(kCameraHeight);
     {
-        const char* e = std::getenv("BBHOST_FOV");
+        const char* e = std::getenv("HELIAS_FOV");
         const float env = e && *e ? std::strtof(e, nullptr) : 0.0f;
         const int fov = index_of(kFov);
         h.fov_scale = env > 0.0f ? env : fov <= 0 ? 1.0f : 1.0f + 0.05f * static_cast<float>(fov);
@@ -830,6 +1189,27 @@ void rebuild_settings() {
     h.mouse_auto_rotation = on_of(kMouseAutoRotation);
     h.draw_cursor = on_of(kDrawCursor);
     h.button_prompts = index_of(kButtonPrompts) < 0 ? 0 : index_of(kButtonPrompts);
+    h.pad_icons = std::clamp(index_of(kPadIcons), 0, 2);
+    h.compile_note = on_of(kCompileNote);
+    menu_i18n_set_language(std::clamp(index_of(kMenuLanguage), 0, kMenuLanguageCount - 1));
+    {
+        const int i = index_of(kHdrUi);
+        h.hdr_ui_brightness = i <= 0 ? 0.0f : 0.4f + 0.1f * static_cast<float>(i);  // 1: 50%
+    }
+    {
+        const int i = index_of(kSubmitSplit);
+        h.submit_split = i > 0 ? static_cast<unsigned>(std::strtoul(g_set[kSubmitSplit].values[static_cast<std::size_t>(i)], nullptr, 10)) : 0u;
+        g_submit_split.store(h.submit_split, std::memory_order_relaxed);
+    }
+    h.thread_priority = on_of(kThreadPriority);
+    host_threads_set_priority(h.thread_priority);
+    h.fsr4_sharp_motion = on_of(kFsr4SharpMotion);
+    g_fsr4_sharp_motion.store(h.fsr4_sharp_motion, std::memory_order_relaxed);
+    {
+        // The PS4's language codes, in the setting's order.
+        static constexpr int kLang[] = {1, 2, 3, 4, 5, 8, 0};
+        h.game_language = kLang[std::clamp(index_of(kGameLanguage), 0, 6)];
+    }
     h.haptics = std::clamp(index_of(kHaptics), 0, 2);
     h.haptics_strength = static_cast<float>(std::clamp(index_of(kHapticsStrength), 0, 10)) / 5.0f;
     h.adaptive_triggers = on_of(kAdaptiveTriggers);
@@ -856,14 +1236,28 @@ void rebuild_settings() {
     h.change_appearance = on_of(kChangeAppearance);
     h.rebirth = on_of(kRebirth);
     h.five_players = on_of(kFivePlayers);
-    h.upscaler = std::clamp(index_of(kUpscaler), 0, 3);
+    h.upscaler = std::clamp(index_of(kUpscaler), 0, upscaler::kKindCount - 1);
     h.upscale_quality = std::clamp(index_of(kUpscaleQuality), 0, 4);
+    {
+        const int i = index_of(kMipBias);
+        if (i == 0) {
+            static constexpr float kScale[] = {1.0f, 1.5f, 1.7f, 2.0f, 3.0f};
+            const bool temporal = upscaler::is_temporal(h.upscaler) && h.upscaler != upscaler::kTaa;  // TAA renders at the output's size
+            h.mip_bias = temporal ? -std::log2(kScale[std::clamp(h.upscale_quality, 0, 4)]) : 0.0f;
+        } else {
+            h.mip_bias = std::strtof(g_set[kMipBias].values[static_cast<std::size_t>(i)], nullptr);
+        }
+        g_mip_bias.store(h.mip_bias, std::memory_order_relaxed);
+    }
     // Auto: off while FSR 4.1.1 is the upscaler and runs (host_opt_fsr4_unavailable).
     // It runs only below Native AA: Native AA is stock rendering, the scene not
     // split and no FSR pass (DEVLOG Phase 1, decision 2), so Auto keeps the
     // game's AA there - it turned it off before, and Native AA had none at all.
     h.anti_alias_auto = index_of(kAntiAlias) == 2;
-    h.anti_alias = h.anti_alias_auto ? !(h.upscaler == 3 && h.upscale_quality > 0 && !g_fsr4_unavailable.load()) : on_of(kAntiAlias);
+    // Native TAA is FSR 3.1's own anti-aliasing: Auto leaves the game's pass off under it too.
+    h.anti_alias = h.anti_alias_auto ? !((h.upscaler == 3 && h.upscale_quality > 0 && !g_fsr4_unavailable.load()) || h.upscaler == upscaler::kTaa ||
+                                         ((h.upscaler == upscaler::kFsr4 || h.upscaler == upscaler::kDlss) && h.upscale_quality > 0))
+                                     : on_of(kAntiAlias);
     h.upscale_sharpness = static_cast<float>(std::clamp(index_of(kUpscaleSharpness), 0, 10)) / 10.0f;
     h.upscale_reactive = on_of(kUpscaleReactive);
     h.upscale_jitter = on_of(kUpscaleJitter);
@@ -871,6 +1265,14 @@ void rebuild_settings() {
     h.debug_upscaler_time = on_of(kDebugUpscalerTime);
     std::lock_guard<std::mutex> lk(g_settings_mu);
     g_settings = h;
+}
+
+// The index one step on from a setting's: a long one (HDR's nits, in ones)
+// goes 10 at a time and stops at its ends; Shift takes single steps.
+int stepped(int id, int dir, bool fine) {
+    const int n = static_cast<int>(g_set[id].values.size());
+    if (n <= 100) return g_set[id].index + dir;
+    return std::clamp(g_set[id].index + dir * (fine ? 1 : 10), 0, n - 1);
 }
 
 void set_index(int id, int index, bool from_file) {
@@ -930,13 +1332,13 @@ void host_options_load() {
     static bool loaded = false;
     if (loaded) return;
     loaded = true;
-    // bbhost.toml still sets the defaults; the options file is what the player
+    // HeliasDream.toml still sets the defaults; the options file is what the player
     // changed, and the environment switches still win over both.
     host_bindings_load_defaults();
     g_set[kSkipLogos].index = config().skip_intro ? 1 : 0;
-    // The PC enhancements seed from bbhost.toml's [world] (all on unless it
+    // The PC enhancements seed from HeliasDream.toml's [world] (all on unless it
     // says otherwise); the options file then holds the player's choice, and a
-    // BBHOST_* switch still wins over both (config_set_enhancements).
+    // HELIAS_* switch still wins over both (config_set_enhancements).
     g_set[kChangeAppearance].index = config().change_appearance ? 0 : 1;
     g_set[kRebirth].index = config().rebirth ? 0 : 1;
     g_set[kFivePlayers].index = config().five_players ? 0 : 1;
@@ -1061,7 +1463,7 @@ void host_options_load() {
         }
         // The Old Hunters was a PC enhancement in v0.2.9 and is the patch
         // old-hunters since. A player who turned it off keeps it off: the
-        // per-user bbhost.toml's [patches] says so from now on, and the next
+        // per-user HeliasDream.toml's [patches] says so from now on, and the next
         // save drops the old key (unless [patches] already says something).
         if (old_hunters_off) {
             bool carried = !config_value("patches.old-hunters").empty();
@@ -1081,8 +1483,8 @@ void host_options_load() {
         }
         host_log("options: read %s", path.c_str());
     }
-    // BBHOST_ACCOUNT=name:token, for a scripted run that must not touch the file.
-    if (const char* e = std::getenv("BBHOST_ACCOUNT"); e && e[0]) {
+    // HELIAS_ACCOUNT=name:token, for a scripted run that must not touch the file.
+    if (const char* e = std::getenv("HELIAS_ACCOUNT"); e && e[0]) {
         const std::string v = e;
         if (const std::size_t c = v.find(':'); c != std::string::npos) {
             net::account_set(v.substr(0, c), v.substr(c + 1));
@@ -1091,28 +1493,28 @@ void host_options_load() {
     }
     // The environment switches the track was brought up with still win, so a
     // run started with one behaves the way it says on the command line.
-    if (const char* e = std::getenv("BBHOST_MOUSE_MENU"); e && e[0]) {
+    if (const char* e = std::getenv("HELIAS_MOUSE_MENU"); e && e[0]) {
         g_set[kMouseMenu].index = e[0] == '0' ? 0 : 1;
     }
-    // The post-processing switches, for A/B runs: BBHOST_SSAO=0 and friends.
-    for (const auto& [env, id] : {std::pair<const char*, int>{"BBHOST_SSAO", kSsao},
-                                  {"BBHOST_MOTION_BLUR", kMotionBlur},
-                                  {"BBHOST_ANTI_ALIAS", kAntiAlias},
-                                  {"BBHOST_DEPTH_OF_FIELD", kDepthOfField},
-                                  {"BBHOST_CHROMATIC_ABERRATION", kChromaticAberration}}) {
+    // The post-processing switches, for A/B runs: HELIAS_SSAO=0 and friends.
+    for (const auto& [env, id] : {std::pair<const char*, int>{"HELIAS_SSAO", kSsao},
+                                  {"HELIAS_MOTION_BLUR", kMotionBlur},
+                                  {"HELIAS_ANTI_ALIAS", kAntiAlias},
+                                  {"HELIAS_DEPTH_OF_FIELD", kDepthOfField},
+                                  {"HELIAS_CHROMATIC_ABERRATION", kChromaticAberration}}) {
         if (const char* e = std::getenv(env); e && e[0]) {
             // {"On","Off"} first (anti_alias adds "Auto"): 0 off, a or A Auto, else on.
             g_set[id].index = e[0] == '0' ? 1 : (id == kAntiAlias && (e[0] == 'a' || e[0] == 'A')) ? 2 : 0;
         }
     }
-    if (const char* e = std::getenv("BBHOST_MOUSE_CAMERA"); e && e[0]) {
+    if (const char* e = std::getenv("HELIAS_MOUSE_CAMERA"); e && e[0]) {
         g_set[kMouseCamera].index = e[0] == '0' ? 0 : 1;
     }
-    if (const char* e = std::getenv("BBHOST_MOUSE_SENS"); e && e[0]) {
+    if (const char* e = std::getenv("HELIAS_MOUSE_SENS"); e && e[0]) {
         const int v = std::atoi(e);
         g_set[kMouseSens].index = v < 0 ? 0 : v > 10 ? 10 : v;
     }
-    if (const char* e = std::getenv("BBHOST_MOUSE_CURSOR"); e && e[0]) {
+    if (const char* e = std::getenv("HELIAS_MOUSE_CURSOR"); e && e[0]) {
         g_set[kDrawCursor].index = e[0] == '0' ? 1 : 0;
     }
     host_options_apply();
@@ -1127,6 +1529,7 @@ void host_options_set_open(bool open) {
         return;
     }
     g_open.store(open, std::memory_order_relaxed);
+    g_pad_edit_row = -1;
     if (open) {
         // Nothing has consumed the pointer while the screen was closed, so a
         // click from minutes ago is still latched. Drop it: the first click
@@ -1144,8 +1547,11 @@ void host_options_set_open(bool open) {
 }
 
 bool host_options_key(int scancode, bool repeat) {
-#if defined(BBHOST_HAVE_SDL3)
-    if (scancode == SDL_SCANCODE_F10) {
+#if defined(HELIAS_HAVE_SDL3)
+    // F10 always; the Menu key setting adds Insert, Home or F1.
+    static constexpr int kMenuKeys[] = {SDL_SCANCODE_F10, SDL_SCANCODE_INSERT, SDL_SCANCODE_HOME, SDL_SCANCODE_F1};
+    const int extra = kMenuKeys[std::clamp(g_set[kMenuKey].index, 0, 3)];
+    if (scancode == SDL_SCANCODE_F10 || (scancode == extra && g_edit_field < 0)) {
         if (!repeat) {
             host_options_set_open(!host_options_open());
         }
@@ -1154,6 +1560,7 @@ bool host_options_key(int scancode, bool repeat) {
     if (!host_options_open()) {
         return false;
     }
+    g_pad_edit_row = -1;  // the keyboard changes values with its arrows
     // A field being typed: the window's text entry takes the keys (Enter
     // accepts, Escape cancels); the poll in the frame picks the result up.
     if (g_edit_field >= 0) {
@@ -1161,21 +1568,30 @@ bool host_options_key(int scancode, bool repeat) {
     }
     const int step = scancode == SDL_SCANCODE_UP ? -1 : scancode == SDL_SCANCODE_DOWN ? 1 : 0;
     if (step) {
-        for (int i = 0; i < kRowCount; ++i) {
-            g_sel = (g_sel + step + kRowCount) % kRowCount;
-            if (selectable(g_sel)) {
-                break;
-            }
-        }
+        move_in_section(step);
+        return true;
+    }
+    // The section tabs: Q / E, Page Up / Down, Tab (Shift+Tab back), 1-7.
+    const bool shift = (SDL_GetModState() & SDL_KMOD_SHIFT) != 0;
+    int tab = 0;
+    if (scancode == SDL_SCANCODE_Q || scancode == SDL_SCANCODE_PAGEUP || (scancode == SDL_SCANCODE_TAB && shift)) tab = -1;
+    if (scancode == SDL_SCANCODE_E || scancode == SDL_SCANCODE_PAGEDOWN || (scancode == SDL_SCANCODE_TAB && !shift)) tab = 1;
+    if (tab) {
+        go_section(section_of(g_sel) + tab);
+        return true;
+    }
+    if (scancode >= SDL_SCANCODE_1 && scancode <= SDL_SCANCODE_9 && scancode - SDL_SCANCODE_1 < g_section_count) {
+        go_section(scancode - SDL_SCANCODE_1);
         return true;
     }
     const int id = g_rows[g_sel].setting;
-    if (scancode == SDL_SCANCODE_LEFT && id >= 0) {
-        set_index(id, g_set[id].index - 1, false);
-        return true;
-    }
-    if (scancode == SDL_SCANCODE_RIGHT && id >= 0) {
-        set_index(id, g_set[id].index + 1, false);
+    if ((scancode == SDL_SCANCODE_LEFT || scancode == SDL_SCANCODE_RIGHT) && id >= 0) {
+        // A held key steps to the end and stops there: wrapping round would
+        // flip a two-value setting back and forth for as long as it is held,
+        // and HDR or the upscaler rebuilds with every flip.
+        const int to = stepped(id, scancode == SDL_SCANCODE_LEFT ? -1 : 1, shift);
+        if (repeat && (to < 0 || to >= static_cast<int>(g_set[id].values.size()))) return true;
+        set_index(id, to, false);
         return true;
     }
     if (scancode == SDL_SCANCODE_RETURN || scancode == SDL_SCANCODE_KP_ENTER ||
@@ -1204,6 +1620,57 @@ bool host_options_key(int scancode, bool repeat) {
 #endif
 }
 
+void host_options_pad(OptionsPad press, bool repeat) {
+    if (!host_options_open() || g_edit_field >= 0) return;
+    const Row& row = g_rows[g_sel];
+    const int id = row.kind == Row::Option ? row.setting : -1;
+    switch (press) {
+        case OptionsPad::Up:
+        case OptionsPad::Down:
+            g_pad_edit_row = -1;
+            move_in_section(press == OptionsPad::Up ? -1 : 1);
+            return;
+        case OptionsPad::PrevTab:
+        case OptionsPad::NextTab:
+            g_pad_edit_row = -1;
+            go_section(section_of(g_sel) + (press == OptionsPad::PrevTab ? -1 : 1));
+            return;
+        case OptionsPad::Left:
+        case OptionsPad::Right: {
+            const int dir = press == OptionsPad::Left ? -1 : 1;
+            if (!pad_editing() || id < 0) {
+                if (!repeat) move_across(dir);
+                return;
+            }
+            // As a held key: steps to the end and stops there.
+            const int to = stepped(id, dir, false);
+            if (repeat && (to < 0 || to >= static_cast<int>(g_set[id].values.size()))) return;
+            set_index(id, to, false);
+            return;
+        }
+        case OptionsPad::Confirm:
+            if (repeat) return;
+            if (row.kind == Row::Close) {
+                host_options_set_open(false);
+            } else if (row.kind == Row::Text) {
+                edit_begin(row.field);
+            } else if (row.kind == Row::Action) {
+                account_action(row.field, g_field[0], g_field[1]);
+            } else if (id >= 0) {
+                g_pad_edit_row = pad_editing() ? -1 : g_sel;
+            }
+            return;
+        case OptionsPad::Back:
+            if (repeat) return;
+            if (pad_editing()) {
+                g_pad_edit_row = -1;
+            } else {
+                host_options_set_open(false);
+            }
+            return;
+    }
+}
+
 namespace {
 void options_panel_frame(float display_w, float display_h);
 }
@@ -1213,15 +1680,15 @@ void host_options_frame(float display_w, float display_h) {
         g_dirty = true;
         save();
     }
-    // BBHOST_RES_PROMPT_TEST=<flip>:<entry>: the Resolution setting changed
+    // HELIAS_RES_PROMPT_TEST=<flip>:<entry>: the Resolution setting changed
     // to that entry at that flip, the way the menus change it (tests).
     static long test_flip = [] {
-        const char* e = std::getenv("BBHOST_RES_PROMPT_TEST");
+        const char* e = std::getenv("HELIAS_RES_PROMPT_TEST");
         return e && *e ? std::atol(e) : -1L;
     }();
     if (test_flip >= 0 && static_cast<long>(hle_video_flip_count()) >= test_flip) {
         test_flip = -1;
-        const char* e = std::strchr(std::getenv("BBHOST_RES_PROMPT_TEST"), ':');
+        const char* e = std::strchr(std::getenv("HELIAS_RES_PROMPT_TEST"), ':');
         if (e) host_opt_set_resolution_index(std::atoi(e + 1));
     }
     // The game's keep-or-revert dialog answered (engine/live_resolution.h).
@@ -1239,7 +1706,10 @@ std::vector<std::string> wrap_note(const char* text, float width, float scale, s
     std::string line, word;
     const std::string all(text);
     bool cut = false;
-    auto fits = [&](const std::string& t) { return host_overlay_text_width(scale, t.c_str()) <= width; };
+    // Measured in the face and size the note is drawn in (17 px body), so a
+    // translation's letters count as what they are, not as bytes.
+    (void)scale;
+    auto fits = [&](const std::string& t) { return host_overlay_ui_text_width(kOverlayFontBody, 17.0f, t.c_str()) <= width; };
     std::size_t i = 0;
     while (i <= all.size()) {
         const std::size_t j = std::min(all.find(' ', i), all.size());
@@ -1262,7 +1732,10 @@ std::vector<std::string> wrap_note(const char* text, float width, float scale, s
     if (out.size() > max_lines) out.resize(max_lines), cut = true;
     if (cut && !out.empty()) {
         std::string& last = out.back();
-        while (!last.empty() && !fits(last + "...")) last.pop_back();
+        while (!last.empty() && !fits(last + "...")) {
+            last.pop_back();
+            while (!last.empty() && (static_cast<unsigned char>(last.back()) & 0xc0) == 0x80) last.pop_back();  // a whole UTF-8 letter
+        }
         last += "...";
     }
     return out;
@@ -1270,58 +1743,72 @@ std::vector<std::string> wrap_note(const char* text, float width, float scale, s
 
 void options_panel_frame(float display_w, float display_h) {
     edit_poll();
-    // Tall enough for every row: headers take 32 px, rows 40, and the note and
-    // key guide under them 100. A fixed 620 had been outgrown by the rows, and
-    // then so had 1080 lines - so when the display is shorter than that the
-    // pitch closes up to fit (the text keeps its size), rather than the last
-    // rows running under the key guide and off the panel.
-    // The rows outgrew every display once the account section came, so
-    // rather than closing the pitch up until the lines overlap, the
-    // list scrolls: the rows that fit are drawn, the selection is kept in
-    // view, and a hint says there is more above or below.
-    float rows_h = 0.0f;
-    for (const Row& r : g_rows) rows_h += r.kind == Row::Header ? 32.0f : 40.0f;
-    const float room = display_h - 20.0f - 206.0f;
-    const float fit = 1.0f;
-    const bool scrolls = rows_h > room && room > 0.0f;
-    // rc2: the foot holds the note wrapped to three lines and the key guide.
-    constexpr float kFoot = 128.0f;
-    const float pw = 860.0f, ph = std::fmin(78.0f + rows_h + kFoot, display_h - 20.0f);
-    const float px = (display_w - pw) * 0.5f, py = (display_h - ph) * 0.5f;
-    static int g_scroll = 0;  // the first row drawn
-    if (!scrolls) {
-        g_scroll = 0;
-    } else {
-        auto height = [](int r) { return g_rows[r].kind == Row::Header ? 32.0f : 40.0f; };
-        const float avail = ph - 78.0f - kFoot - 24.0f;  // less the two hints
-        // A header just above the selection comes along, so a section never
-        // starts with its title out of view.
-        int top = g_sel;
-        while (top > 0 && (g_rows[top - 1].kind == Row::Header || g_rows[top - 1].kind == Row::Info)) --top;
-        if (g_scroll > top) g_scroll = top;
-        for (;;) {
-            float h = 0.0f;
-            for (int r = g_scroll; r <= g_sel; ++r) h += height(r);
-            if (h <= avail || g_scroll >= g_sel) break;
-            ++g_scroll;
+    // Helia's Dream's layout (the launcher's): a wide glass pane, the sections
+    // as pill tabs along its top, one section at a time in two columns, with
+    // room between the rows. Up and Down move inside the section; Q / E, Tab
+    // or Page Up / Down (and a click on a tab) change it.
+    const float pw = std::fmin(1360.0f, display_w - 80.0f);
+    const float ph = std::fmin(760.0f, display_h - 60.0f);
+    const float px = std::floor((display_w - pw) * 0.5f), py = std::floor((display_h - ph) * 0.5f);
+    constexpr float kHead = 150.0f;  // title, online state, tabs
+    constexpr float kFoot = 150.0f;  // the note and the key guide
+    constexpr float kRowH = 46.0f, kPitch = 56.0f, kColGap = 24.0f;
+    const int sec = section_of(g_sel);
+    const int sec_first = g_sections[sec], sec_end = sec + 1 < g_section_count ? g_sections[sec + 1] : kRowCount;
+
+    // The section's rows, split into two columns when they do not fit one.
+    int rows[kRowCount];
+    int n = 0;
+    for (int r = sec_first + 1; r < sec_end; ++r) rows[n++] = r;
+    const float body_h = ph - kHead - kFoot;
+    const int per_col_fit = std::max(1, static_cast<int>(body_h / kPitch));
+    const bool two = n > 6 || n > per_col_fit;
+    const int col_rows = two ? (n + 1) / 2 : n;
+    const float col_w = two ? (pw - 56.0f - kColGap) * 0.5f : pw - 56.0f;
+    const float pitch = std::fmin(kPitch, col_rows > 0 ? body_h / static_cast<float>(col_rows) : kPitch);
+    const float row_h = std::fmin(kRowH, pitch - 6.0f);
+    for (int r = 0; r < kRowCount; ++r) g_row_y[r] = -10000.0f;  // other sections: the pointer cannot land on them
+    for (int i = 0; i < n; ++i) {
+        const int col = two && i >= col_rows ? 1 : 0;
+        const int k = col ? i - col_rows : i;
+        g_row_xs[rows[i]] = px + 28.0f + static_cast<float>(col) * (col_w + kColGap);
+        g_row_ws[rows[i]] = col_w;
+        g_row_y[rows[i]] = py + kHead + static_cast<float>(k) * pitch;
+    }
+    g_row_h = row_h;
+
+    // The tabs, measured before the pointer is handled.
+    // 17 px, smaller when a language's longer names would not fit the panel.
+    float kTabFont = 17.0f;
+    float tab_x[16], tab_w[16];
+    const float tab_y = py + 92.0f, tab_h = 38.0f;
+    for (int pass = 0; pass < 2; ++pass) {
+        float tx = px + 28.0f + 5.0f;
+        for (int t = 0; t < g_section_count; ++t) {
+            tab_w[t] = host_overlay_ui_text_width(kOverlayFontBold, kTabFont, section_name(t)) + 34.0f;
+            tab_x[t] = tx;
+            tx += tab_w[t] + 4.0f;
         }
+        const float room = pw - 56.0f - 10.0f, used = tx - (px + 28.0f + 5.0f);
+        if (used <= room || pass == 1) break;
+        kTabFont = std::max(12.0f, kTabFont * (room - 38.0f * static_cast<float>(g_section_count)) / (used - 38.0f * static_cast<float>(g_section_count)));
     }
 
-    // The pointer, before anything is drawn, against last frame's rows - the
-    // layout does not move between frames unless the display size does, and
-    // hit-testing what was actually drawn is the rule the overlay is for.
-    //
-    // Hover selects only when the pointer **moves** (or clicks). Taken every
-    // frame, a pointer resting on the panel held the selection on its row, and
-    // the arrow keys could not move it.
+    // The pointer, against this frame's layout. Hover selects only when the
+    // pointer moves (or clicks), so a pointer resting on the panel does not
+    // hold the selection against the arrow keys.
     const MouseState m = host_mouse_state();
     static float last_x = -1.0f, last_y = -1.0f;
     const bool moved = m.x != last_x || m.y != last_y;
     last_x = m.x;
     last_y = m.y;
+    if (m.in_window && (m.pressed & 1u) && m.y >= tab_y && m.y < tab_y + tab_h) {
+        for (int t = 0; t < g_section_count; ++t)
+            if (m.x >= tab_x[t] && m.x < tab_x[t] + tab_w[t]) go_section(t);
+    }
     if (g_laid_out && m.in_window && (moved || (m.pressed & 3u))) {
         for (int r = 0; r < kRowCount; ++r) {
-            if (!selectable(r) || m.x < g_row_x || m.x > g_row_x + g_row_w) {
+            if (!selectable(r) || m.x < g_row_xs[r] || m.x > g_row_xs[r] + g_row_ws[r]) {
                 continue;
             }
             if (m.y >= g_row_y[r] && m.y < g_row_y[r] + g_row_h) {
@@ -1336,11 +1823,10 @@ void options_panel_frame(float display_w, float display_h) {
                     } else if (g_rows[r].kind == Row::Action) {
                         account_action(g_rows[r].field, g_field[0], g_field[1]);
                     } else if (g_rows[r].setting >= 0) {
-                        // By where it lands, as the arrows are drawn: on the
-                        // value's "<" half it steps back, on its ">" half
-                        // forward. The label steps forward, as Enter does.
+                        // On the value pill's left half it steps back, on its
+                        // right half forward; the label steps forward, as Enter does.
                         const bool back = m.x >= g_row_vl[r] && m.x < g_row_vm[r];
-                        set_index(g_rows[r].setting, g_set[g_rows[r].setting].index + (back ? -1 : 1), false);
+                        set_index(g_rows[r].setting, stepped(g_rows[r].setting, back ? -1 : 1, (SDL_GetModState() & SDL_KMOD_SHIFT) != 0), false);
                     }
                 } else if (m.pressed & 2u) {
                     if (g_rows[r].kind == Row::Option) {
@@ -1351,66 +1837,54 @@ void options_panel_frame(float display_w, float display_h) {
             }
         }
     }
-    if (m.wheel != 0.0f) {
-        const int step = m.wheel > 0.0f ? -1 : 1;
-        for (int i = 0; i < kRowCount; ++i) {
-            g_sel = (g_sel + step + kRowCount) % kRowCount;
-            if (selectable(g_sel)) {
-                break;
-            }
-        }
-    }
+    if (m.wheel != 0.0f) move_in_section(m.wheel > 0.0f ? -1 : 1);
 
-    // Panel. The game's gold on near-black, the same as the text box, so the
-    // port's own surfaces read as one thing rather than three.
-    host_overlay_rect(0.0f, 0.0f, display_w, display_h, 0x00000080u);
-    host_overlay_rect(px - 3.0f, py - 3.0f, pw + 6.0f, ph + 6.0f, 0xc8a05affu);
-    host_overlay_rect(px, py, pw, ph, 0x0a0a0af2u);
-    host_overlay_text(px + 28.0f, py + 22.0f, 1.0f, 0xc8a05affu, "BLOODBORNE PC OPTIONS");
-    // The online state, always in view whatever the list is scrolled to:
-    // who this is signed in as, and the room when there is one.
+    // Frosted glass: no pane colour, the game behind the panel blurred (the
+    // presenter draws it, host/present_pass.h), with only a bright edge and a
+    // breath of tint - the tint alone is what shows where the blur cannot be
+    // drawn (an FSR 1 picture, which takes the blit's path).
+    constexpr std::uint32_t kText = 0xf2f5faffu, kSoft = 0xdde2eaffu, kMuted = 0xb9c1cfffu, kAccent = 0xc2d3efffu;
+    host_overlay_glass(px, py, pw, ph, 28.0f);
+    host_overlay_round_rect(px, py, pw, ph, 28.0f, 0x0c0f1626u, 0x0c0f1633u);
+    host_overlay_round_frame(px, py, pw, ph, 28.0f, 1.0f, 0xffffff66u, 0xffffff17u);
+    host_overlay_round_rect(px + pw - 86.0f, py + 26.0f, 42.0f, 42.0f, 21.0f, 0xe9eefad0u, 0xc8d6f0a8u);  // the moon
+    host_overlay_ui_text(kOverlayFontTitle, px + 30.0f, py + 18.0f, 46.0f, kText, "Helia's Dream");
+    host_overlay_ui_text(kOverlayFontBody, px + 32.0f, py + 64.0f, 16.0f, kMuted, menu_tr("Settings apply live in the game"));
     {
         const std::string online = hle_np_online_status();
-        const float ow = host_overlay_text_width(0.6f, online.c_str());
-        host_overlay_text(px + pw - 28.0f - ow, py + 30.0f, 0.6f, 0x9a8a64ffu, online.c_str());
+        const float ow = host_overlay_ui_text_width(kOverlayFontBody, 16.0f, online.c_str());
+        host_overlay_ui_text(kOverlayFontBody, px + pw - 110.0f - ow, py + 38.0f, 16.0f, kSoft, online.c_str());
     }
-    host_overlay_rect(px + 28.0f, py + 56.0f, pw - 56.0f, 1.0f, 0x6a5a34ffu);
+    // Tabs: a dark track, the chosen section a bright glass bead.
+    host_overlay_round_rect(px + 28.0f, tab_y - 5.0f, tab_x[g_section_count - 1] + tab_w[g_section_count - 1] + 5.0f - (px + 28.0f),
+                            tab_h + 10.0f, (tab_h + 10.0f) * 0.5f, 0x0000005cu, 0x00000047u);
+    for (int t = 0; t < g_section_count; ++t) {
+        const bool on = t == sec;
+        if (on) host_overlay_round_rect(tab_x[t], tab_y, tab_w[t], tab_h, tab_h * 0.5f, 0xffffffebu, 0xd6e0f2d9u);
+        host_overlay_ui_text(kOverlayFontBold, tab_x[t] + 17.0f, tab_y + (tab_h - kTabFont * 1.2f) * 0.5f, kTabFont,
+                             on ? 0x0b0d12ffu : 0xd5dbe6ffu, section_name(t));
+    }
 
-    float y = py + 78.0f;
-    g_row_h = 34.0f * fit;
-    const float text_dy = (g_row_h - 22.0f) * 0.5f;  // 0.8 text is about 22 px: centred in the row
-    g_row_x = px + 16.0f;
-    g_row_w = pw - 32.0f;
-    const float y_end = py + ph - kFoot;
-    if (scrolls && g_scroll > 0) {
-        host_overlay_text(px + 40.0f, y, 0.55f, 0x7a6a44ffu, "^ more above");
-        y += 24.0f;
-    }
-    bool more_below = false;
-    for (int r = 0; r < kRowCount; ++r) {
+    const float text_dy = (row_h - 21.0f) * 0.5f;
+    for (int i = 0; i < n; ++i) {
+        const int r = rows[i];
         const Row& row = g_rows[r];
-        const float h = (row.kind == Row::Header ? 32.0f : 40.0f) * fit;
-        if (r < g_scroll || y + h > y_end - (scrolls ? 24.0f : 0.0f)) {
-            g_row_y[r] = -10000.0f;  // not drawn: the pointer cannot land on it
-            if (r >= g_scroll) more_below = true;
-            continue;
-        }
-        g_row_y[r] = y;
-        if (row.kind == Row::Header) {
-            host_overlay_text(px + 28.0f, y + 10.0f * fit, 0.62f, 0x8a7a54ffu, row.text);
-            y += 32.0f * fit;
-            continue;
-        }
+        const float x = g_row_xs[r], w = g_row_ws[r], y = g_row_y[r];
         const bool sel = r == g_sel;
-        if (sel) {
-            host_overlay_rect(g_row_x, y, g_row_w, g_row_h, 0x3a3020ffu);
-            host_overlay_rect(g_row_x, y, 3.0f, g_row_h, 0xc8a05affu);
+        if (row.kind != Row::Info) {
+            if (sel) {
+                host_overlay_round_rect(x, y, w, row_h, 14.0f, 0xa9bfe352u, 0xa9bfe32eu);
+                host_overlay_round_frame(x, y, w, row_h, 14.0f, 1.0f, 0xc9d6ee8cu, 0xa9bfe338u);
+            } else {
+                host_overlay_round_rect(x, y, w, row_h, 14.0f, 0x0000003du, 0x00000029u);
+                host_overlay_round_frame(x, y, w, row_h, 14.0f, 1.0f, 0xffffff17u, 0xffffff08u);
+            }
         }
+        const std::uint32_t label_c = sel ? kText : kSoft;
+        const float lx = x + 18.0f, right = x + w - 16.0f;
         if (row.kind == Row::Close || row.kind == Row::Action) {
             const bool busy = row.kind == Row::Action && !action_idle(row.field);
-            host_overlay_text(px + 40.0f, y + text_dy, 0.8f, busy ? 0x666666ffu : sel ? 0xffffffffu : 0xbbbbbbffu,
-                              row.text);
-            y += 40.0f * fit;
+            host_overlay_ui_text(kOverlayFontBold, lx, y + text_dy, 19.0f, busy ? 0x6a7080ffu : label_c, menu_tr(row.text));
             continue;
         }
         if (row.kind == Row::Info) {
@@ -1418,43 +1892,66 @@ void options_panel_frame(float display_w, float display_h) {
                                      : row.field == 10 ? updater::status()
                                      : row.field == 1  ? account_detail()
                                                        : account_status();
-            host_overlay_text(px + 40.0f, y + text_dy + 2.0f, 0.66f, 0x9a9a9affu, line.c_str());
-            y += 40.0f * fit;
+            host_overlay_ui_text(kOverlayFontBody, lx, y + text_dy, 17.0f, kMuted, line.c_str());
             continue;
         }
         if (row.kind == Row::Text) {
-            host_overlay_text(px + 40.0f, y + text_dy, 0.8f, sel ? 0xffffffffu : 0xbbbbbbffu, row.text);
+            host_overlay_ui_text(kOverlayFontBody, lx, y + text_dy, 19.0f, label_c, menu_tr(row.text));
             std::string shown = g_field[row.field];
             if (g_edit_field == row.field) shown += "_";
-            if (shown.empty()) shown = "(type here)";
-            const float vw = host_overlay_text_width(0.8f, shown.c_str());
-            host_overlay_text(px + pw - 60.0f - vw, y + text_dy, 0.8f,
-                              g_edit_field == row.field ? 0xffd88cffu : sel ? 0xffd88cffu : 0x9a9a9affu, shown.c_str());
-            y += 40.0f * fit;
+            if (shown.empty()) shown = menu_tr("(type here)");
+            const float vw = host_overlay_ui_text_width(kOverlayFontBold, 18.0f, shown.c_str());
+            const float vx = right - 16.0f - vw;
+            host_overlay_round_rect(vx - 16.0f, y + 6.0f, vw + 32.0f, row_h - 12.0f, (row_h - 12.0f) * 0.5f, 0x0000004du, 0x00000040u);
+            host_overlay_ui_text(kOverlayFontBold, vx, y + text_dy, 18.0f, g_edit_field == row.field ? kAccent : sel ? kText : kSoft,
+                                 shown.c_str());
             continue;
         }
         const Setting& s = g_set[row.setting];
-        host_overlay_text(px + 40.0f, y + text_dy, 0.8f, sel ? 0xffffffffu : 0xbbbbbbffu, s.label);
-        const char* v = s.values[static_cast<std::size_t>(s.index)];
-        const float vw = host_overlay_text_width(0.8f, v);
-        const float vx = px + pw - 60.0f - vw;
-        g_row_vl[r] = vx - 30.0f;
-        g_row_vm[r] = vx + vw * 0.5f;
-        host_overlay_text(vx, y + text_dy, 0.8f, sel ? 0xffd88cffu : 0x9a9a9affu, v);
-        if (s.index > 0) {
-            host_overlay_text(vx - 22.0f, y + text_dy, 0.8f, sel ? 0xc8a05affu : 0x555555ffu, "<");
+        const float lw = host_overlay_ui_text(kOverlayFontBody, lx, y + text_dy, 19.0f, label_c, menu_tr(s.label));
+        const bool toggle = s.values.size() == 2 &&
+                            ((std::strcmp(s.values[0], "On") == 0 && std::strcmp(s.values[1], "Off") == 0) ||
+                             (std::strcmp(s.values[0], "Off") == 0 && std::strcmp(s.values[1], "On") == 0));
+        if (toggle) {
+            const bool on = reads_on(s, s.index);
+            const float tw = 48.0f, th = 26.0f, tx = right - tw, ty = y + (row_h - th) * 0.5f;
+            host_overlay_round_rect(tx, ty, tw, th, th * 0.5f, on ? 0xbccdeaffu : 0xffffff26u, on ? 0xa9bfe3ffu : 0xffffff1au);
+            if (!on) host_overlay_round_frame(tx, ty, tw, th, th * 0.5f, 1.0f, 0xffffff40u, 0xffffff26u);
+            const float kx = on ? tx + tw - th + 3.0f : tx + 3.0f;
+            host_overlay_round_rect(kx, ty + 3.0f, th - 6.0f, th - 6.0f, (th - 6.0f) * 0.5f, on ? 0x0b0d12ffu : 0xe9edf5ffu,
+                                    on ? 0x0b0d12ffu : 0xc3cad6ffu);
+            g_row_vl[r] = g_row_vm[r] = 0.0f;  // a click anywhere flips it
+            if (sel && pad_editing()) host_overlay_round_frame(tx - 4.0f, ty - 4.0f, tw + 8.0f, th + 8.0f, th * 0.5f + 4.0f, 2.0f, kAccent, kAccent);
+        } else {
+            const char* v = s.values[static_cast<std::size_t>(s.index)];
+            if (std::strcmp(s.key, "window_mode") == 0 && std::strcmp(v, "Fullscreen") == 0) v = "Fullscreen (borderless)";
+            if (row.setting != kMenuLanguage) v = menu_tr(v);  // each language keeps its own name
+            const float vw = host_overlay_ui_text_width(kOverlayFontBold, 18.0f, v);
+            const float pr = right + 4.0f, pl = pr - vw - 66.0f;
+            const float ty = y + 6.0f, th = row_h - 12.0f;
+            host_overlay_round_rect(pl, ty, pr - pl, th, th * 0.5f, sel ? 0x00000066u : 0x00000047u, sel ? 0x00000052u : 0x00000038u);
+            if (sel && pad_editing()) {
+                // Selected on a controller: Left / Right change it.
+                host_overlay_round_frame(pl, ty, pr - pl, th, th * 0.5f, 2.0f, kAccent, kAccent);
+            } else {
+                host_overlay_round_frame(pl, ty, pr - pl, th, th * 0.5f, 1.0f, sel ? 0xc9d6ee66u : 0xffffff1cu, 0xffffff0fu);
+            }
+            host_overlay_ui_text(kOverlayFontBold, pl + 33.0f, y + text_dy, 18.0f, sel ? kText : kSoft, v);
+            const std::uint32_t chev_on = sel ? kAccent : 0x8b94a6ffu, chev_off = 0xffffff1fu;
+            const float cy = y + row_h * 0.5f;
+            const std::uint32_t back = s.index > 0 ? chev_on : chev_off;
+            const std::uint32_t fwd = s.index + 1 < static_cast<int>(s.values.size()) ? chev_on : chev_off;
+            host_overlay_tri(pl + 21.0f, cy - 6.0f, pl + 21.0f, cy + 6.0f, pl + 14.0f, cy, back);
+            host_overlay_tri(pr - 21.0f, cy - 6.0f, pr - 21.0f, cy + 6.0f, pr - 14.0f, cy, fwd);
+            g_row_vl[r] = pl - 10.0f;
+            g_row_vm[r] = (pl + pr) * 0.5f;
         }
-        if (s.index + 1 < static_cast<int>(s.values.size())) {
-            host_overlay_text(px + pw - 50.0f, y + text_dy, 0.8f, sel ? 0xc8a05affu : 0x555555ffu, ">");
+        if (waits_for_restart(row.setting, s.index)) {
+            const char* restart = menu_tr("RESTART");
+            const float rx = lx + lw + 10.0f, rw = host_overlay_ui_text_width(kOverlayFontBold, 12.0f, restart) + 14.0f;
+            host_overlay_round_rect(rx, y + (row_h - 20.0f) * 0.5f, rw, 20.0f, 10.0f, 0xffffff1au, 0xffffff12u);
+            host_overlay_ui_text(kOverlayFontBold, rx + 7.0f, y + (row_h - 20.0f) * 0.5f + 3.0f, 12.0f, kMuted, restart);
         }
-        if (s.restart && !(row.setting == kResolution && res_live(s.index))) {
-            host_overlay_text(px + 40.0f + host_overlay_text_width(0.8f, s.label) + 14.0f, y + text_dy + 4.0f,
-                              0.52f, 0x7a6a44ffu, "(restart required)");
-        }
-        y += 40.0f * fit;
-    }
-    if (more_below) {
-        host_overlay_text(px + 40.0f, y, 0.55f, 0x7a6a44ffu, "v more below");
     }
     g_laid_out = true;
 
@@ -1464,28 +1961,19 @@ void options_panel_frame(float display_w, float display_h) {
     const char* note = id >= 0 ? g_set[id].note : "Saves on close.";
     if (g_rows[g_sel].kind == Row::Text) note = "Enter or click to type; Enter keeps it, Escape drops it.";
     if (g_rows[g_sel].kind == Row::Action) {
-        static const char* const kNotes[] = {
-            "Shows a code and opens the website: sign in there with Discord and approve it.",
-            "Makes an account held by this PC under the name above; write down its recovery code.",
-            "The name and recovery code above give this PC the account back (other PCs are signed out).",
-            "A one-time code to sign in on the website's account page with this PC's account.",
-            "Forgets the token; the game is signed out if the server requires an account.",
-        };
-        static const char* const kUpdateNotes[] = {
-            "Asks GitHub for the newest release.",
-            "Opens the newer release's page in your browser, to download it from there.",
-        };
         const int f = g_rows[g_sel].field;
         note = f >= 10 ? kUpdateNotes[f - 10] : kNotes[f];
     }
-    host_overlay_rect(px + 28.0f, py + ph - 108.0f, pw - 56.0f, 1.0f, 0x6a5a34ffu);
+    // The note in a well of its own, like a launcher tooltip.
+    const float ny = py + ph - kFoot + 18.0f;
+    host_overlay_round_rect(px + 28.0f, ny, pw - 56.0f, 78.0f, 16.0f, 0x00000047u, 0x00000033u);
+    host_overlay_round_frame(px + 28.0f, ny, pw - 56.0f, 78.0f, 16.0f, 1.0f, 0xffffff1au, 0xffffff0au);
     if (note) {
-        // rc2: wrapped to the panel, at most three lines (the last cut with
-        // "..."). One line ran off the panel, and its glyphs - drawn whether
-        // on screen or not - took the overlay past its vertex buffer.
-        const auto lines = wrap_note(note, pw - 56.0f, 0.62f, 3);
+        // Wrapped by the monospace measure (about as wide as the proportional
+        // face at this size), at most three lines, the last cut with "...".
+        const auto lines = wrap_note(menu_tr(note), pw - 100.0f, 0.66f, 3);
         for (std::size_t i = 0; i < lines.size(); ++i)
-            host_overlay_text(px + 28.0f, py + ph - 98.0f + 20.0f * static_cast<float>(i), 0.62f, 0x9a9a9affu, lines[i].c_str());
+            host_overlay_ui_text(kOverlayFontBody, px + 46.0f, ny + 12.0f + 21.0f * static_cast<float>(i), 17.0f, kSoft, lines[i].c_str());
     }
     // rc2: each selection change in the log with the overlay's size (the
     // F10 bug was a selection that took the vertices past the buffer).
@@ -1499,8 +1987,36 @@ void options_panel_frame(float display_w, float display_h) {
                      host_overlay_shown_vertices());
         }
     }
-    host_overlay_text(px + 28.0f, py + ph - 34.0f, 0.62f, 0x7a7a7affu,
-                      "Arrows move and change   Enter toggles   Click sets   Esc or F10 closes");
+    // The key guide as small pills.
+    {
+        float kx = px + 30.0f;
+        const float ky = py + ph - 40.0f;
+        std::vector<std::pair<std::string, const char*>> keys;
+        if (host_input_device() == InputDevice::Pad) {
+            // A controller's buttons: the icons' set (pad_icons, Auto following
+            // the pad) and the region's confirm and back.
+            const int icons = g_set[kPadIcons].index;
+            const bool ps = icons == 1 || (icons == 0 && host_pad_playstation());
+            const bool circle_confirms = menu_confirm_button() == 0x2000u;  // the pad's Circle bit (engine/menu_pointer.h)
+            const char* confirm = ps ? (circle_confirms ? "Circle" : "Cross") : (circle_confirms ? "B" : "A");
+            const char* back = ps ? (circle_confirms ? "Cross" : "Circle") : (circle_confirms ? "A" : "B");
+            const char* tabs = ps ? "L1 / R1" : "LB / RB";
+            if (pad_editing()) {
+                keys = {{"Left / Right", "change"}, {std::string(confirm) + " / " + back, "done"}, {tabs, "section"}};
+            } else {
+                keys = {{"D-pad", "move"}, {tabs, "section"}, {confirm, "change"}, {back, "closes"}};
+            }
+        } else {
+            for (const auto& k : kKeys) keys.emplace_back(k[0], k[1]);
+        }
+        for (const auto& k : keys) {
+            const float kw = host_overlay_ui_text_width(kOverlayFontBold, 14.0f, k.first.c_str());
+            host_overlay_round_rect(kx, ky - 4.0f, kw + 20.0f, 24.0f, 12.0f, 0xffffff24u, 0xffffff17u);
+            host_overlay_ui_text(kOverlayFontBold, kx + 10.0f, ky, 14.0f, kText, k.first.c_str());
+            kx += kw + 28.0f;
+            kx += host_overlay_ui_text(kOverlayFontBody, kx, ky, 14.0f, kMuted, menu_tr(k.second)) + 26.0f;
+        }
+    }
 }
 }  // namespace
 
@@ -1655,7 +2171,7 @@ void host_options_save_now() {
 
 bool host_steam_deck() {
     static const bool deck = [] {
-        if (const char* e = std::getenv("BBHOST_STEAM_DECK"); e && e[0]) return e[0] == '1';
+        if (const char* e = std::getenv("HELIAS_STEAM_DECK"); e && e[0]) return e[0] == '1';
         // The firmware's vendor and product: Valve's Jupiter (the LCD Deck) or
         // Galileo (the OLED one). Not any Valve machine - another has another
         // GPU, and these two configurations are this one's.
@@ -1726,3 +2242,41 @@ std::string host_account_outcome() {
 }
 std::string host_account_detail() { return account_detail(); }
 bool host_account_take_save() { return g_acct_save.exchange(false); }
+
+float host_opt_mip_bias() { return g_mip_bias.load(std::memory_order_relaxed); }
+unsigned host_opt_submit_split() { return g_submit_split.load(std::memory_order_relaxed); }
+bool host_opt_fsr4_sharp_motion() { return g_fsr4_sharp_motion.load(std::memory_order_relaxed); }
+
+std::vector<std::string> host_options_menu_strings() {
+    std::vector<std::string> out;
+    const auto add = [&](const char* t) {
+        if (!t || !*t) return;
+        // Numbers and sizes need no translation.
+        bool word = false;
+        for (const char* c = t; *c; ++c) word = word || std::isalpha(static_cast<unsigned char>(*c));
+        if (!word) return;
+        for (const std::string& o : out)
+            if (o == t) return;
+        out.emplace_back(t);
+    };
+    for (int sec = 0; sec < g_section_count; ++sec) {
+        const int was = menu_i18n_language();
+        menu_i18n_set_language(0);
+        add(section_name(sec));
+        menu_i18n_set_language(was);
+    }
+    for (int id = 0; id < kSettingCount; ++id) {
+        add(g_set[id].label);
+        add(g_set[id].note);
+        if (id == kMenuLanguage || id == kResolution) continue;
+        for (const char* v : g_set[id].values) add(v);
+    }
+    for (int r = 0; r < kRowCount; ++r)
+        if (g_rows[r].kind != Row::Header && g_rows[r].kind != Row::Option) add(g_rows[r].text);
+    for (const char* n : kNotes) add(n);
+    for (const char* n : kUpdateNotes) add(n);
+    for (const auto& k : kKeys) add(k[1]);
+    add("done");  // the controller's guide while a setting is selected
+    for (const char* n : kOtherStrings) add(n);
+    return out;
+}

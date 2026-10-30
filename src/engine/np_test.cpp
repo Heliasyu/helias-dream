@@ -39,14 +39,14 @@ constexpr std::uint64_t kFrpgNetMan = 0x593b120;         // FrpgNetMan*
 constexpr std::uint64_t kSprjEventMan = 0x593b108;       // SprjEventMan*; +0x60 area state; its +0x30 the summon selector
 
 std::uint64_t g_slide = 0;
-int g_insight = -1;  // BBHOST_TEST_INSIGHT: written once the world is up (the bells need it)
-int g_level = -1;    // BBHOST_TEST_LEVEL: the Chime Maiden wants a host of level 30 or more (common event 9220)
-// BBHOST_TEST_FLAGS=id=val,id?,...: event flags written (or read, with "?") once the world is up and again
+int g_insight = -1;  // HELIAS_TEST_INSIGHT: written once the world is up (the bells need it)
+int g_level = -1;    // HELIAS_TEST_LEVEL: the Chime Maiden wants a host of level 30 or more (common event 9220)
+// HELIAS_TEST_FLAGS=id=val,id?,...: event flags written (or read, with "?") once the world is up and again
 // 30 s later, after the map's own init event has run. The Chime Maiden's common event 9220 wants area flag
 // 2400 off, which m24's event 0 derives from the boss flags 12400160/12401800.
 struct FlagReq { std::uint32_t id; int value; };  // value -1 = read only
 std::vector<FlagReq> g_flags;
-std::vector<std::uint32_t> g_watch;  // BBHOST_NP_WATCH_FLAGS: logged with every change
+std::vector<std::uint32_t> g_watch;  // HELIAS_NP_WATCH_FLAGS: logged with every change
 bool g_flags_again = false;
 std::string g_role;
 double g_delay = 0;
@@ -64,7 +64,7 @@ std::uint64_t rd64(std::uint64_t va) {
 
 }  // namespace
 
-// BBHOST_NP_TEST=probe: the event side's summon filter, as its selection
+// HELIAS_NP_TEST=probe: the event side's summon filter, as its selection
 // state calls it for a fetched sign (sub_1c72360 at 0x1c7338a ->
 // sub_1c74710(state, request, force)). The request is null when the state
 // dropped the candidate first (its name in WorldSessionObjectMan+0xb0's
@@ -135,7 +135,7 @@ GUEST_ABI std::int64_t sos_filter_call_hook(std::uint64_t, std::uint64_t* saved)
 }
 }  // namespace
 
-// BBHOST_SAVE_DUMP=1: a probe on the save config's prefix getter
+// HELIAS_SAVE_DUMP=1: a probe on the save config's prefix getter
 // (sub_2c328c0: the wide string at +0xb0 of the config, heap when +0xc8 >= 8),
 // for the 6.3 Windows boot where the save directory name came out without it.
 namespace {
@@ -353,7 +353,7 @@ asm(".text\n.globl dl_alloc_ret\n" DL_TYPE_(dl_alloc_ret) "dl_alloc_ret:\n"
 
 void np_test_install(ElfImage* image) {
     g_slide = 0;
-    if (const char* d = std::getenv("BBHOST_SAVE_DUMP"); d && d[0] == '1') {
+    if (const char* d = std::getenv("HELIAS_SAVE_DUMP"); d && d[0] == '1') {
         g_slide = image->mem.slide;
         const bool f = engine_prologue_hook(image, image->mem.slide + (kDlFree - kPreferredGuestSlide), kDlPrologue,
                                             sizeof(kDlPrologue), reinterpret_cast<void*>(&dl_free_probe));
@@ -375,9 +375,9 @@ void np_test_install(ElfImage* image) {
             host_log("save-probe: the prefix getter did not take the hook");
         }
     }
-    const char* e = std::getenv("BBHOST_NP_TEST");
-    const char* ins = std::getenv("BBHOST_TEST_INSIGHT");
-    const char* lvl = std::getenv("BBHOST_TEST_LEVEL");
+    const char* e = std::getenv("HELIAS_NP_TEST");
+    const char* ins = std::getenv("HELIAS_TEST_INSIGHT");
+    const char* lvl = std::getenv("HELIAS_TEST_LEVEL");
     if ((!e || !e[0]) && (!ins || !ins[0]) && (!lvl || !lvl[0])) return;
     if (!e || !e[0]) e = "none";  // Insight only, no event
     if (!image || image->sha256 != kEboot109Sha256) {
@@ -390,7 +390,7 @@ void np_test_install(ElfImage* image) {
     g_delay = g_role == "host" ? 60.0 : 20.0;
     if (colon != std::string::npos) g_delay = std::atof(spec.c_str() + colon + 1);
     if (g_role != "guest" && g_role != "host" && g_role != "none" && g_role != "probe") {
-        host_log("np test: BBHOST_NP_TEST=%s is not guest or host; ignored", e);
+        host_log("np test: HELIAS_NP_TEST=%s is not guest or host; ignored", e);
         return;
     }
     g_slide = image->mem.slide;
@@ -398,9 +398,9 @@ void np_test_install(ElfImage* image) {
         !engine_call_site_hook(image, guest_of(kSosFilterCall), guest_of(kSosFilter), reinterpret_cast<void*>(&sos_filter_call_hook))) {
         host_log("np probe: the summon filter's call site did not take the hook");
     }
-    if (const char* i = std::getenv("BBHOST_TEST_INSIGHT"); i && i[0]) g_insight = std::atoi(i);
+    if (const char* i = std::getenv("HELIAS_TEST_INSIGHT"); i && i[0]) g_insight = std::atoi(i);
     if (lvl && lvl[0]) g_level = std::atoi(lvl);
-    if (const char* w = std::getenv("BBHOST_NP_WATCH_FLAGS"); w && w[0]) {
+    if (const char* w = std::getenv("HELIAS_NP_WATCH_FLAGS"); w && w[0]) {
         for (const char* q = w; *q;) {
             char* end = nullptr;
             const unsigned long id = std::strtoul(q, &end, 10);
@@ -409,7 +409,7 @@ void np_test_install(ElfImage* image) {
             q = *end == ',' ? end + 1 : end;
         }
     }
-    if (const char* f = std::getenv("BBHOST_TEST_FLAGS"); f && f[0]) {
+    if (const char* f = std::getenv("HELIAS_TEST_FLAGS"); f && f[0]) {
         std::string list = f;
         std::size_t at = 0;
         while (at < list.size()) {
@@ -534,16 +534,16 @@ void np_test_tick() {
     }
     if (g_role == "probe") {
         const double t = std::chrono::duration<double>(now - g_world_at).count();
-        // Every second: where this instance thinks everyone is (BBHOST_NP_POS=0 turns it off). The
+        // Every second: where this instance thinks everyone is (HELIAS_NP_POS=0 turns it off). The
         // line carries the wall clock so tools/desync.py can line up two instances' logs: "np pos
         // <epoch ms> me x y z | <slot> <handle> x y z ...". Position is the physics module's
         // (ChrIns+0x58 -> +8 -> +0x3b0 -> +0x68 -> +0x1e0, what the floating plates use); the net
         // players come from the session's slot table (net flow +0x16f8: count +0x14, handles
         // +0x1c+i*0x14) through WorldChrMan's handle table at +0x850, as sub_1a439b0 walks them.
         static double last_pos = -1;
-        static const bool pos_on = !(std::getenv("BBHOST_NP_POS") && std::getenv("BBHOST_NP_POS")[0] == '0');
-        static const double pos_every = [] {  // BBHOST_NP_POS_HZ: 1 by default, up to 20 for a lag estimate
-            const char* hz = std::getenv("BBHOST_NP_POS_HZ");
+        static const bool pos_on = !(std::getenv("HELIAS_NP_POS") && std::getenv("HELIAS_NP_POS")[0] == '0');
+        static const double pos_every = [] {  // HELIAS_NP_POS_HZ: 1 by default, up to 20 for a lag estimate
+            const char* hz = std::getenv("HELIAS_NP_POS_HZ");
             const double v = hz && hz[0] ? std::atof(hz) : 1.0;
             return 1.0 / (v > 0 && v <= 20 ? v : 1.0);
         }();
@@ -630,7 +630,7 @@ void np_test_tick() {
                          static_cast<int>(v[6]), static_cast<int>(v[7]), v[5], v[8], v[9], v[10], v[11]);
             }
         }
-        // Every frame, BBHOST_NP_WATCH_FLAGS (a comma list of event flags, e.g. a maiden's
+        // Every frame, HELIAS_NP_WATCH_FLAGS (a comma list of event flags, e.g. a maiden's
         // 12414220-12414223 in Central Yharnam) and whether the player carries an effect with
         // stateInfo 191 (the maiden's SpEffect 9020, "invadable"): one line whenever any changes.
         if (!g_watch.empty()) {

@@ -1,6 +1,6 @@
 # Modding
 
-bbhost never modifies the game files. Every change is layered on top at run
+Helia's Dream never modifies the game files. Every change is layered on top at run
 time, from a few places:
 
 | What | Where | Needs code? |
@@ -12,7 +12,7 @@ time, from a few places:
 
 ## The mods folder
 
-`paths.mods` in `bbhost.toml` (default `<data>/mods`) is checked before the
+`paths.mods` in `HeliasDream.toml` (default `<data>/mods`) is checked before the
 game dump for every file the game opens. A file at
 `<mods>/dvdroot_ps4/<path>` replaces the game's `dvdroot_ps4/<path>`. The log
 lists the files served from it (`FS overlay: ...`).
@@ -23,7 +23,7 @@ keeps the original's name and container format (`.dcx` stays compressed).
 ## Params
 
 The game's numbers live in 62 param tables: weapons, armour, enemies, attacks,
-magic, item lots, shops, special effects, the lock-on camera and more. bbhost
+magic, item lots, shops, special effects, the lock-on camera and more. Helia's Dream
 reads the field definitions the game ships (`dvdroot_ps4/paramdef`), so fields
 are named the way FromSoftware named them.
 
@@ -47,7 +47,7 @@ Table names are the ones the log prints (`params: slot N <TableName>: <TYPE>,
 R rows`). To see a row before changing it:
 
 ```sh
-BBHOST_PARAM_DUMP="EquipParamWeapon:1000000,LockCamParam:0" ./bbhost
+HELIAS_PARAM_DUMP="EquipParamWeapon:1000000,LockCamParam:0" ./heliasdream
 ```
 
 This prints every field with its value, type and the game's own description.
@@ -56,7 +56,7 @@ A table whose rows do not match its definition is refused with a log line
 instead of being written wrongly.
 
 `tools/bbparam.py` reads and searches the param tables of a dump from the
-command line (set `BBHOST_APP0` to the game folder).
+command line (set `HELIAS_APP0` to the game folder).
 
 ## Lighting and post-processing
 
@@ -68,16 +68,16 @@ edited copies of every file into the mods folder.
 ## Text
 
 Message banks (`msg/<lang>/*.msgbnd.dcx`, FMG files) are read through the mods
-folder as well. `src/engine/menu_assets.cpp` shows how bbhost adds its own
+folder as well. `src/engine/menu_assets.cpp` shows how Helia's Dream adds its own
 entries to the game's banks at start, in every language.
 
 ## Patch manifests
 
-A byte patch is a TOML file. bbhost reads every `*.toml` in these folders, a
+A byte patch is a TOML file. Helia's Dream reads every `*.toml` in these folders, a
 later file replacing an earlier one with the same name:
 
 1. `<exe dir>/patches` (the release package)
-2. `<exe dir>/../patches` (a build tree: `build/bbhost` reads the repository's `patches/`)
+2. `<exe dir>/../patches` (a build tree: `build/heliasdream` reads the repository's `patches/`)
 3. `<mods>/patches` (a mod's own)
 
 ```toml
@@ -101,12 +101,12 @@ kind = "code"                       # optional: "code" (default) or "data"
   refuses the whole file. A site that already holds `bytes` counts as done.
 - `kind = "code"` restores the page to read-only and executable afterwards;
   `"data"` leaves it writable.
-- `BBHOST_PATCHES=0` skips all manifests. The log has one line per file:
+- `HELIAS_PATCHES=0` skips all manifests. The log has one line per file:
   written, skipped or refused.
 
 The setup window's Patches tab lists every manifest with a switch. A patch
 that follows an `option` is switched by that setting; any other is turned off
-with `<name> = false` under `[patches]` in `bbhost.toml`.
+with `<name> = false` under `[patches]` in `HeliasDream.toml`.
 
 Shipped patches:
 
@@ -128,7 +128,7 @@ than fixed bytes, are written in code or as plugins.
 The maps' event scripts (`event/*.emevd.dcx`) and the NPC talk scripts
 (`script/talk/*.talkesdbnd.dcx`) can be rewritten at start from the player's
 own dump and served through the overlay, so nothing is redistributed. Two of
-bbhost's PC enhancements work this way and serve as examples:
+heliasdream's PC enhancements work this way and serve as examples:
 
 - `src/engine/maiden_events.cpp` rewrites the invasion events so the late
   areas take two invaders (the five-player sessions).
@@ -141,5 +141,5 @@ The `tools/` folder has small, independent scripts for the game's formats:
 `bbparam.py` (params), `gparam.py` (draw params), `msb.py` (map layouts),
 `luabnd.py` (AI script bundles), `shaderbnd.py` (shader bundles) and
 `gfx_dump.py` (Scaleform menus). Each documents its options at the top of
-the file. Scripts that read the game need `BBHOST_APP0` set to the folder
+the file. Scripts that read the game need `HELIAS_APP0` set to the folder
 that contains `dvdroot_ps4`.

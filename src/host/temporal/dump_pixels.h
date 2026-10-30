@@ -1,6 +1,6 @@
 #pragma once
 
-// bbhost-vk test3: the FSR stage dump's pixels (host/fsr_dump.h) - each
+// heliasdream-vk test3: the FSR stage dump's pixels (host/fsr_dump.h) - each
 // image's texels to 8-bit RGB for a PNG, and the numbers a log line carries
 // (luminance min / mean / max, NaN and infinite texels, the mean of the left
 // three quarters and the right quarter, test2's band). Pure: no Vulkan;

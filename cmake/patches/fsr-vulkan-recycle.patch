@@ -1,7 +1,7 @@
-# bbhost-vk: applied at configure time to copies of these FSR-Vulkan files in the build tree (cmake/fsr_vulkan.cmake);
+# heliasdream-vk: applied at configure time to copies of these FSR-Vulkan files in the build tree (cmake/fsr_vulkan.cmake);
 # the submodule itself stays at its pinned commit, unmodified. Recycles the FSR 3.1 backend bridge's per-dispatch
 # constant buffers (a vkAllocateMemory each) and descriptor pools instead of destroying and remaking them.
-# Against FireBurn/FSR-Vulkan c64f093. MIT, as the files it changes. Off: -DBBHOST_FSR_VULKAN_PATCHES=OFF.
+# Against FireBurn/FSR-Vulkan c64f093. MIT, as the files it changes. Off: -DHELIAS_FSR_VULKAN_PATCHES=OFF.
 diff -ru a/include/ffx_vk_fsr3_3_1_5_descriptor.h b/include/ffx_vk_fsr3_3_1_5_descriptor.h
 --- a/include/ffx_vk_fsr3_3_1_5_descriptor.h	2026-10-18 02:38:59.204284497 -0500
 +++ b/include/ffx_vk_fsr3_3_1_5_descriptor.h	2026-10-18 02:43:12.084284497 -0500
@@ -9,7 +9,7 @@ diff -ru a/include/ffx_vk_fsr3_3_1_5_descriptor.h b/include/ffx_vk_fsr3_3_1_5_de
      uint32_t resourceCount,
      FfxVkFsr3_3_1_5DescriptorSet* outDescriptorSet);
  
-+/* bbhost-vk patch: as above, from `reusePool` (made earlier for the same
++/* heliasdream-vk patch: as above, from `reusePool` (made earlier for the same
 + * pipeline layout, reset since) when it is not VK_NULL_HANDLE. */
 +FfxVkPortableResult ffxVkFsr3_3_1_5CreateDescriptorSetInPool(
 +    const FfxVkFsr3_3_1_5Pipeline* pipeline,
@@ -28,14 +28,14 @@ diff -ru a/src/ffx_vk_fsr3_3_1_5_bridge.cpp b/src/ffx_vk_fsr3_3_1_5_bridge.cpp
      VkDeviceMemory memory = VK_NULL_HANDLE;
      VkDeviceSize size = 0u;
      uint64_t frameId = 0u;
-+    VkDeviceSize capacity = 0u;  /* bbhost-vk patch: the buffer's size, for reuse */
-+    bool coherent = true;        /* bbhost-vk patch: its memory needs no flush */
++    VkDeviceSize capacity = 0u;  /* heliasdream-vk patch: the buffer's size, for reuse */
++    bool coherent = true;        /* heliasdream-vk patch: its memory needs no flush */
  };
  
  struct BridgeDescriptorSet {
      FfxVkFsr3_3_1_5DescriptorSet descriptorSet{};
      uint64_t frameId = 0u;
-+    VkDescriptorSetLayout layout = VK_NULL_HANDLE;  /* bbhost-vk patch: its pool's key for reuse */
++    VkDescriptorSetLayout layout = VK_NULL_HANDLE;  /* heliasdream-vk patch: its pool's key for reuse */
  };
  
  } // namespace
@@ -43,7 +43,7 @@ diff -ru a/src/ffx_vk_fsr3_3_1_5_bridge.cpp b/src/ffx_vk_fsr3_3_1_5_bridge.cpp
       * will recycle these against a caller fence; retaining is deliberately
       * conservative and makes this first native graph recorder GPU-safe. */
      std::vector<std::unique_ptr<BridgeDescriptorSet>> descriptorSets;
-+    /* bbhost-vk patch (cmake/patches/fsr-vulkan-recycle.patch): what the
++    /* heliasdream-vk patch (cmake/patches/fsr-vulkan-recycle.patch): what the
 +     * retire gives back is kept for the next frames instead of destroyed -
 +     * constant buffers (one vkAllocateMemory each, a dozen a dispatch) and
 +     * descriptor pools (reset, by the layout they were made for). */
@@ -61,7 +61,7 @@ diff -ru a/src/ffx_vk_fsr3_3_1_5_bridge.cpp b/src/ffx_vk_fsr3_3_1_5_bridge.cpp
 -            &descriptorSet->descriptorSet) != FFX_VK_PORTABLE_OK)
 +    if (!descriptorSet)
          return false;
-+    /* bbhost-vk patch: a reset pool made for this layout, when one is free. */
++    /* heliasdream-vk patch: a reset pool made for this layout, when one is free. */
 +    const VkDescriptorSetLayout layout = pipeline->pipeline.descriptorSetLayout;
 +    VkDescriptorPool reusePool = VK_NULL_HANDLE;
 +    {
@@ -105,7 +105,7 @@ diff -ru a/src/ffx_vk_fsr3_3_1_5_bridge.cpp b/src/ffx_vk_fsr3_3_1_5_bridge.cpp
      if (!constantBuffer)
          return static_cast<FfxErrorCode>(FFX_ERROR_OUT_OF_MEMORY);
 +    {
-+        /* bbhost-vk patch: a retired buffer large enough, rewritten. */
++        /* heliasdream-vk patch: a retired buffer large enough, rewritten. */
 +        std::unique_ptr<BridgeConstantBuffer> reused;
 +        {
 +            std::lock_guard<std::mutex> lock(bridge->mutex);
@@ -216,7 +216,7 @@ diff -ru a/src/ffx_vk_fsr3_3_1_5_descriptor.c b/src/ffx_vk_fsr3_3_1_5_descriptor
 +                                                    VK_NULL_HANDLE, outDescriptorSet);
 +}
 +
-+/* bbhost-vk patch (cmake/patches/fsr-vulkan-recycle.patch): the same, from a
++/* heliasdream-vk patch (cmake/patches/fsr-vulkan-recycle.patch): the same, from a
 + * pool made earlier for this pipeline's layout and reset since, instead of a
 + * new pool per dispatch. VK_NULL_HANDLE makes one as before. */
 +FfxVkPortableResult ffxVkFsr3_3_1_5CreateDescriptorSetInPool(

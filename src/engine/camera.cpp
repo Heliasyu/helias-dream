@@ -127,7 +127,7 @@ void find_tables() {
 
 // The multipliers the settings object carries (host/settings.h): distance
 // and height 10% a step around the game's own, field of view 5% wider a
-// step, BBHOST_FOV overriding.
+// step, HELIAS_FOV overriding.
 Scales wanted_scales() {
     const HostSettings hs = host_settings();
     return Scales{hs.camera_distance_scale, hs.camera_height_scale, hs.fov_scale};
@@ -135,11 +135,11 @@ Scales wanted_scales() {
 
 }  // namespace
 
-// BBHOST_FOV_WATCH=1: once the table is found, watch reads of its rows and
+// HELIAS_FOV_WATCH=1: once the table is found, watch reads of its rows and
 // report where they come from - to find the camera code that takes camFovY.
 bool fov_watching() {
     static const bool on = [] {
-        const char* e = std::getenv("BBHOST_FOV_WATCH");
+        const char* e = std::getenv("HELIAS_FOV_WATCH");
         return e && (e[0] == '1' || e[0] == '2');
     }();
     return on;
@@ -152,8 +152,8 @@ void fov_watch() {
     if (ticks < 0) {
         std::lock_guard<std::mutex> lock(g_mu);
         if (g_tables.empty()) return;
-        // BBHOST_FOV_WATCH=1 the first copy, 2 the second.
-        const char* e = std::getenv("BBHOST_FOV_WATCH");
+        // HELIAS_FOV_WATCH=1 the first copy, 2 the second.
+        const char* e = std::getenv("HELIAS_FOV_WATCH");
         const std::size_t which = e[0] == '2' && g_tables.size() > 1 ? 1 : 0;
         const Table& t = g_tables[which];
         for (const Table& c : g_tables) host_log("camera: LockCamParam copy at %p", static_cast<void*>(c.base));

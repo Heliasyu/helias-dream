@@ -196,6 +196,73 @@ void label_for(const Tag& t, bool mouse_camera, char* out, std::size_t n) {
     }
 }
 
+// An Xbox controller's button for an action, by the PS4 button it is on
+// (host/window.cpp's pad mapping: SDL's south/east/west/north are Cross,
+// Circle, Square, Triangle). Personal Effects - the touchpad's right side -
+// has no button on such a pad, and keeps its glyph.
+const char* xbox_button(int action) {
+    const bool cross_confirms = menu_region_confirm_button() == 0x4000u;
+    switch (action) {
+        case kBindAttack: return "RB";
+        case kBindStrong: return "RT";
+        case kBindTransform: return "LB";
+        case kBindFirearm: return "LT";
+        case kBindL3: return "LS";
+        case kBindLockOn: return "RS";
+        case kBindBloodVial: return "Y";
+        case kBindUseItem: return "X";
+        case kBindInteract: return "A";
+        case kBindRoll: return "B";
+        case kBindDpadUp: return "D-pad Up";
+        case kBindSwitchItem: return "D-pad Down";
+        case kBindSwitchLeft: return "D-pad Left";
+        case kBindSwitchRight: return "D-pad Right";
+        case kBindMoveF: case kBindMoveB: case kBindMoveL: case kBindMoveR: return "Left Stick";
+        case kBindLookU: case kBindLookD: case kBindLookL: case kBindLookR: return "Right Stick";
+        case kBindGestures: return "View";
+        case kBindMenu: return "Menu";
+        case kBindConfirm: return cross_confirms ? "A" : "B";
+        case kBindBack: return cross_confirms ? "B" : "A";
+        default: return nullptr;
+    }
+}
+void xbox_label(const Tag& t, char* out, std::size_t n) {
+    out[0] = '\0';
+    // A tag's pad buttons are fixed whatever is bound to the keys: Cross and
+    // Circle by name (resolve() makes them confirm and back), the rest by the
+    // action the default layout puts there.
+    const char* names[4] = {nullptr, nullptr, nullptr, nullptr};
+    int count = 0;
+    for (int i = 0; i < 4; ++i) {
+        if (t.action[i] == kNone) continue;
+        const char* b = xbox_button(resolve(t.action[i]));
+        if (!b) continue;
+        bool dup = false;
+        for (int j = 0; j < count; ++j) dup = dup || std::strcmp(names[j], b) == 0;
+        if (!dup) names[count++] = b;
+    }
+    if (count == 4 && std::strncmp(names[0], "D-pad", 5) == 0) {
+        std::snprintf(out, n, "D-pad");
+        return;
+    }
+    std::size_t o = 0;
+    for (int i = 0; i < count && o + 1 < n; ++i) {
+        const char* b = names[i];
+        // "D-pad Up/Down", not "D-pad Up/D-pad Down".
+        if (i && std::strncmp(b, "D-pad ", 6) == 0 && std::strncmp(names[0], "D-pad ", 6) == 0) b += 6;
+        o += static_cast<std::size_t>(std::snprintf(out + o, n - o, "%s%s", i ? "/" : "", b));
+    }
+}
+
+bool mouse_is_camera();  // below
+// What the prompts show: the game's glyphs, the keys, or an Xbox pad's buttons.
+enum PromptMode { kGlyphs = 0, kKeys = 1, kXbox = 2 };
+int prompt_mode();  // below
+void label_in(const Tag& t, int mode, char* out, std::size_t n) {
+    if (mode == kXbox) xbox_label(t, out, n);
+    else label_for(t, mouse_is_camera(), out, n);
+}
+
 // The setting, re-read when anything changed rather than on every call.
 bool prompts_wanted() {
     static std::atomic<std::uint64_t> seen{~0ull};
@@ -208,6 +275,21 @@ bool prompts_wanted() {
         default: return host_input_device() == InputDevice::KeyboardMouse;  // Auto: the device last used
     }
 }
+
+// The controller's icons when they show: the game's (PlayStation) or an Xbox
+// pad's, by the setting - Auto follows the controller last used.
+bool xbox_icons() {
+    static std::atomic<std::uint64_t> seen{~0ull};
+    static std::atomic<int> mode{0};
+    const std::uint64_t now = host_opt_serial();
+    if (seen.exchange(now) != now) mode.store(host_settings().pad_icons, std::memory_order_relaxed);
+    switch (mode.load(std::memory_order_relaxed)) {
+        case 1: return false;  // PlayStation
+        case 2: return true;   // Xbox
+        default: return host_pad_present() && !host_pad_playstation();
+    }
+}
+int prompt_mode() { return prompts_wanted() ? kKeys : xbox_icons() ? kXbox : kGlyphs; }
 
 bool mouse_is_camera() {
     static std::atomic<std::uint64_t> seen{~0ull};
@@ -230,12 +312,12 @@ void note_unknown(const char* tag) {
     g_unknown.fetch_add(1, std::memory_order_relaxed);
 }
 
-// BBHOST_KEY_PROMPTS_TRACE=1: every format this formatter is handed, with its
+// HELIAS_KEY_PROMPTS_TRACE=1: every format this formatter is handed, with its
 // first argument, so a prompt that does not come through here shows itself.
 std::atomic<int> g_trace{0};
 bool tracing_messages() {
     static const bool on = [] {
-        const char* e = std::getenv("BBHOST_KEY_PROMPTS_TRACE");
+        const char* e = std::getenv("HELIAS_KEY_PROMPTS_TRACE");
         return e && e[0] == '1';
     }();
     return on;
@@ -286,7 +368,8 @@ const std::u16string kImgOpen = u"<img src='";
 const std::u16string kImgClose = u"' vspace='-8'>";
 // The line with every glyph tag named as a key (keys) or every label of ours
 // put back as its glyph (!keys); false when nothing in it changes.
-bool mend_line(const char16_t* text, bool keys, std::u16string& out) {
+bool mend_line(const char16_t* text, int mode, std::u16string& out) {
+    const bool keys = mode != kGlyphs;
     const std::u16string in(text);
     out.clear();
     bool changed = false;
@@ -306,7 +389,7 @@ bool mend_line(const char16_t* text, bool keys, std::u16string& out) {
                 }
             }
             char utf8[96] = "";
-            if (found) label_for(*found, mouse_is_camera(), utf8, sizeof(utf8));
+            if (found) label_in(*found, mode, utf8, sizeof(utf8));
             out.append(in, at, open - at);
             if (utf8[0]) {
                 char16_t w[96];
@@ -346,17 +429,31 @@ bool mend_line(const char16_t* text, bool keys, std::u16string& out) {
 GUEST_ABI std::int64_t settext_hook(std::uint64_t, std::uint64_t* saved) {
     const auto* text = reinterpret_cast<const char16_t*>(static_cast<std::uintptr_t>(saved[3]));
     if (!text || !(saved[2] & 0xff)) return 0;  // rcx: isHtml - a tag in plain text would show as markup
-    const bool keys = prompts_wanted();
+    const int mode = prompt_mode();
     // The cheap test first: most text holds neither a tag nor a bracket.
-    bool any = false;
-    for (const char16_t* c = text; *c && !any; ++c) any = keys ? (c[0] == u'<' && c[1] == u'i') : c[0] == u'[';
-    if (!any) return 0;
-    if (!keys) {
-        std::lock_guard<std::mutex> lock(g_labels_mu);
-        if (g_label_tags.empty()) return 0;
+    bool tag = false, bracket = false;
+    for (const char16_t* c = text; *c; ++c) {
+        tag = tag || (c[0] == u'<' && c[1] == u'i');
+        bracket = bracket || c[0] == u'[';
     }
-    static thread_local std::u16string mended;
-    if (!mend_line(text, keys, mended)) return 0;
+    bool labels;
+    {
+        std::lock_guard<std::mutex> lock(g_labels_mu);
+        labels = !g_label_tags.empty();
+    }
+    if (!(bracket && labels) && !(mode != kGlyphs && tag)) return 0;
+    static thread_local std::u16string mended, back;
+    // Labels made for the other device go back to their tags first (keys to
+    // Xbox buttons, or either to the glyphs), then the tags become this mode's.
+    const char16_t* line = text;
+    bool changed = false;
+    if (bracket && labels && mend_line(line, kGlyphs, back)) {
+        line = back.c_str();
+        changed = true;
+    }
+    if (mode != kGlyphs && mend_line(line, mode, mended)) changed = true;
+    else if (changed) mended = back;
+    if (!changed) return 0;
     saved[3] = reinterpret_cast<std::uint64_t>(mended.c_str());  // SetText copies it before it returns
     if (g_mended.fetch_add(1, std::memory_order_relaxed) == 0) host_log("key prompts: a line already on screen was mended for the device in use");
     return 0;
@@ -367,7 +464,7 @@ GUEST_ABI std::int64_t settext_hook(std::uint64_t, std::uint64_t* saved) {
 GUEST_ABI std::int64_t formatter_hook(std::uint64_t, std::uint64_t* saved) {
     const auto* fmt = reinterpret_cast<const char16_t*>(static_cast<std::uintptr_t>(saved[4]));
     static const bool tracing = [] {
-        const char* e = std::getenv("BBHOST_KEY_PROMPTS_TRACE");
+        const char* e = std::getenv("HELIAS_KEY_PROMPTS_TRACE");
         return e && e[0] == '1';
     }();
     if (tracing && fmt) trace(fmt, saved[3], saved[6]);  // saved[6]: the return address, above the pushes
@@ -378,7 +475,8 @@ GUEST_ABI std::int64_t formatter_hook(std::uint64_t, std::uint64_t* saved) {
     if (!arg) return 0;
     char tag[24];
     if (!tag_ascii(arg, tag, sizeof(tag)) || std::strncmp(tag, "KG_", 3) != 0) return 0;
-    if (!prompts_wanted()) return 0;
+    const int mode = prompt_mode();
+    if (mode == kGlyphs) return 0;
     const Tag* found = nullptr;
     for (const Tag& t : kTags) {
         if (std::strcmp(t.name, tag + 3) == 0) {
@@ -391,7 +489,7 @@ GUEST_ABI std::int64_t formatter_hook(std::uint64_t, std::uint64_t* saved) {
         return 0;
     }
     char utf8[96];
-    label_for(*found, mouse_is_camera(), utf8, sizeof(utf8));
+    label_in(*found, mode, utf8, sizeof(utf8));
     if (!utf8[0]) return 0;  // nothing bound: the glyph says it better than "[]"
     // The guest reads both while it formats, and the formatter copies the
     // result before it returns, so one buffer per thread is enough.
@@ -492,13 +590,20 @@ std::uint64_t g_msg_serial = 0;
 std::atomic<std::uint64_t> g_messages{0}, g_lookups{0}, g_slots{0}, g_examined_n{0};
 
 // The label for a placeholder or a tag, bracketed. Empty when nothing is bound.
+int g_rewrite_mode = kKeys;  // under g_msg_mu: what rewrite() labels for
 std::u16string bracketed(const char* fixed, const int action[4]) {
     char utf8[96] = {0};
-    if (fixed) {
+    Tag t{"", {action[0], action[1], action[2], action[3]}};
+    if (fixed && g_rewrite_mode == kXbox) {
+        // The menu directions: the d-pad on a pad, the arrow keys otherwise.
+        static constexpr const char* kKeysNames[] = {"Up", "Down", "Left", "Right", "Up/Down", "Left/Right", "Arrow Keys"};
+        static constexpr const char* kPadNames[] = {"D-pad Up", "D-pad Down", "D-pad Left", "D-pad Right", "D-pad Up/Down", "D-pad Left/Right", "D-pad"};
+        for (std::size_t i = 0; i < sizeof(kKeysNames) / sizeof(kKeysNames[0]); ++i)
+            if (std::strcmp(fixed, kKeysNames[i]) == 0) std::snprintf(utf8, sizeof(utf8), "%s", kPadNames[i]);
+    } else if (fixed) {
         std::snprintf(utf8, sizeof(utf8), "%s", fixed);
     } else {
-        Tag t{"", {action[0], action[1], action[2], action[3]}};
-        label_for(t, mouse_is_camera(), utf8, sizeof(utf8));
+        label_in(t, g_rewrite_mode, utf8, sizeof(utf8));
     }
     if (!utf8[0]) return std::u16string();
     char16_t w[96];
@@ -628,7 +733,8 @@ std::uint64_t entry_slot(std::uint64_t repo, std::uint32_t version, std::uint32_
 
 GUEST_ABI std::int64_t lookup_hook(std::uint64_t, const std::uint64_t* saved) {
     g_lookups.fetch_add(1, std::memory_order_relaxed);
-    const bool wanted = prompts_wanted();
+    const int mode = prompt_mode();
+    const bool wanted = mode != kGlyphs;
     if (!wanted && g_patched_n.load(std::memory_order_relaxed) == 0) return 0;
     std::uint64_t block = 0;
     const std::uint64_t slot = entry_slot(saved[5], static_cast<std::uint32_t>(saved[4]),
@@ -640,7 +746,7 @@ GUEST_ABI std::int64_t lookup_hook(std::uint64_t, const std::uint64_t* saved) {
     // A binding changed, or the player picked up the other device: the game's
     // own text goes back, and whatever is looked up next is built again - with
     // the new key, or left as the pad's glyph.
-    const std::uint64_t serial = host_bindings_serial() * 2 + (wanted ? 1 : 0);
+    const std::uint64_t serial = host_bindings_serial() * 3 + static_cast<std::uint64_t>(mode);
     if (serial != g_msg_serial) {
         for (const Patched& p : g_patched) {
             std::memcpy(reinterpret_cast<void*>(static_cast<std::uintptr_t>(p.slot)), &p.was, 8);
@@ -651,6 +757,7 @@ GUEST_ABI std::int64_t lookup_hook(std::uint64_t, const std::uint64_t* saved) {
         g_msg_serial = serial;
     }
     if (!wanted) return 0;
+    g_rewrite_mode = mode;
     if (!g_examined.emplace(slot, 1).second) return 0;
     const std::uint64_t seen = g_examined_n.fetch_add(1, std::memory_order_relaxed);
     const std::uint64_t off = rd<std::uint64_t>(slot);
@@ -682,7 +789,7 @@ GUEST_ABI std::int64_t lookup_hook(std::uint64_t, const std::uint64_t* saved) {
     return 0;
 }
 
-// BBHOST_KEY_PROMPTS_TRACE=1: the rewrite over two lines of the game's own
+// HELIAS_KEY_PROMPTS_TRACE=1: the rewrite over two lines of the game's own
 // text, so a run says what it would do without having to reach the screen
 // that shows them.
 void self_check() {
@@ -704,7 +811,7 @@ void self_check() {
 }  // namespace
 
 void key_prompts_install(ElfImage* image) {
-    if (const char* e = std::getenv("BBHOST_KEY_PROMPTS"); e && e[0] == '0') {
+    if (const char* e = std::getenv("HELIAS_KEY_PROMPTS"); e && e[0] == '0') {
         host_log("key prompts: off, the pad's glyphs stay");
         return;
     }

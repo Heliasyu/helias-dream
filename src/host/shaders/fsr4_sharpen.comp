@@ -1,6 +1,6 @@
 #version 450
-// bbhost-vk test7: the sharpening of FSR 4.1.1's output (host/fsr4_pass.cpp), in
-// place of the replay's own RCAS pass (BBHOST_FSR4_SHARPEN=amd keeps that one).
+// heliasdream-vk test7: the sharpening of FSR 4.1.1's output (host/fsr4_pass.cpp), in
+// place of the replay's own RCAS pass (HELIAS_FSR4_SHARPEN=amd keeps that one).
 // AMD's RCAS math (fsr1/ffx_fsr1.h, MIT, included unchanged) with its noise
 // removal on, fed from a 18x18 tile in shared memory: one 16x16 block of
 // output per group of 64 threads, each image texel read once per block instead

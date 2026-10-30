@@ -215,12 +215,12 @@ extern "C" GUEST_ABI void hle_fs_host() {
 #endif
 }
 
-// BBHOST_HLE_COUNT=1: every HLE call counted by thread and function
+// HELIAS_HLE_COUNT=1: every HLE call counted by thread and function
 // (hle_thunk_common passes its target), reported with the 300-flip report
 // (hle_call_counts_report): what the game's threads spend their HLE calls on.
 extern "C" bool g_hle_count_on;  // read by hle_thunk_common
 bool g_hle_count_on = [] {
-    const char* e = std::getenv("BBHOST_HLE_COUNT");
+    const char* e = std::getenv("HELIAS_HLE_COUNT");
     return e && e[0] == '1';
 }();
 namespace {
@@ -258,10 +258,10 @@ extern "C" GUEST_ABI void hle_count_call(void* fn, const std::uint64_t* frame) {
         f = up;
     }
     main_wait_note_site(chain);
-    // BBHOST_HLE_FIRST=1 (with BBHOST_HLE_COUNT=1): every HLE function the
+    // HELIAS_HLE_FIRST=1 (with HELIAS_HLE_COUNT=1): every HLE function the
     // first time it is called, with the guest return address as an ELF VA.
     static const bool first_log = [] {
-        const char* e = std::getenv("BBHOST_HLE_FIRST");
+        const char* e = std::getenv("HELIAS_HLE_FIRST");
         return e && e[0] == '1';
     }();
     if (first_log) {
@@ -963,12 +963,12 @@ void* thunk_wrap_capture_frame(void* fn) {
 // reverb and filter tails decay through denormals, each operation on which
 // takes x86 ~100x as long. Every guest context starts here: the game's threads,
 // its main thread, the AV player's callback thread; host threads keep their
-// own. BBHOST_GUEST_MXCSR=<hex> sets another (0x1f80: the host's, as before).
+// own. HELIAS_GUEST_MXCSR=<hex> sets another (0x1f80: the host's, as before).
 void guest_fp_enter() {
     static const unsigned mxcsr = [] {
-        const char* e = std::getenv("BBHOST_GUEST_MXCSR");
+        const char* e = std::getenv("HELIAS_GUEST_MXCSR");
         const unsigned v = e && *e ? static_cast<unsigned>(std::strtoul(e, nullptr, 16)) : 0x9fc0u;
-        host_log("guest: MXCSR 0x%04x for guest threads%s", v, e && *e ? " (BBHOST_GUEST_MXCSR)" : " (the console's: FTZ, DAZ)");
+        host_log("guest: MXCSR 0x%04x for guest threads%s", v, e && *e ? " (HELIAS_GUEST_MXCSR)" : " (the console's: FTZ, DAZ)");
         return v;
     }();
     _mm_setcsr(mxcsr);

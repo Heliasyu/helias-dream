@@ -19,11 +19,11 @@ int main() {
     std::size_t bad = 0, insns = 0, movable = 0, movable_before = 0, with_tables = 0, small = 0;
     std::size_t refused_loop = 0, refused_into = 0;
     std::uint8_t out[128];
-    // BBHOST_INSN_DUMP=file: every instruction's length, for every 97th
+    // HELIAS_INSN_DUMP=file: every instruction's length, for every 97th
     // function and every one not decoded to its end (a check against another
     // disassembler).
     std::FILE* dump = nullptr;
-    if (const char* e = std::getenv("BBHOST_INSN_DUMP"); e && *e) dump = std::fopen(e, "w");
+    if (const char* e = std::getenv("HELIAS_INSN_DUMP"); e && *e) dump = std::fopen(e, "w");
     std::size_t index = 0;
     for (const eboot_kit::Function& f : fns) {
         const std::uint8_t* code = eboot_kit::file_at(test, f.bn);

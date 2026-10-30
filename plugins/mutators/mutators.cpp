@@ -1,4 +1,4 @@
-// Mutators: an official bbhost plugin (docs/plugins.md) - rules on top of
+// Mutators: an official heliasdream plugin (docs/plugins.md) - rules on top of
 // the game, each one a switch. Any mix of them makes a different run.
 //
 //   [plugins]
@@ -16,7 +16,7 @@
 //
 // Everything is in memory (enemy_hp is NpcParam's hp, as the game reads it):
 // turn a mutator off and the next start plays as the game does. Echoes and HP it changed stay in the save, as play would.
-#include "bbhost/sdk.hpp"
+#include "heliasdream/sdk.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -27,7 +27,7 @@ extern "C" BB_PLUGIN_EXPORT const BbPluginInfo bb_plugin_info = {
     "mutators",
     "Mutators",
     "1.0.0",
-    "bbhost",
+    "heliasdream",
     "Gravity, game speed, bullet time, one-hit death, blood drain, tougher enemies, echo rate and chaos effects - each a switch.",
 };
 
@@ -181,7 +181,7 @@ void read_options() {
 
 }  // namespace
 
-extern "C" BB_PLUGIN_EXPORT int bb_plugin_image(const BbHostApi* api) {
+extern "C" BB_PLUGIN_EXPORT int bb_plugin_image(const HeliasApi* api) {
     if (!g.attach(api, 9)) return 1;
     if (!api->eboot_is_109()) return 1;
     read_options();

@@ -19,7 +19,7 @@
 // -mavx (the game's own instruction set).
 //
 // What it calls, it calls as the game does: the sine, arctangent and tangent
-// through the game's import stubs (bound to bbhost's libm), the sphere cast,
+// through the game's import stubs (bound to heliasdream's libm), the sphere cast,
 // the quaternion and matrix helpers and the debug draw in the eboot. Three
 // places in the game's code are rewritten at load, and ours reads them where
 // the game would: the fov-uncap patch (0x183af4e) and the 60 fps jump
@@ -1652,7 +1652,7 @@ bool follow_camera_body_ok(const std::uint8_t* entry) {
 
 namespace {
 
-// ---- Compare runs (BBHOST_DECOMP_COMPARE=1) ---------------------------------
+// ---- Compare runs (HELIAS_DECOMP_COMPARE=1) ---------------------------------
 //
 // The SprjFlipper model: the game's step runs on the camera and keeps its
 // result; ours runs on a copy of the camera as it was, with the

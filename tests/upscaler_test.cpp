@@ -1,4 +1,4 @@
-// bbhost-vk Phase 0: the upscaler presets' arithmetic (host/upscaler_presets.h)
+// heliasdream-vk Phase 0: the upscaler presets' arithmetic (host/upscaler_presets.h)
 // and, when FSR-Vulkan is linked (cmake/fsr_vulkan.cmake), that its FSR 3.1.5
 // shader tables are in the binary - all eleven passes' SPIR-V.
 #include "host/upscaler_presets.h"

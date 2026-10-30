@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# bbhost-vk: the player's one command for a round of tests. The steps come
+# heliasdream-vk: the player's one command for a round of tests. The steps come
 # from test-plan.txt beside it (written for each round), so nothing has to
 # be remembered: each step says what to do, waits for Enter, runs, and the
 # next one follows. At the end it says the round is done.
@@ -7,7 +7,7 @@
 #   ./run-tests.sh            the round in test-plan.txt
 #
 # test-plan.txt, one directive a line ('#' lines are comments):
-#   build <file>                       copy <file> over bbhost.bin first (the old one kept as bbhost.bin.before-tests)
+#   build <file>                       copy <file> over heliasdream.bin first (the old one kept as heliasdream.bin.before-tests)
 #   step <name> | <env> | <what to do>   a bbtest session called <name> with <env> (VAR=value ...; - for none)
 #   vvl <name> | <env> | <what to do>    the same under the validation layer (tools/vvl_game.sh)
 set -uo pipefail
@@ -26,9 +26,9 @@ while IFS= read -r line || [ -n "$line" ]; do
         build\ *)
             file=${line#build }
             [ -f "$file" ] || { echo "The test build $file is missing."; exit 1; }
-            if ! cmp -s "$file" bbhost.bin; then
-                [ -f bbhost.bin.before-tests ] || cp -p bbhost.bin bbhost.bin.before-tests
-                cp "$file" bbhost.bin && say "Installed the test build $file."
+            if ! cmp -s "$file" heliasdream.bin; then
+                [ -f heliasdream.bin.before-tests ] || cp -p heliasdream.bin heliasdream.bin.before-tests
+                cp "$file" heliasdream.bin && say "Installed the test build $file."
             fi
             ;;
         step\ * | vvl\ *)

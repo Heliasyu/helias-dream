@@ -1,4 +1,4 @@
-// drawreplay: run a BBHOST_CAPTURE_DRAW capture on its own Vulkan device from
+// drawreplay: run a HELIAS_CAPTURE_DRAW capture on its own Vulkan device from
 // its manifest and blobs alone.
 //
 //   drawreplay <capture-dir> [--out DIR] [--atol X] [--rtol Y] [--ps FILE.spv] [--vs FILE.spv]
@@ -131,7 +131,7 @@ Capture load_capture(const fs::path& dir) {
     const std::vector<std::uint8_t> text = read_file(dir / "manifest.json");
     std::string error;
     if (!json::parse(std::string(text.begin(), text.end()), c.m, error)) fail("manifest.json: " + error);
-    if (json::str(c.m, "schema") != "bbhost-draw-capture") fail("manifest.json is not a bbhost draw capture");
+    if (json::str(c.m, "schema") != "heliasdream-draw-capture") fail("manifest.json is not a heliasdream draw capture");
     if (json::u64(c.m, "version") != 1) fail("unsupported capture version " + std::to_string(json::u64(c.m, "version")));
     for (const auto& [name, b] : json::member(c.m, "blobs").object) {
         const bool plain = !name.empty() && std::all_of(name.begin(), name.end(), [](char ch) {
@@ -157,7 +157,7 @@ std::vector<std::uint32_t> words_of(const std::vector<std::uint8_t>& bytes, cons
     return w;
 }
 
-// Whether a module decorates anything into descriptor set `set` (bbhost puts
+// Whether a module decorates anything into descriptor set `set` (heliasdream puts
 // constant buffers in a push-descriptor set 2 of their own, vertex stage from
 // binding 112 and pixel stage from 128; older captures kept them in the
 // stage's own set).
@@ -299,11 +299,11 @@ public:
             if (std::strcmp(e.extensionName, "VK_KHR_pipeline_library") == 0) lib_ext = true;
         }
         gpl = gpl_ext && lib_ext;
-        if (gpl) {  // bbhost's BBHOST_PIPELINE_LIBRARY path, replayed with --library
+        if (gpl) {  // heliasdream's HELIAS_PIPELINE_LIBRARY path, replayed with --library
             dext.push_back("VK_KHR_pipeline_library");
             dext.push_back("VK_EXT_graphics_pipeline_library");
         }
-        // The feature set bbhost creates its device with (src/host/gpu.cpp).
+        // The feature set heliasdream creates its device with (src/host/gpu.cpp).
         VkPhysicalDeviceVulkan13Features f13{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES};
         f13.dynamicRendering = VK_TRUE;
         f13.synchronization2 = VK_TRUE;
@@ -340,7 +340,7 @@ public:
         dci.pQueueCreateInfos = &qci;
         dci.enabledExtensionCount = static_cast<std::uint32_t>(dext.size());
         dci.ppEnabledExtensionNames = dext.data();
-        check(vkCreateDevice(phys, &dci, nullptr, &device), "vkCreateDevice (bbhost's feature set)");
+        check(vkCreateDevice(phys, &dci, nullptr, &device), "vkCreateDevice (heliasdream's feature set)");
         vkGetDeviceQueue(device, family, 0, &queue);
         VkCommandPoolCreateInfo pci{VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO};
         pci.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
@@ -767,7 +767,7 @@ public:
             pipelines_.push_back(pipeline);
             return pipeline;
         }
-        // --library: bbhost's BBHOST_PIPELINE_LIBRARY split (src/host/render.cpp
+        // --library: heliasdream's HELIAS_PIPELINE_LIBRARY split (src/host/render.cpp
         // link_gfx_pipeline), fast-linked from four libraries that all use the
         // pipeline's full layout, with cull, front face, depth and stencil state
         // dynamic. (Partial layouts with independent sets lost the device.)
@@ -805,7 +805,7 @@ public:
         pri.pDynamicState = &pr_dsi;
         pri.layout = layout_;
         // Like the fragment shader, pre-rasterization takes no target formats:
-        // bbhost compiles vertex shaders before any draw names its targets.
+        // heliasdream compiles vertex shaders before any draw names its targets.
         VkPipelineRenderingCreateInfo pr_no_formats{VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO};
         const VkPipeline l_pr = make(pri, VK_GRAPHICS_PIPELINE_LIBRARY_PRE_RASTERIZATION_SHADERS_BIT_EXT, &pr_no_formats);
         std::vector<VkDynamicState> fs_dyn = {VK_DYNAMIC_STATE_DEPTH_TEST_ENABLE,    VK_DYNAMIC_STATE_DEPTH_WRITE_ENABLE, VK_DYNAMIC_STATE_DEPTH_COMPARE_OP,
@@ -826,7 +826,7 @@ public:
         fsi.pDepthStencilState = &fds;
         fsi.pDynamicState = &fs_dsi;
         fsi.layout = layout_;
-        // No target formats: bbhost compiles the fragment-shader library before a draw knows them.
+        // No target formats: heliasdream compiles the fragment-shader library before a draw knows them.
         VkPipelineRenderingCreateInfo fs_no_formats{VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO};
         const VkPipeline l_fs = make(fsi, VK_GRAPHICS_PIPELINE_LIBRARY_FRAGMENT_SHADER_BIT_EXT, &fs_no_formats);
         const VkDynamicState fo_dyn[] = {VK_DYNAMIC_STATE_BLEND_CONSTANTS};
@@ -1044,7 +1044,7 @@ public:
             vkCmdBeginRendering(cmd, &ri);
             vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, ro.pipeline);
             vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, layout_, 0, 3, sets, 0, nullptr);
-            if (ro.library) {  // the state bbhost sets per draw for a pipeline linked from libraries
+            if (ro.library) {  // the state heliasdream sets per draw for a pipeline linked from libraries
                 const json::Value& pj = json::member(m, "pipeline");
                 const auto ops = [&](VkStencilFaceFlags face, const json::Value& s) {
                     vkCmdSetStencilOp(cmd, face, static_cast<VkStencilOp>(json::u32(s, "fail_op")), static_cast<VkStencilOp>(json::u32(s, "pass_op")),
@@ -1261,7 +1261,7 @@ private:
     }
 
     void build_layout() {
-        // bbhost's set layout (src/host/gpu.cpp): the modules were translated against it.
+        // heliasdream's set layout (src/host/gpu.cpp): the modules were translated against it.
         std::vector<VkDescriptorSetLayoutBinding> binds;
         binds.push_back({gcn::kBindingParams, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_ALL, nullptr});
         for (std::uint32_t k = 0; k < 32; ++k) {
@@ -1347,7 +1347,7 @@ private:
             StageData& sd = stages_[st];
             sd.params = dev_.buffer((sizeof(gcn::StageParams) + 255) & ~std::size_t{255}, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT);
             // A stage without a module still gets a set with a params block,
-            // as in bbhost; nothing reads it.
+            // as in heliasdream; nothing reads it.
             const bool present = json::flag(stages[st], "present");
             const json::Value& ref = present ? stages[st] : stages[0];
             const auto& params = cap_.blob(json::str(json::member(ref, "params"), "blob"));
@@ -1513,7 +1513,7 @@ struct Options {
     bool live = true;
     bool validate = false;
     std::uint32_t bench = 0;  // draws per timed batch
-    bool library = false;     // the variant is linked from pipeline libraries (BBHOST_PIPELINE_LIBRARY)
+    bool library = false;     // the variant is linked from pipeline libraries (HELIAS_PIPELINE_LIBRARY)
 };
 
 [[noreturn]] void usage() {
@@ -1567,7 +1567,7 @@ int replay_main(const Options& o) {
     const VkPipeline captured = r.pipeline(nullptr);
 
     json::Value report = json::Value::make_object();
-    report.set("schema", "bbhost-draw-replay");
+    report.set("schema", "heliasdream-draw-replay");
     report.set("version", 1);
     report.set("capture", o.capture.string());
     report.set("capture_identity", identity);

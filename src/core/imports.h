@@ -11,7 +11,7 @@ std::uint64_t bind_glob_dat(const std::string& name, const std::string& nid, std
                            unsigned st_info);
 void register_hle();
 void register_hle_fn(const char* name, void* fn);
-// BBHOST_HLE_COUNT=1: logs the HLE calls since the last report by thread and function.
+// HELIAS_HLE_COUNT=1: logs the HLE calls since the last report by thread and function.
 void hle_call_counts_report();
 // Bound without the FS/stack thunk: fn runs with guest FS on the guest stack.
 void register_hle_fn_raw(const char* name, void* fn);

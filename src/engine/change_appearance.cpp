@@ -180,7 +180,7 @@ void change_appearance_install(ElfImage* image) {
         host_log("change appearance: off - no dump or data folder");
         return;
     }
-    const fs::path out = fs::path(data) / "bbhost" / "world-assets";
+    const fs::path out = fs::path(data) / "heliasdream" / "world-assets";
     const auto have = read_file(out / "stamp");
     const bool fresh = have && std::string(have->begin(), have->end()) == kStamp && fs::exists(out / kLayout);
     if (!fresh) {

@@ -6,32 +6,32 @@
 #   tools/perf_tour.sh [NAME] [VAR=value...]
 #
 # NAME (default perf-tour) names build/NAME/ (run.log). VAR=value pairs go
-# into the game's environment (BBHOST_SET_CACHE=0, BBHOST_GX_COST=1, ...).
+# into the game's environment (HELIAS_SET_CACHE=0, HELIAS_GX_COST=1, ...).
 # The run plays on a copy of data/ (tmp/data-scratch: the save walks, and the
 # copy is thrown away), at the 60 fps frame cap, on the Xvfb display
 # tools/menu_drive.sh uses, pinned to NUMA node PERF_TOUR_NODE (default 0)
 # when numactl is there - unpinned runs are too noisy to compare.
 set -u
-export BBHOST_SETUP_WINDOW=0  # a harness run never stops at the setup window
+export HELIAS_SETUP_WINDOW=0  # a harness run never stops at the setup window
 cd "$(dirname "$0")/.."
 NAME=${1:-perf-tour}
 [ $# -gt 0 ] && shift
-[ -f bbhost.toml ] || { echo "no bbhost.toml (see bbhost.example.toml)"; exit 1; }
+[ -f heliasdream.toml ] || { echo "no heliasdream.toml (see heliasdream.example.toml)"; exit 1; }
 mkdir -p tmp
 rm -rf tmp/data-scratch
-data=$(sed -n 's/^data *= *"\(.*\)"/\1/p' bbhost.toml | head -1)
+data=$(sed -n 's/^data *= *"\(.*\)"/\1/p' heliasdream.toml | head -1)
 cp -a "${data:-data}" tmp/data-scratch
 # The config, with the data (and its mods) moved to the copy.
-sed -e "s|^data *=.*|data = \"$PWD/tmp/data-scratch\"|" -e "s|^mods *=.*|mods = \"$PWD/tmp/data-scratch/mods\"|" bbhost.toml > tmp/perf-tour.toml
+sed -e "s|^data *=.*|data = \"$PWD/tmp/data-scratch\"|" -e "s|^mods *=.*|mods = \"$PWD/tmp/data-scratch/mods\"|" heliasdream.toml > tmp/perf-tour.toml
 cat > tmp/perf-tour-run.sh <<EOF
 #!/bin/bash
-if [ -n "\${BB_OPT:-}" ] && [ -n "\${BBHOST_OPTIONS_PATH:-}" ]; then
-  sed -i "/^frame_cap = /d" "\$BBHOST_OPTIONS_PATH"; sed -i "/^\[options\]/a \$BB_OPT" "\$BBHOST_OPTIONS_PATH"
+if [ -n "\${BB_OPT:-}" ] && [ -n "\${HELIAS_OPTIONS_PATH:-}" ]; then
+  sed -i "/^frame_cap = /d" "\$HELIAS_OPTIONS_PATH"; sed -i "/^\[options\]/a \$BB_OPT" "\$HELIAS_OPTIONS_PATH"
 fi
 export SDL_AUDIO_DRIVER=\${SDL_AUDIO_DRIVER:-dummy}
 pin=""
 command -v numactl >/dev/null && pin="numactl --cpunodebind=${PERF_TOUR_NODE:-0} --membind=${PERF_TOUR_NODE:-0}"
-exec \$pin "$PWD/build/bbhost" --config "$PWD/tmp/perf-tour.toml" "\$@"
+exec \$pin "$PWD/build/heliasdream" --config "$PWD/tmp/perf-tour.toml" "\$@"
 EOF
 chmod +x tmp/perf-tour-run.sh
 steps=(title sleep:4 clicknow:0 waitlog:area.glare.luminance sleep:8)
@@ -40,11 +40,11 @@ steps+=(keys:w+space,4 sleep:2)
 for _ in 1 2 3 4 5 6; do steps+=(keys:j,0.4 sleep:3); done
 steps+=(keys:w+space+l,4 lclick:4 sleep:3)
 limit=${PERF_TOUR_TIMEOUT:-260}  # seconds; raise it for runs that slow the boot (sampling the main thread)
-env "$@" BBHOST_GAME_FPS=60 BB_OPT='frame_cap = "60"' BBHOST_FRAME_STATS=1 MENU_DRIVE_OUT="build/$NAME" MENU_DRIVE_TIMEOUT=$limit \
-    BBHOST_BIN="$PWD/tmp/perf-tour-run.sh" timeout $((limit + 100)) tools/menu_drive.sh "${steps[@]}" > /dev/null 2>&1
+env "$@" HELIAS_GAME_FPS=60 BB_OPT='frame_cap = "60"' HELIAS_FRAME_STATS=1 MENU_DRIVE_OUT="build/$NAME" MENU_DRIVE_TIMEOUT=$limit \
+    HELIAS_BIN="$PWD/tmp/perf-tour-run.sh" timeout $((limit + 100)) tools/menu_drive.sh "${steps[@]}" > /dev/null 2>&1
 python3 - "build/$NAME/run.log" <<'PY'
 import re, sys
-lines = [l for l in open(sys.argv[1]) if l.startswith('[bbhost] frames:')]
+lines = [l for l in open(sys.argv[1]) if l.startswith('[heliasdream] frames:')]
 if len(lines) < 60:
     sys.exit('the run did not reach the world (%d seconds of frame statistics)' % len(lines))
 v = []

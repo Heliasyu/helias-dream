@@ -2,7 +2,7 @@
 
 #include <string>
 
-// Other programs' code loaded into bbhost: the overlays and capture tools that
+// Other programs' code loaded into heliasdream: the overlays and capture tools that
 // hook a game's graphics (OBS game capture, RivaTuner, the Steam and Discord
 // overlays...), most of them through an implicit Vulkan layer that loads into
 // every Vulkan program. Their names, "OBS game capture (graphics-hook64.dll)",

@@ -27,7 +27,7 @@ bool parse_version(const std::string& v, int out[3]) {
     return true;
 }
 
-// bbhost-vk: the fork's own number after the upstream version, "v0.2.18-vk.3"
+// heliasdream-vk: the fork's own number after the upstream version, "v0.2.18-vk.3"
 // (and "v0.2.18-vk.3-12-gabc1234" for a build past that tag): 3; -1 without.
 static int vk_number(const std::string& v) {
     const std::size_t at = v.find("-vk.");
@@ -46,7 +46,7 @@ bool is_newer(const std::string& tag, const std::string& current) {
     for (int k = 0; k < 3; ++k) {
         if (t[k] != c[k]) return t[k] > c[k];
     }
-    // bbhost-vk: the same upstream version - the fork's number decides.
+    // heliasdream-vk: the same upstream version - the fork's number decides.
     return vk_number(tag) > vk_number(current);
 }
 
@@ -65,7 +65,7 @@ bool parse_release(const std::string& body, std::string& tag, std::string& page)
     tag = t->string;
     const json::Value* h = v.find("html_url");
     page = h && h->type == json::Value::Type::String ? h->string : "";
-    // bbhost-vk: the fork's releases (host/updater.cpp checks Heliasyu/helias-dream).
+    // heliasdream-vk: the fork's releases (host/updater.cpp checks Heliasyu/helias-dream).
     if (!release_page_ok(page)) page = "https://github.com/Heliasyu/helias-dream/releases/tag/" + tag;
     if (!release_page_ok(page)) page = "https://github.com/Heliasyu/helias-dream/releases/latest";
     return true;

@@ -1,4 +1,4 @@
-// bbhost-vk Phase 3: FSR 3.1.5 through FireBurn/FSR-Vulkan's opaque C API
+// heliasdream-vk Phase 3: FSR 3.1.5 through FireBurn/FSR-Vulkan's opaque C API
 // (host/fsr3_upscaler.h). The bridge's conventions are FSR-Vulkan's
 // (third_party/FSR-Vulkan/include/ffx_vk_fsr3_3_1_5_bridge.h, and its
 // tests/fsr3_3_1_5_bridge_test.cpp, which this follows for imports): the

@@ -1,12 +1,12 @@
 /* Map validation probe (tools/map_validation.sh): ground truth for the
  * private server's world map. Test-only: it moves the player, so it needs
- * the host's BBHOST_TEST_WARP=1 and is never installed by default.
+ * the host's HELIAS_TEST_WARP=1 and is never installed by default.
  *
  * Every second it logs where the player is:
  *     mapval pos <epoch s> <block hex> <x> <y> <z> <yaw> <hp>
- * and, once the player has been in the world BBHOST_MAPVAL_START seconds
+ * and, once the player has been in the world HELIAS_MAPVAL_START seconds
  * (default 55: the frozen seed's scripted death and respawn are over), it
- * runs the tour in BBHOST_MAPVAL_TOUR, one step a line:
+ * runs the tour in HELIAS_MAPVAL_TOUR, one step a line:
  *     warp <name> <x> <y> <z> <yaw> <hold s>  put the player there, hold
  *     warpb <name> <block hex> <x> <y> <z> <yaw> <hold s>
  *                                             the same into another (resident)
@@ -37,18 +37,18 @@
  *                                             "disable character"; a load makes
  *                                             them again), so the place holds still
  *     dump <name>                             this frame to
- *                                             $BBHOST_MAPVAL_DUMPS/<name>.ppm
- *     capture <n> [<name>]                    let BBHOST_CAPTURE_DRAW take up to n
+ *                                             $HELIAS_MAPVAL_DUMPS/<name>.ppm
+ *     capture <n> [<name>]                    let HELIAS_CAPTURE_DRAW take up to n
  *                                             draws, into
- *                                             $BBHOST_MAPVAL_CAPTURES/<name>; 0 stops
- * (the last two ask the host through BBHOST_TEST_REQUESTS, hle/video.cpp).
+ *                                             $HELIAS_MAPVAL_CAPTURES/<name>; 0 stops
+ * (the last two ask the host through HELIAS_TEST_REQUESTS, hle/video.cpp).
  * Each step logs what it did with the time, so the dataset script can find
  * the play-log samples of the same seconds. While a warp or kill step runs
  * the player's HP is kept full (the seed stands among enemies).
  *
  * Build: cc -shared -fPIC -O2 -Iinclude -o mapval.so tools/mapval_plugin.c -lm
  */
-#include "bbhost_plugin.h"
+#include "heliasdream_plugin.h"
 
 #include <math.h>
 #include <stdio.h>
@@ -56,7 +56,7 @@
 #include <string.h>
 #include <time.h>
 
-static const BbHostApi* api;
+static const HeliasApi* api;
 
 static double now_s(void) {
     struct timespec ts;
@@ -290,15 +290,15 @@ static int64_t player_hp(void) {
 
 /* --- for tools/area_check.py ------------------------------------------------ */
 
-/* A request to the host (BBHOST_TEST_REQUESTS, hle/video.cpp): one line in a
+/* A request to the host (HELIAS_TEST_REQUESTS, hle/video.cpp): one line in a
  * file of its own, written beside and renamed into place, so the host never
  * reads half of it. */
 static int request_seq;
 static void request(const char* line) {
-    const char* dir = getenv("BBHOST_TEST_REQUESTS");
+    const char* dir = getenv("HELIAS_TEST_REQUESTS");
     char tmp[1024], req[1024];
     if (!dir || !*dir) {
-        api->log("mapval: no BBHOST_TEST_REQUESTS for \"%s\"", line);
+        api->log("mapval: no HELIAS_TEST_REQUESTS for \"%s\"", line);
         return;
     }
     snprintf(tmp, sizeof tmp, "%s/%06d.tmp", dir, request_seq);
@@ -316,7 +316,7 @@ static void request(const char* line) {
 
 /* The follow camera's owner (CHR_CAM_OWNER_ROOT_PTR's object, +0x2830): its
  * byte +0x80 asks for the camera to be put back behind the player
- * (include/bbhost/engine/sprj/camera.hpp, ChrCamOwner). */
+ * (include/heliasdream/engine/sprj/camera.hpp, ChrCamOwner). */
 static int reset_camera(void) {
     uint64_t root = 0;
     if (api->read(0x593e860, &root, 8) || !ok(root)) return 0;
@@ -413,7 +413,7 @@ static void begin(int i, double t) {
             int r = api->event_flag_set(s->flags[k], 1);
             api->log("mapval flag %u on %.3f -> %s", s->flags[k], t, r ? "REFUSED" : "set");
         }
-        int r = api->size >= sizeof(BbHostApi) ? api->lamp_warp(s->team) : 1;
+        int r = api->size >= sizeof(HeliasApi) ? api->lamp_warp(s->team) : 1;
         travel_still = 0;
         tour_rp = s->team;
         tour_block = s->block;
@@ -436,13 +436,13 @@ static void begin(int i, double t) {
     } else if (s->kind == S_QUIET) {
         quiet(s->hold, t);
     } else if (s->kind == S_DUMP) {
-        const char* dir = getenv("BBHOST_MAPVAL_DUMPS");
+        const char* dir = getenv("HELIAS_MAPVAL_DUMPS");
         char line[1100];
         snprintf(line, sizeof line, "dump %s/%s.ppm", dir && *dir ? dir : ".", s->name);
         request(line);
         api->log("mapval dump %s %.3f", s->name, t);
     } else if (s->kind == S_CAPTURE) {
-        const char* dir = getenv("BBHOST_MAPVAL_CAPTURES");
+        const char* dir = getenv("HELIAS_MAPVAL_CAPTURES");
         char line[1100];
         if (s->name[0] && dir && *dir)
             snprintf(line, sizeof line, "capture %d %s/%s", s->team, dir, s->name);
@@ -658,15 +658,15 @@ static void on_frame(void* u) {
     tick(t);
 }
 
-BB_PLUGIN_EXPORT int bb_plugin_init(const BbHostApi* a) {
+BB_PLUGIN_EXPORT int bb_plugin_init(const HeliasApi* a) {
     api = a;
     return a->version < 6; /* lamp_warp (7) is checked where it is used */
 }
 
-BB_PLUGIN_EXPORT int bb_plugin_image(const BbHostApi* a) {
+BB_PLUGIN_EXPORT int bb_plugin_image(const HeliasApi* a) {
     if (!a->eboot_is_109()) return 1;
-    const char* tour = getenv("BBHOST_MAPVAL_TOUR");
-    const char* st = getenv("BBHOST_MAPVAL_START");
+    const char* tour = getenv("HELIAS_MAPVAL_TOUR");
+    const char* st = getenv("HELIAS_MAPVAL_START");
     if (st && *st) start_after = atof(st);
     if (tour && *tour) load_tour(tour);
     a->on_frame(on_frame, 0);

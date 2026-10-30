@@ -2,7 +2,7 @@
 
 // The renderer's one mutex (g.mu), with an optional profile of who holds it.
 //
-// BBHOST_LOCK_PROFILE=1: every lock records the site that took it (its
+// HELIAS_LOCK_PROFILE=1: every lock records the site that took it (its
 // caller's return address) and its thread; every unlock adds the hold time
 // to that site, and a lock that had to wait adds the wait to the waiting
 // site. Every few seconds the log gets the sites that held it longest and

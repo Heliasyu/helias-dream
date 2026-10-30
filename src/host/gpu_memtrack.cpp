@@ -24,14 +24,14 @@ struct Site {
 struct Block {
     std::uint64_t bytes = 0;
     std::uint32_t type = 0;
-    bool limited = false;  // counted against BBHOST_TEST_VRAM_MB
+    bool limited = false;  // counted against HELIAS_TEST_VRAM_MB
     std::string site;
 };
 std::mutex g_mu;
 std::unordered_map<std::uint64_t, Block> g_blocks;  // by the handle's value
 std::map<std::string, Site> g_sites;
 std::map<std::uint32_t, std::uint64_t> g_by_type;
-// BBHOST_TEST_VRAM_MB (bb_memory_test_limit): the memory types of the
+// HELIAS_TEST_VRAM_MB (bb_memory_test_limit): the memory types of the
 // device-local heap, and what they may hold in all before an allocation in
 // them fails as a full card's does. 0: no limit.
 std::uint32_t g_limit_types = 0;

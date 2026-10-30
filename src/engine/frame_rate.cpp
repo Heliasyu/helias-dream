@@ -337,7 +337,7 @@ constexpr Counted kCounts[] = {
 // 1/30 for its other readers to one kConstants converts (0x1915fab), and the
 // frame-time manager's catch-up allowance zeroed (its movabs rcx, 0x1e0000000n
 // into +0x268/+0x26c) - inside the function ours replaces, where it only
-// matters with BBHOST_FRAME_SOURCE=0.
+// matters with HELIAS_FRAME_SOURCE=0.
 struct Bytes {
     std::uint32_t at;
     std::uint8_t n;
@@ -369,7 +369,7 @@ constexpr Bytes kBytes[] = {
 // own edits (ours replaces that function), a frame-mode store, the mode-name
 // pointer table, the timed wait turned into a return, and the sound thread's
 // sleep cap (a cave over a live function) - that thread's update time is in
-// kCounts instead. BBHOST_SIXTY_SITES=0 leaves them all out (and so 90 and
+// kCounts instead. HELIAS_SIXTY_SITES=0 leaves them all out (and so 90 and
 // uncapped, which need them).
 struct Site {
     std::uint32_t at;
@@ -419,6 +419,22 @@ constexpr int kUncappedReferenceFps = 90;
 // fixed step (0.0125) rewritten for 120; following the frame time needs none
 // of that, and stays right if a frame runs long.
 constexpr int kOneTwentyFps = 120;
+
+// The effects' own rate. The effect manager's 30.0 (0x26fb39f) and the GPU
+// particle update's (0x4cad7fc) turn effect data, written in 30 fps frames,
+// into seconds - so they are right at any frame rate. Kyo's lists set both to
+// 60, which halves every emitter's interval and lifetime and runs GPU
+// particles twice as fast: smoke and motes thin out and pop in and out.
+// Lantern Engine leaves them at 30 (its scripts/patches.py, EFFECT_RATE_SITES),
+// and so does this build; HELIAS_EFFECT_RATE=60 writes the lists' 60.
+constexpr std::uint32_t kEffectRateSites[] = {0x26fb39f, 0x4cad7fc};
+bool keeps_effect_rate(std::uint32_t at) {
+    static const bool lists = [] {
+        const char* e = std::getenv("HELIAS_EFFECT_RATE");
+        return e && std::strcmp(e, "60") == 0;
+    }();
+    return !lists && std::find(std::begin(kEffectRateSites), std::end(kEffectRateSites), at) != std::end(kEffectRateSites);
+}
 
 // The modes that step by the measured frame time: uncapped (0) and 120.
 constexpr bool follows_frame_time(int mode) { return mode == 0 || mode == kOneTwentyFps; }
@@ -567,10 +583,10 @@ struct FlipClock {
 // waitable timer is usually a few hundred microseconds late, a loaded Linux
 // box more. So every sleep's lateness is kept (the last 128), and the margin
 // is the second-latest of them plus 200 us, within 0.3-2 ms; it starts at
-// 2 ms and moves after 32 sleeps. BBHOST_LIMITER_MARGIN_US=<n> fixes it
+// 2 ms and moves after 32 sleeps. HELIAS_LIMITER_MARGIN_US=<n> fixes it
 // (2000 is the old behaviour).
 struct LimiterTuning {
-    std::int64_t fixed_us = -1;  // BBHOST_LIMITER_MARGIN_US, -1 for learnt
+    std::int64_t fixed_us = -1;  // HELIAS_LIMITER_MARGIN_US, -1 for learnt
     std::int64_t late_us[128] = {};
     std::uint32_t samples = 0;
     std::int64_t margin_us = 2000;
@@ -582,7 +598,7 @@ struct LimiterTuning {
 };
 LimiterTuning g_limiter;
 const bool g_limiter_env = [] {
-    if (const char* e = std::getenv("BBHOST_LIMITER_MARGIN_US"); e && *e && std::strcmp(e, "auto") != 0) {
+    if (const char* e = std::getenv("HELIAS_LIMITER_MARGIN_US"); e && *e && std::strcmp(e, "auto") != 0) {
         g_limiter.fixed_us = std::clamp<std::int64_t>(std::strtoll(e, nullptr, 10), 0, 5000);
         g_limiter.margin_us = g_limiter.fixed_us;
         g_limiter.shown_margin_us.store(g_limiter.fixed_us);
@@ -687,13 +703,13 @@ std::uint64_t g_slide = 0;
 // This frame runs with no target (a loading screen, engine/loading.h); set by
 // the hook for its own update only, never for compare mode's replay.
 bool g_fast_target = false;
-// BBHOST_BENCH_UNCAPPED=1 (with BBHOST_UNCAP=1, which completes flips at
+// HELIAS_BENCH_UNCAPPED=1 (with HELIAS_UNCAP=1, which completes flips at
 // once): every frame runs with no target - a measure of how fast the machine
 // can run the game's frames, not a way to play it: at 60 and 90 the steps
 // Kyo's lists fix at 1/60 then go by faster than real time. Stand still
 // to measure. The uncapped mode is the way to play it fast.
 const bool g_bench_uncapped = [] {
-    const char* e = std::getenv("BBHOST_BENCH_UNCAPPED");
+    const char* e = std::getenv("HELIAS_BENCH_UNCAPPED");
     return e && e[0] == '1';
 }();
 
@@ -915,7 +931,7 @@ extern "C" void frame_ret();
 extern "C" GUEST_ABI std::uint64_t frame_after();
 namespace {
 
-// BBHOST_FRAME_STATS: the main loop's work in the frame that is ending. The
+// HELIAS_FRAME_STATS: the main loop's work in the frame that is ending. The
 // manager's +0x28 still holds the time (gettimeofday, us) it released the last
 // frame at, until the update about to run replaces it.
 void note_main_frame_work(std::uint64_t m) {
@@ -926,18 +942,18 @@ void note_main_frame_work(std::uint64_t m) {
     const std::int64_t last = get<std::int64_t>(m + 0x28);
     if (last > 0 && now >= last && now - last < 10000000) {
         frame_stats_main_frame(static_cast<std::uint64_t>(now - last), hle_video_flip_count());  // returns at once when off
-        fliptrace::main_frame(static_cast<std::uint64_t>(now - last));                          // BBHOST_FLIP_TRACE
+        fliptrace::main_frame(static_cast<std::uint64_t>(now - last));                          // HELIAS_FLIP_TRACE
     }
 }
 
-// The uncapped mode's frame limit: BBHOST_UNCAPPED_FPS=N (30..240) if set;
+// The uncapped mode's frame limit: HELIAS_UNCAPPED_FPS=N (30..240) if set;
 // else, with V-Sync on, the display's refresh rate (a PC game's V-Sync: no
 // frame the display cannot show), and with it off 240. Asked every frame; the
 // refresh rate is cached by the window (once a second) and V-Sync read again
 // only when a setting changed.
 float uncapped_target() {
     static const int forced = [] {
-        const char* e = std::getenv("BBHOST_UNCAPPED_FPS");
+        const char* e = std::getenv("HELIAS_UNCAPPED_FPS");
         const int v = e && *e ? std::atoi(e) : 0;
         return v <= 0 ? 0 : std::clamp(v, 30, kUncappedMaxFps);
     }();
@@ -960,7 +976,7 @@ float uncapped_target() {
     if (limit != said) {
         said = limit;
         host_log("frame rate: uncapped, at most %.2f fps (%s)", static_cast<double>(limit),
-                 forced                                          ? "BBHOST_UNCAPPED_FPS"
+                 forced                                          ? "HELIAS_UNCAPPED_FPS"
                  : limit < static_cast<float>(kUncappedMaxFps) ? "V-Sync on: the display's refresh rate"
                                                                  : "the mode's limit");
     }
@@ -970,7 +986,7 @@ float uncapped_target() {
 // The 120 mode's frame limit: a hard 1/120 s, whatever V-Sync and the
 // display's refresh rate say - the frame pacer (sprj_flipper_update's sleep
 // and spin) holds the game to it, so a 165 Hz VRR display gets 120 frames a
-// second with V-Sync on or off. BBHOST_UNCAPPED_FPS does not apply.
+// second with V-Sync on or off. HELIAS_UNCAPPED_FPS does not apply.
 float one_twenty_target() {
     static bool said = false;
     if (!said) {
@@ -1021,9 +1037,9 @@ void uncapped_each_frame(const SprjFlipper* f) {
             put<float>(g_cloth_va + 0x10 + 4 * static_cast<std::uint64_t>(k), 1.0f / s);
         }
     }
-    // BBHOST_UNCAPPED_LOG=1: what this wrote, once a second.
+    // HELIAS_UNCAPPED_LOG=1: what this wrote, once a second.
     static const bool log_each = [] {
-        const char* e = std::getenv("BBHOST_UNCAPPED_LOG");
+        const char* e = std::getenv("HELIAS_UNCAPPED_LOG");
         return e && e[0] == '1';
     }();
     if (log_each) {
@@ -1047,10 +1063,10 @@ GUEST_ABI std::int64_t frame_manager_hook(std::uint64_t, const std::uint64_t* sa
     lua_events_tick();  // named Lua events queued from any thread (engine/lua_events.h)
     event_flags_tick(); // the one-time check of our flag reader against the game's (engine/event_flags.h)
     player_data_tick(); // the loaded character's numbers, once (engine/player_data.h)
-    plugins_frame();    // the plugins' on_frame callbacks (include/bbhost_plugin.h, version 2)
+    plugins_frame();    // the plugins' on_frame callbacks (include/heliasdream_plugin.h, version 2)
     change_appearance_tick();  // the mirror's editor in character creation's frame (engine/change_appearance.h)
     rebirth_tick();     // the altar's rebirth: the host's half of its talk script (engine/rebirth.h)
-    world_chr_tick();   // a test warp a plugin queued this frame (BBHOST_TEST_WARP, engine/world_chr.h)
+    world_chr_tick();   // a test warp a plugin queued this frame (HELIAS_TEST_WARP, engine/world_chr.h)
     loading_tick(hle_video_flip_count());  // the loading screens' lengths and the first in-game frame (engine/loading.h)
     auto* f = reinterpret_cast<SprjFlipper*>(static_cast<std::uintptr_t>(saved[5]));
     const bool converted = g_game_fps != 30;
@@ -1121,10 +1137,10 @@ const char* mode_name(int fps) {
     return fps == 0 ? "uncapped" : fps == kOneTwentyFps ? "120" : fps == 90 ? "90" : fps == 60 ? "60" : "30";
 }
 
-// The Frame rate option as the game started with it. BBHOST_GAME_FPS=30, 60,
+// The Frame rate option as the game started with it. HELIAS_GAME_FPS=30, 60,
 // 90, 120 or 0 (also "uncapped": atoi reads 0) overrides it.
 int wanted_fps() {
-    if (const char* e = std::getenv("BBHOST_GAME_FPS"); e && *e) return mode_of(std::atoi(e));
+    if (const char* e = std::getenv("HELIAS_GAME_FPS"); e && *e) return mode_of(std::atoi(e));
     return mode_of(host_settings().frame_cap);
 }
 
@@ -1174,10 +1190,10 @@ int apply_rate(ElfImage* image, int want) {
     }
     // The code rewrites, by group: all of a group or none of it.
     static const bool sites_on = [] {
-        const char* e = std::getenv("BBHOST_SIXTY_SITES");
+        const char* e = std::getenv("HELIAS_SIXTY_SITES");
         return !(e && e[0] == '0');
     }();
-    if (!sites_on) host_log("frame rate: BBHOST_SIXTY_SITES=0, the 60 FPS++ code rewrites left out");
+    if (!sites_on) host_log("frame rate: HELIAS_SIXTY_SITES=0, the 60 FPS++ code rewrites left out");
     const bool sixty_ok = sites_on && sites_hold(image, kSixtySites, "the 60 FPS++ list");
     int mode = want;
     if (mode != 60) {
@@ -1206,6 +1222,7 @@ int apply_rate(ElfImage* image, int want) {
     const int fps = mode == 0 ? kUncappedReferenceFps : mode;
     std::size_t rated_written = 0;
     for (const Constant& c : kConstants) {
+        if (keeps_effect_rate(c.at)) continue;
         std::uint32_t now = c.now;
         if (mode != 60) {
             if (const Rated* r = rated(c.at)) {
@@ -1215,6 +1232,8 @@ int apply_rate(ElfImage* image, int want) {
         }
         write(c.at, &now, 4);
     }
+    host_log("frame rate: effects at their data's rate (30.0 at 0x26fb39f, 0x4cad7fc)%s",
+             keeps_effect_rate(kEffectRateSites[0]) ? "" : " - no: HELIAS_EFFECT_RATE=60, the lists' 60");
     for (const Counted& c : kCounts) {
         std::uint8_t now[8];
         count_bytes(c, c.kind == Count::Digits && mode == 0 ? kUncappedMaxFps : fps, now);
@@ -1306,24 +1325,24 @@ void frame_rate_install(ElfImage* image) {
     const std::uint64_t at = image->mem.slide + (kFrameManager - kPreferredGuestSlide);
     g_slide = image->mem.slide;
     loading_bind(image->mem.slide);
-    // BBHOST_FRAME_SOURCE: 1 (default) SprjFlipper::Update is ours; 0 the
+    // HELIAS_FRAME_SOURCE: 1 (default) SprjFlipper::Update is ours; 0 the
     // guest's runs with the mode hook; 2 compare, the guest's runs and ours
     // replays each frame beside it.
-    if (const char* e = std::getenv("BBHOST_FRAME_SOURCE"); e && e[0]) {
+    if (const char* e = std::getenv("HELIAS_FRAME_SOURCE"); e && e[0]) {
         g_source = e[0] == '0' ? Source::Guest : e[0] == '2' ? Source::Compare : Source::Ours;
     }
     const int want = wanted_fps();
     // 90, 120 and uncapped set a target the game's own modes do not have: ours
     // runs them (compare and the guest's run at 30 and 60).
     if ((want == 90 || want == kOneTwentyFps || want == 0) && g_source != Source::Ours) {
-        host_log("frame source: BBHOST_FRAME_SOURCE runs the guest's update at 30 and 60 only; ours runs %s", mode_name(want));
+        host_log("frame source: HELIAS_FRAME_SOURCE runs the guest's update at 30 and 60 only; ours runs %s", mode_name(want));
         g_source = Source::Ours;
     }
     if (g_source == Source::Compare) g_frame_after_thunk = hle_wrap_fn(reinterpret_cast<void*>(&frame_after));
     if (want == 30) {
         host_log("frame rate: the game's own 30");
         // Ours runs the game's own mode at 30 (or the guest's does with
-        // BBHOST_FRAME_SOURCE=0, when only the online test tick needs the hook).
+        // HELIAS_FRAME_SOURCE=0, when only the online test tick needs the hook).
         {  // ours runs the game's own mode at 30 (the param walk and the online tick ride on the same hook)
             if (!engine_prologue_hook(image, at, kFrameManagerPrologue, sizeof(kFrameManagerPrologue),
                                       reinterpret_cast<void*>(&frame_manager_hook))) {
@@ -1397,7 +1416,7 @@ std::string frame_rate_limiter_window() {
     char buf[220];
     std::snprintf(buf, sizeof(buf), "limiter margin %lld us (%s), sleeps %llu late avg %.0f us p99 %lld us, spin %.2f ms a frame over %llu",
                   static_cast<long long>(t.shown_margin_us.load(std::memory_order_relaxed)),
-                  t.fixed_us >= 0 ? "BBHOST_LIMITER_MARGIN_US" : "learnt", static_cast<unsigned long long>(sleeps),
+                  t.fixed_us >= 0 ? "HELIAS_LIMITER_MARGIN_US" : "learnt", static_cast<unsigned long long>(sleeps),
                   sleeps ? static_cast<double>(late) / static_cast<double>(sleeps) : 0.0,
                   static_cast<long long>(t.shown_late_p99_us.load(std::memory_order_relaxed)),
                   waits ? static_cast<double>(spin) / 1000.0 / static_cast<double>(waits) : 0.0,

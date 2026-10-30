@@ -134,7 +134,7 @@ std::string GpuMutex::name_of(void* site) {
 
 bool GpuMutex::profiling() {
     static const bool on = [] {
-        const char* e = std::getenv("BBHOST_LOCK_PROFILE");
+        const char* e = std::getenv("HELIAS_LOCK_PROFILE");
         return e && *e == '1';
     }();
     return on;

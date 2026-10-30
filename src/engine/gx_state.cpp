@@ -30,7 +30,7 @@ constexpr std::size_t kObjectBytes[4] = {0, 0x128, 0x38, 0x24};
 constexpr std::size_t kFingerprintBytes[4] = {0, 0x26, 0x10, 0x24};
 
 const int g_mode = [] {
-    const char* e = std::getenv("BBHOST_GX_STATE");
+    const char* e = std::getenv("HELIAS_GX_STATE");
     return e ? std::atoi(e) : 1;
 }();
 
@@ -258,7 +258,7 @@ const void* desc_of(Kind kind, std::uint32_t id) {
 
 void gx_state_install(ElfImage* image) {
     if (!g_mode) {
-        host_log("gx-state: off (BBHOST_GX_STATE=0)");
+        host_log("gx-state: off (HELIAS_GX_STATE=0)");
         return;
     }
     for (int k = kBlend; k <= kRaster; ++k) g_default[k] = image->mem.slide + (kDefaults[k] - kPreferredGuestSlide);

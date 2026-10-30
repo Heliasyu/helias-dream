@@ -83,10 +83,10 @@ struct State {
     std::vector<double> intervals_ms;
     std::unordered_map<int, ThreadTime> threads;
     GpuBusy gpu{};  // host_gpu_busy() when the window opened
-    GpuStats stats{};  // host_gpu_stats() when it opened (BBHOST_FRAME_DETAIL=1)
+    GpuStats stats{};  // host_gpu_stats() when it opened (HELIAS_FRAME_DETAIL=1)
 };
 
-// BBHOST_FRAME_DETAIL=1: the second's draws by how their pixel shader ran,
+// HELIAS_FRAME_DETAIL=1: the second's draws by how their pixel shader ran,
 // its draw failures by reason, and every flip interval in it, in lines short
 // enough for the log's line.
 void log_detail(const GpuStats& was, const GpuStats& now, const std::vector<double>& intervals_ms) {

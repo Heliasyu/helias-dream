@@ -1,5 +1,5 @@
 #version 450
-// bbhost-vk Phase 2: the motion-vector view (Show Motion Vectors), drawn by
+// heliasdream-vk Phase 2: the motion-vector view (Show Motion Vectors), drawn by
 // the presenter over the picture (host/present_pass.cpp). Red is the
 // horizontal motion, green the vertical, both by size (8 render pixels a
 // frame is full); blue marks the game's object velocity (bright: used,

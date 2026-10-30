@@ -27,7 +27,7 @@ struct GpuDispatch {
 
 // Everything a draw is decoded from, in register encodings. The PM4 path
 // copies it out of the command processor's register file; the GX backend
-// (BBHOST_GX_BACKEND, src/hle/gx_trace.cpp) builds it from
+// (HELIAS_GX_BACKEND, src/hle/gx_trace.cpp) builds it from
 // the GX objects the engine's draw call used.
 struct GpuDrawInputs {
     std::uint32_t vs_pgm[4] = {};        // SPI_SHADER_PGM_LO/HI/RSRC1/RSRC2_VS
@@ -94,13 +94,13 @@ struct GpuDraw {
     std::uint64_t indirect_va = 0;  // DRAW(_INDEX)_INDIRECT: GPU reads args here
     // The same draw's inputs built from GX state, when the GX backend has them:
     // `gx_render` draws from them, `gx_compare` checks them against the
-    // register file (both on with BBHOST_GX_BACKEND=1, compare only with =2).
+    // register file (both on with HELIAS_GX_BACKEND=1, compare only with =2).
     const GpuDrawInputs* gx = nullptr;
     bool gx_render = false;
     bool gx_compare = false;
     // The GX objects the draw was made with, when it came through a GX method.
     const struct GxDrawObjects* gx_objects = nullptr;
-    // Drawn from a host-draw token (BBHOST_GX_NATIVE=2) rather than a draw packet.
+    // Drawn from a host-draw token (HELIAS_GX_NATIVE=2) rather than a draw packet.
     bool gx_token = false;
     const char* gx_token_kind = nullptr;  // which: "native", "scaleform", "yebis" (diagnostics)
     // `gx` supplies only the programs and their user data (YEBIS, whose commit
@@ -119,7 +119,7 @@ struct GxDrawObjects {
     std::uint64_t ctx = 0, state = 0, caller = 0;
     std::uint64_t call_flip = 0;  // the flip counter when the GX method was called
     std::uint64_t shader[6] = {};
-    const struct GxDrawRecords* records = nullptr;  // sampled draws only (BBHOST_GX_BIND_EVERY)
+    const struct GxDrawRecords* records = nullptr;  // sampled draws only (HELIAS_GX_BIND_EVERY)
     // The draw's blend, depth-stencil and rasterizer state as
     // engine/gx_state.h ids, taken at the call while the objects were alive;
     // 0 where the registry did not know the object.
@@ -160,7 +160,7 @@ struct alignas(64) GxStageRecords {
     // constructor touched had to come back from the CP's core first; spread
     // over the struct they cost ~0.6 us a draw (gx-cost "allocation").
     std::uint32_t ndesc = 0;
-    // BBHOST_GX_COST: which constant buffers' contents were hashed at the call
+    // HELIAS_GX_COST: which constant buffers' contents were hashed at the call
     // (cb_hash).
     std::uint16_t cb_hashed = 0;
     // The shader object's resource masks (+0x0, +0x8, +0x10), which give the
@@ -222,7 +222,7 @@ constexpr int kGxRecordSet0 = 0, kGxRecordPixel = 1, kGxRecordLs = 2, kGxRecordH
 // Creates the Vulkan instance/device. `instance_exts` are extra instance
 // extensions (the window's surface extensions); `want_present` adds the
 // swapchain extension. Safe to call more than once; later calls return the
-// existing state. BBHOST_GPU=0 disables the executor.
+// existing state. HELIAS_GPU=0 disables the executor.
 bool host_gpu_init(const char* const* instance_exts, std::uint32_t n_exts, bool want_present);
 // True when a Vulkan device with the required features is available;
 // initialises it (headless) on first use.
@@ -249,11 +249,11 @@ void host_gpu_report();
 // Submits the recorded work without waiting (the CP does this at the end of
 // every submission and before it polls memory).
 void host_gpu_submit();
-std::string host_gpu_profile_report();  // BBHOST_GPU_PROFILE=1: top pipelines by GPU time since the last call
+std::string host_gpu_profile_report();  // HELIAS_GPU_PROFILE=1: top pipelines by GPU time since the last call
 std::string host_gpu_fill_stats();      // fill-pending / fill-applied counters
 // Writes the Vulkan pipeline cache under the data root when pipelines were
 // created since the last save (the 300-flip report calls it); the write runs on
-// a background thread. BBHOST_PIPELINE_CACHE=0 turns loading and saving off.
+// a background thread. HELIAS_PIPELINE_CACHE=0 turns loading and saving off.
 void host_gpu_save_pipeline_cache();  // periodic, in the background (gpu.cpp)
 void host_gpu_save_pipeline_cache_at_exit();  // synchronous: the window closing, the game exiting
 // Shader compiles since the last call, for the 300-flip report: compute
@@ -270,7 +270,7 @@ bool host_gpu_mem_write_serial(std::uint64_t va, const void* data, std::size_t b
 // Submissions whose fence has retired, in order (trails the GPU: a write may be
 // in memory before this passes its serial).
 std::uint64_t host_gpu_completed_submits();
-// BBHOST_ARENA_WATCH: logs where va resolves and which recent deferred writes carried value.
+// HELIAS_ARENA_WATCH: logs where va resolves and which recent deferred writes carried value.
 void host_gpu_explain_value(std::uint64_t va, std::uint64_t value);
 bool host_gpu_mem_fill(std::uint64_t va, std::uint32_t value, std::size_t bytes);
 bool host_gpu_mem_copy(std::uint64_t dst, std::uint64_t src, std::size_t bytes);
@@ -284,7 +284,7 @@ bool host_gpu_copy_guest(std::uint64_t dst, std::uint64_t src, std::size_t bytes
 // A GX dynamic buffer's renamed bytes copied back to its own address (a copy
 // token's batched copies): inside a render pass, the draws after it read a
 // copy of the bytes taken now and the copy into place waits for the pass's
-// end (BBHOST_COPY_VERSIONS=0: as host_gpu_copy_guest, which it falls back to).
+// end (HELIAS_COPY_VERSIONS=0: as host_gpu_copy_guest, which it falls back to).
 bool host_gpu_copy_back(std::uint64_t dst, std::uint64_t src, std::size_t bytes);
 // A constant window a YEBIS draw reads, given at its token on the command
 // processor's thread (engine/yebis_bind.cpp): written into guest memory by
@@ -292,7 +292,7 @@ bool host_gpu_copy_back(std::uint64_t dst, std::uint64_t src, std::size_t bytes)
 // draw still in flight sees the new bytes - instead of a GPU-side write,
 // which ended the render pass and drained the pipeline around each one.
 // False when the window must take the GPU-side write instead
-// (BBHOST_YEBIS_WINDOWS=gpu, or a window that is not in mapped memory).
+// (HELIAS_YEBIS_WINDOWS=gpu, or a window that is not in mapped memory).
 bool host_gpu_draw_window(std::uint64_t dst, const void* data, std::uint32_t bytes);
 std::uint64_t host_gpu_guest_copy_targets();  // copy tokens handled as render-target image copies
 // A DMA fill that covers a render target's memory: clears the image (in
@@ -349,7 +349,7 @@ struct GpuStats {
     std::uint64_t draws_ps[4];
     std::uint64_t draw_fail_why[16];
 };
-// How a draw's pixel shader ran: its typed lift (BBHOST_DECOMP), a
+// How a draw's pixel shader ran: its typed lift (HELIAS_DECOMP), a
 // translation in the no-fallback pipeline (not lifted, or not asked to be),
 // the page-table fallback pipeline's translation, or no pixel shader at all.
 enum DrawPs { kDrawPsLifted, kDrawPsTranslated, kDrawPsFallback, kDrawPsNone, kDrawPsCount };
@@ -391,6 +391,7 @@ struct GpuHandles {
     void* present_queue = nullptr;   // VkQueue for presents only (the same family), or null
     std::uint32_t family = 0;
     bool fifo_latest_ready = false;  // the device may present in VK_PRESENT_MODE_FIFO_LATEST_READY_KHR
+    bool hdr_metadata = false;       // VK_EXT_hdr_metadata is on
 };
 GpuHandles host_gpu_handles();
 // The command processor wrote guest memory on the CPU (DMA, WRITE_DATA):
@@ -401,7 +402,7 @@ std::string host_gpu_shadow_report();
 std::string host_gpu_recorder_report();
 // Occlusion (occlusion.cpp). A ZPASS_DONE dump (EVENT_WRITE PIXEL_PIPE_STAT_DUMP,
 // index 1) at va: true when the real sample counters take it - written on the
-// GPU's timeline - false for the caller's fake (BBHOST_OCCLUSION=0, memory
+// GPU's timeline - false for the caller's fake (HELIAS_OCCLUSION=0, memory
 // not imported).
 bool host_gpu_zpass_dump(std::uint64_t va);
 // SET_PREDICATION: op 0 clears, 1 predicates the draws that follow on the
@@ -447,7 +448,7 @@ void host_gpu_wait_submitted(std::uint64_t ticket);
 // rc3: as host_gpu_wait_submitted, until steady-clock `deadline_ns` at the
 // latest; whether it has gone.
 bool host_gpu_wait_submitted_until(std::uint64_t ticket, std::int64_t deadline_ns);
-// rc3, the presenter's priority submit (BBHOST_PRESENT_PRIORITY=0 turns it
+// rc3, the presenter's priority submit (HELIAS_PRESENT_PRIORITY=0 turns it
 // off, for debugging). The blit straight to the queue - not behind the
 // stream's kForeignSubmit and bb-submit's FIFO, i.e. not behind the next
 // frame's submissions - once the flip's own submissions (`need`, its
@@ -462,7 +463,7 @@ void host_gpu_presenter_priority_stats(std::uint64_t* direct, std::uint64_t* str
 bool host_gpu_presenter_priority_ok(std::uint64_t need, std::uint64_t mark);
 // rc4: its ticket when it fell back to the stream past the wait's cap
 // (host_gpu_wait_submitted it, as host_gpu_submit_presenter's), else 0: gone
-// in - by itself, or riding the flip's last submission (BBHOST_BLIT_RIDE).
+// in - by itself, or riding the flip's last submission (HELIAS_BLIT_RIDE).
 std::uint64_t host_gpu_submit_presenter_priority(void* cmd, void* wait, std::uint32_t wait_stage, void* signal, void* fence,
                                                 std::uint64_t need);
 // rc4: blits that rode the flip's last submission, went alone, were offered
@@ -470,7 +471,7 @@ std::uint64_t host_gpu_submit_presenter_priority(void* cmd, void* wait, std::uin
 // longest wait.
 void host_gpu_blit_ride_stats(std::uint64_t* rode, std::uint64_t* alone, std::uint64_t* missed, std::uint64_t* fallbacks,
                               std::uint64_t* over50, std::uint64_t* max_ns);
-// rc4: command buffers begun with every query reset before the first timestamp (BBHOST_RESET_ORDER).
+// rc4: command buffers begun with every query reset before the first timestamp (HELIAS_RESET_ORDER).
 std::uint64_t host_gpu_reset_first_cmdbufs();
 // How busy the GPU is with our work (gpu_busy.cpp): the union of the time
 // our command buffers - the game's and the presenter's - spent on the GPU,
@@ -478,7 +479,7 @@ std::uint64_t host_gpu_reset_first_cmdbufs();
 // engine counters (Task Manager's GPU column) see none of it on AMD's driver
 // with hardware scheduling, for any program; this is the number to read
 // instead. Cumulative since the start; callers difference two readings over
-// their own wall-clock window. `on` false: off (BBHOST_GPU_BUSY=0) or the
+// their own wall-clock window. `on` false: off (HELIAS_GPU_BUSY=0) or the
 // device has no timestamps on its queue.
 struct GpuBusy {
     bool on = false;
@@ -526,38 +527,38 @@ bool host_gpu_blit_display(void* cmd, std::uint64_t display_va, void* dst_image,
 // Writes the displayed render target as an image: PNG when the path ends in
 // ".png", binary PPM otherwise (headless inspection). `all_targets`: also
 // every colour RT (F12) as <stem>-rt-<base> in the same format and the draw
-// list as <stem>-draws.txt. Same as BBHOST_DUMP_ALL=1 for a timed dump.
+// list as <stem>-draws.txt. Same as HELIAS_DUMP_ALL=1 for a timed dump.
 bool host_gpu_dump_display(std::uint64_t display_va, const char* path, bool all_targets = false);
 // F12: dump on the next flip, into a new folder of its own beside the logs
-// (logs/ or build/, BBHOST_CAPTURE_DIR), which the request makes and logs.
-// Window thread (or BBHOST_F12_AT) sets, the flip takes it with its folder.
+// (logs/ or build/, HELIAS_CAPTURE_DIR), which the request makes and logs.
+// Window thread (or HELIAS_F12_AT) sets, the flip takes it with its folder.
 void host_gpu_request_dump();
 bool host_gpu_take_dump_request(std::string* dir);
 // The folder of the capture asked for last ("" before the first).
 std::string host_gpu_capture_dir();
-// BBHOST_CAPTURE_ARMED=1 (draw_capture.h): BBHOST_CAPTURE_DRAW may take up to
+// HELIAS_CAPTURE_ARMED=1 (draw_capture.h): HELIAS_CAPTURE_DRAW may take up to
 // `draws` more draws from now, into `dir` when it is not empty; 0 stops it.
 void host_gpu_capture_arm(int draws, const char* dir);
-// The capture's image format: ".ppm", or ".png" with BBHOST_F12_PNG=1.
+// The capture's image format: ".ppm", or ".png" with HELIAS_F12_PNG=1.
 const char* host_gpu_capture_ext();
-// BBHOST_RT_REFILL_TEST=1: a re-created target starts with the fill its old image took (render.cpp).
+// HELIAS_RT_REFILL_TEST=1: a re-created target starts with the fill its old image took (render.cpp).
 void host_gpu_refill_selftest();
-// --stream-selftest[=N] / BBHOST_STREAM_SELFTEST=N (host/stream_selftest.cpp):
+// --stream-selftest[=N] / HELIAS_STREAM_SELFTEST=N (host/stream_selftest.cpp):
 // the command stream run N rounds four ways against a CPU model, headless,
 // before anything of the game loads; 0 when every way matched the model.
 int host_gpu_stream_selftest(int rounds);
 void host_gpu_stall_test(unsigned ms);
-void host_gpu_watch_display(std::uint64_t display_va);  // BBHOST_DUMP_ON_BRIGHT: dump when a frame washes out
-void host_gpu_glitch_watch(std::uint64_t display_va, std::uint64_t mark);  // BBHOST_GLITCH=1: the glitch hunt (host/glitch.cpp)
+void host_gpu_watch_display(std::uint64_t display_va);  // HELIAS_DUMP_ON_BRIGHT: dump when a frame washes out
+void host_gpu_glitch_watch(std::uint64_t display_va, std::uint64_t mark);  // HELIAS_GLITCH=1: the glitch hunt (host/glitch.cpp)
 // The draw count now, taken when a flip is queued: the frame's last draw (the
 // glitch hunt's frame boundaries).
 std::uint64_t host_gpu_draw_mark();
-// For a flip to wait on its frame (BBHOST_FLIP_AFTER_GPU): how many
+// For a flip to wait on its frame (HELIAS_FLIP_AFTER_GPU): how many
 // submissions must have finished for everything recorded so far to have run,
 // and how many have (~0 with no GPU to wait for).
 std::uint64_t host_gpu_work_needs();
 std::uint64_t host_gpu_submissions_completed();
-const char* host_present_step(double& seconds);  // window.cpp: what the presenting thread is doing  // BBHOST_STALL_TEST: hold the renderer, as a frame dump does
+const char* host_present_step(double& seconds);  // window.cpp: what the presenting thread is doing  // HELIAS_STALL_TEST: hold the renderer, as a frame dump does
 // Last few recorded draws, read without the renderer lock: for the watchdog,
 // which runs precisely when some thread is stuck holding it.
 void host_gpu_hang_report();

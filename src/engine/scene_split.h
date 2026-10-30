@@ -1,9 +1,9 @@
 #pragma once
 
-// bbhost-vk Phase 1: the scene at the render size, the UI at the output's.
+// heliasdream-vk Phase 1: the scene at the render size, the UI at the output's.
 //
 // The output size is the Resolution setting - the res words, the GX output
-// entry, Scaleform's viewports, the display picture - as in stock bbhost. The
+// entry, Scaleform's viewports, the display picture - as in stock heliasdream. The
 // render size is that divided by the upscaler preset's ratio (Quality 1.5,
 // Balanced 1.7, Performance 2, Ultra Performance 3), when an upscaler is
 // chosen and the preset is not Native AA. Then the scene contexts (G-buffer,
@@ -20,7 +20,7 @@
 // render size. With the render size equal to the output (Upscaler Off, or
 // Native AA) every site holds the bytes it had at load: stock.
 //
-// BBHOST_SCENE_SPLIT=0 never splits.
+// HELIAS_SCENE_SPLIT=0 never splits.
 
 #include <cstdint>
 
@@ -33,7 +33,7 @@ bool scene_split_install(ElfImage* image);
 
 // Before scene_split_install, for live resolution's display-buffer size: whether
 // the settings will split the scene at an output of ow x oh at the start
-// (BBHOST_SCENE_SPLIT and the eboot permitting).
+// (HELIAS_SCENE_SPLIT and the eboot permitting).
 bool scene_split_planned(const ElfImage* image, std::uint32_t ow, std::uint32_t oh);
 
 // Whether the split can be used in this run.
@@ -54,4 +54,11 @@ bool scene_split_apply(std::uint32_t rw, std::uint32_t rh, std::uint32_t ow, std
 // The render size the sites hold now (the output's when not split), and
 // whether they hold a split. Any thread.
 bool scene_split_active();
+// Whether the settings ask for the split at the output's own size (Native
+// TAA), as scene_split_wanted last found it. Any thread.
+bool scene_split_forced();
+// Whether a split asked for now (an upscaler below Native AA, or Native TAA)
+// takes effect in this run: the split is available and the display buffers
+// are the output's size (they are only when the run started split). Any thread.
+bool scene_split_live();
 void scene_split_render_size(std::uint32_t* w, std::uint32_t* h);

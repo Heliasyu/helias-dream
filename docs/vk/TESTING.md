@@ -1,7 +1,7 @@
-# Testing bbhost-vk: `bbtest` sessions
+# Testing heliasdream-vk: `bbtest` sessions
 
 Every phase of [PLAN.md](PLAN.md) ends with a short test on the player's PC.
-`packaging/vk/bbtest` records it: the bbhost log, MangoHud frame times, a
+`packaging/vk/bbtest` records it: the Helia's Dream log, MangoHud frame times, a
 screenshot of the game's monitor every few seconds, optional replay clips,
 and the marks you drop when something looks wrong. One session is one
 folder, which is all there is to hand over.
@@ -14,10 +14,10 @@ full-desktop shot to that monitor), `notify-send`.
 
 ## Setup (once)
 1. Copy `packaging/vk/bbtest` somewhere on your PATH, or just beside the game:
-   `cp packaging/vk/bbtest "$HOME/BloodBorne PC/bbhost-linux-v0.2.18/"`.
+   `cp packaging/vk/bbtest "$HOME/BloodBorne PC/heliasdream-linux-v0.2.18/"`.
    Everything below writes `bbtest`; use the full path if it isn't on PATH.
-2. The game folder defaults to `~/BloodBorne PC/bbhost-linux-v0.2.18`
-   (where `./bbhost`, the wrapper, and `bbhost.bin` are). Set
+2. The game folder defaults to `~/BloodBorne PC/heliasdream-linux-v0.2.18`
+   (where `./heliasdream`, the wrapper, and `heliasdream.bin` are). Set
    `BBTEST_GAME_DIR` for another.
 3. The game's monitor is found as the enabled output with the most pixels
    (the 4K one). Set `BBTEST_MONITOR=DP-1` (a name from `kscreen-doctor -o`)
@@ -26,11 +26,11 @@ full-desktop shot to that monitor), `notify-send`.
 ## Commands
 | Command | What it does |
 |---|---|
-| `bbtest start <phase> [--record] [--capture] [--detach] [-- args]` | Starts a session in `~/.local/share/bbtest/sessions/<YYYYmmdd-HHMMSS>-<phase>/`, launches `./bbhost` from the game folder (the KDE/Wayland wrapper, exactly as you normally start it) with any `args`, and appends its output to `bbhost.log`. Runs until the game quits, then bundles the session. `--detach` returns at once (for starting from a shortcut). |
-| `bbtest mark [note]` | Screenshot, the last 30 s clip (with `--record`), and a timestamped `MARK` line in `marks.log` and `bbhost.log`. With `--capture`, bbhost also writes the presented frame as a PNG into `frames/`. |
+| `bbtest start <phase> [--record] [--capture] [--detach] [-- args]` | Starts a session in `~/.local/share/bbtest/sessions/<YYYYmmdd-HHMMSS>-<phase>/`, launches `./heliasdream` from the game folder (the KDE/Wayland wrapper, exactly as you normally start it) with any `args`, and appends its output to `heliasdream.log`. Runs until the game quits, then bundles the session. `--detach` returns at once (for starting from a shortcut). |
+| `bbtest mark [note]` | Screenshot, the last 30 s clip (with `--record`), and a timestamped `MARK` line in `marks.log` and `heliasdream.log`. With `--capture`, Helia's Dream also writes the presented frame as a PNG into `frames/`. |
 | `bbtest clip` | Saves the last 30 s of video into `clips/` (with `--record`). |
 | `bbtest shot` | One screenshot now. |
-| `bbtest snap [note]` | (rc2) bbhost saves its last 30 s into the session's `snaps/`, the same as **F11** in the game, and bbtest prints the summary. Without a session it goes to the game folder's `snaps/`. `bbtest snap --show [file or folder]` summarizes saved ones. |
+| `bbtest snap [note]` | (rc2) Helia's Dream saves its last 30 s into the session's `snaps/`, the same as **F11** in the game, and bbtest prints the summary. Without a session it goes to the game folder's `snaps/`. `bbtest snap --show [file or folder]` summarizes saved ones. |
 | `bbtest profile [note] [--record] [--detach] [-- args]` | (rc2) A session (phase `profile`) with RADV's RGP tracing armed. Each F11 or `bbtest snap` also saves an `.rgp` of the next frame into `rgp/` (one every 10 s at most), and every pipeline's shader statistics go to `shader-stats.tsv`. See "Profiling session" below. |
 | `bbtest status` | The session folder and what is running. |
 | `bbtest stop` | Quits the game (SIGTERM; killed after 10 s), stops the helpers and bundles the session. Quitting the game normally does the same. |
@@ -39,22 +39,22 @@ full-desktop shot to that monitor), `notify-send`.
 (`-r 30 -f 60 -c mp4`; `BBTEST_REPLAY_SECS`, `BBTEST_FPS`). It is held in RAM
 and costs little on an RX 9070 XT; nothing is written until a clip is saved.
 
-`--capture` sets `BBHOST_VK_CAPTURE=1` (below). Leave it off for tests whose
+`--capture` sets `HELIAS_VK_CAPTURE=1` (below). Leave it off for tests whose
 point is "identical to stock" (Phase 0): it adds one usage flag to the
 swapchain images.
 
 ## What a session folder holds
-- `bbhost.log`: bbhost's whole output, with the `MARK` lines.
+- `heliasdream.log`: heliasdream's whole output, with the `MARK` lines.
 - `marks.log`: START, MARK, CLIP, SHOT, GAME-EXIT and STOP with times (CDT/CST).
-- `session.txt`: phase, times, monitor, `bbhost.bin`'s SHA-256, Vulkan
+- `session.txt`: phase, times, monitor, `heliasdream.bin`'s SHA-256, Vulkan
   driver, kernel; at the end, the error-line count and what was captured.
 - `options-before.toml`, `options-after.toml`, `options.diff`: the F10
-  settings file (`~/.config/bbhost/bbhost-options.toml`) at both ends. Its
+  settings file (`~/.config/HeliasDream/HeliasDream-options.toml`) at both ends. Its
   `[account]` section (your account token) is **removed** from these copies.
 - `shots/`: `auto-*.png` every 10 s (`BBTEST_SHOT_EVERY`, 0 for none), `mark-*.png`.
-- `clips/`: the replay clips. `frames/`: bbhost's own presented-frame PNGs.
+- `clips/`: the replay clips. `frames/`: heliasdream's own presented-frame PNGs.
 - `mangohud/`: MangoHud's CSV (every frame's frame time).
-- `game-logs/`: files bbhost wrote into the game folder's `logs/` during the session.
+- `game-logs/`: files Helia's Dream wrote into the game folder's `logs/` during the session.
 - `snaps/` (rc2): the F11 / `bbtest snap` snapshots and `summary.txt`.
 - `rgp/`, `shader-stats.tsv` (rc2, `bbtest profile` only): the RGP captures with
   `captures.tsv`, and the shader statistics.
@@ -69,37 +69,37 @@ CSV unless your config logs), `BBTEST_MANGOHUD=0` turns it off.
 
 ## A KDE shortcut for `bbtest mark`
 System Settings -> Keyboard -> Shortcuts -> **Add New** -> **Command or Script...**
-- Command: `"$HOME/BloodBorne PC/bbhost-linux-v0.2.18/bbtest" mark`
+- Command: `"$HOME/BloodBorne PC/heliasdream-linux-v0.2.18/bbtest" mark`
   (or `bbtest mark` if it is on PATH; a shortcut does not read your shell's
   PATH changes from `.bashrc`, so the full path is safest)
 - Name: `bbtest mark`; then set the shortcut, e.g. **Meta+Shift+M** (pick one
-  the game does not use; F9-F12 are bbhost's).
+  the game does not use; F9-F12 are heliasdream's).
 
 The same way, `bbtest clip` on another key is handy with `--record`. Marks
 show a short notification when `notify-send` exists.
 
-## bbhost's own debug switches (bbhost-vk)
+## heliasdream's own debug switches (heliasdream-vk)
 - **Show Upscaler GPU Time** (F10 -> DEBUG since rc2, System -> PC Upscaling, or the
   setup window): the presenter's passes timed with Vulkan timestamps
   (`present`, and `upscale` or `one pass`), shown under the FPS counter and
   logged every 300 frames as `present-timer: GPU ms a frame ...`. Stock
-  bbhost's FSR 1 also logs its own `fsr:` timing.
+  heliasdream's FSR 1 also logs its own `fsr:` timing.
 - **Show Motion Vectors**: a placeholder; logs once that there are none yet (Phase 2).
-- **Presented-frame capture**: `BBHOST_VK_CAPTURE=1` (bbtest `--capture`).
+- **Presented-frame capture**: `HELIAS_VK_CAPTURE=1` (bbtest `--capture`).
   Then Shift+F12, a file `capture.request` appearing in the capture folder
-  (what `bbtest mark` does), or `BBHOST_VK_CAPTURE_EVERY=<seconds>` writes
+  (what `bbtest mark` does), or `HELIAS_VK_CAPTURE_EVERY=<seconds>` writes
   the swapchain image as it goes to the screen - after the upscale, with any
-  overlay - to `BBHOST_VK_CAPTURE_DIR` (default `logs/captures`) as
+  overlay - to `HELIAS_VK_CAPTURE_DIR` (default `logs/captures`) as
   `frame-<date>-<time>-<ms>-<upscaler>.png`. Without the variable Shift+F12
-  is plain F12 (the game's render targets, pre-upscale), as in stock bbhost.
-- **Scene split** (Phase 1): `BBHOST_SCENE_SPLIT=0` never splits the scene
+  is plain F12 (the game's render targets, pre-upscale), as in stock heliasdream.
+- **Scene split** (Phase 1): `HELIAS_SCENE_SPLIT=0` never splits the scene
   from the output (Upscaling quality then changes nothing, as in Phase 0).
   The log's `scene-split:` lines say the render size, the scale pass and, at
   start, every patched site's original bytes; `heap:` lines come before and
   after each size change, `yebis: restart N` with each YEBIS restart.
 
 ## Performance snapshots (rc2): F11 and `bbtest snap`
-- Press **F11** in the game, or run `bbtest snap "what you saw"`. bbhost writes
+- Press **F11** in the game, or run `bbtest snap "what you saw"`. Helia's Dream writes
   `snap-<YYYYmmdd>-<HHMMSS>-<map>.txt` (the map id, e.g. `m24_00_00_00`, or `menu`). It goes
   to the session's `snaps/`, or to the game folder's `snaps/` without a session.
 - The top-left corner shows "Saving a snapshot..." and then
@@ -115,14 +115,14 @@ show a short notification when `notify-send` exists.
   - post-at-render coverage and fallback reasons;
   - every shader translation or pipeline compile: ms, the command processor or a worker,
     and whether the frame waited;
-  - the area, the settings and BBHOST_/MANGOHUD/RADV_ variables, and the log.
+  - the area, the settings and HELIAS_/MANGOHUD/RADV_ variables, and the log.
 - The first lines (`summary:`) carry the numbers. `bbtest snap --show` prints them for
   every snapshot in a session: avg, 1% and 0.1% lows, frames over 8.5/9/12 ms, drops, the
   top 10 passes, the area and compiles. `bbtest stop` writes them to `snaps/summary.txt`.
-- Debugging switches (no menu entries): `BBHOST_SNAP=0` (off), `BBHOST_SNAP_DIR=<dir>`,
-  `BBHOST_GPU_SAMPLE=0` (no sampler), `BBHOST_FRAME_LATENCY=0` (vk.1's frame replacing),
-  `BBHOST_SHARPEN_AT_PRESENT=1` (sharpen in the present pass, HUD included),
-  `BBHOST_PRESENT_PACE=0`, `BBHOST_POST_AT_RENDER=0`.
+- Debugging switches (no menu entries): `HELIAS_SNAP=0` (off), `HELIAS_SNAP_DIR=<dir>`,
+  `HELIAS_GPU_SAMPLE=0` (no sampler), `HELIAS_FRAME_LATENCY=0` (vk.1's frame replacing),
+  `HELIAS_SHARPEN_AT_PRESENT=1` (sharpen in the present pass, HUD included),
+  `HELIAS_PRESENT_PACE=0`, `HELIAS_POST_AT_RENDER=0`.
 
 ## vk.1-rc2 checks (~15 min)
 FSR 4.1.1 Performance, 4K/120, all effects on, MangoHud as usual.
@@ -143,7 +143,7 @@ FSR 4.1.1 Performance, 4K/120, all effects on, MangoHud as usual.
    - Look at the HUD and the edges of text. There should be no halos at either
      sharpness.
 5. Run `bbtest stop`, then send the session folder: `snaps/` with `summary.txt`,
-   `session.txt` and `bbhost.log`.
+   `session.txt` and `heliasdream.log`.
    - The log's `present: ... command processor waited ...` lines should show 0 drops.
    - `post-at-render: joined by shape` lines list the new passes.
    - `precompile: before the first in-game frame` and `gpu: shader caches ...` are logged
@@ -151,13 +151,13 @@ FSR 4.1.1 Performance, 4K/120, all effects on, MangoHud as usual.
 
 ## vk.1-rc7 checks (~10 min)
 Install as before (`bbtest start vk1-rc7`). The translator is unchanged: **no shader-cache
-rebuild**. Two binaries as in rc6: `bbhost.bin` (ThinLTO + PGO, the rc5 session's profile)
-and `bbhost.bin.nopgo`. Everything in the rc6 checks below still applies.
+rebuild**. Two binaries as in rc6: `heliasdream.bin` (ThinLTO + PGO, the rc5 session's profile)
+and `heliasdream.bin.nopgo`. Everything in the rc6 checks below still applies.
 1. **Picture unchanged** in the usual places (Hunter's Dream, Old Yharnam, a fight, the
    menus, Scaleform UI): textures on every mesh, nothing flickering or swapped. A texture or
    sampler on the wrong mesh would be this build's change - repeat with
-   `BBHOST_CP_STAGE_CACHE=0` and say so.
-2. **Proof run (once, any spot, a minute):** `BBHOST_CP_STAGE_CACHE=2` (slower: every hit is
+   `HELIAS_CP_STAGE_CACHE=0` and say so.
+2. **Proof run (once, any spot, a minute):** `HELIAS_CP_STAGE_CACHE=2` (slower: every hit is
    resolved again). After closing the game, game.log's `render: stage memo (rc7 …)` line must
    end in `checked, disagreeing 0`, and no `render: stage memo disagreed` line may appear.
 3. **At the Old Yharnam spot** (F11, stand still, F11 ~30 s later), against rc6:
@@ -165,12 +165,12 @@ and `bbhost.bin.nopgo`. Everything in the rc6 checks below still applies.
    exec_ns_per_draw` with them; bb-cp0 ms/s down, 1% lows equal or better. GPU ms per frame
    is unchanged by design. After closing: the exit line's hits against resolved give the
    memo's hit rate (stages, two a draw).
-4. Debug revert (no menu entry): `BBHOST_CP_STAGE_CACHE=0` (rc6's resolution every draw).
+4. Debug revert (no menu entry): `HELIAS_CP_STAGE_CACHE=0` (rc6's resolution every draw).
 
 ## vk.1-rc6 checks (~15 min)
 Install as before (`bbtest start vk1-rc6`). The translator is unchanged: **no shader-cache
 rebuild**, the first start is like rc5b's second. Two binaries come with the package:
-`bbhost.bin` (ThinLTO + PGO from the rc5 profiling session) and `bbhost.bin.nopgo` (the same
+`heliasdream.bin` (ThinLTO + PGO from the rc5 profiling session) and `heliasdream.bin.nopgo` (the same
 commit without the profile).
 0. **Optional, once per boot, for fewer buffer objects per submission:**
    `echo 1024 | sudo tee /sys/module/udmabuf/parameters/size_limit_mb` before starting (or
@@ -181,7 +181,7 @@ commit without the profile).
    0xf000000000 (131072 KiB) imported as …` (instead of rc5's `importing flexible mapping
    0xf000000000`); `recorder: its wait loop timed with the TSC`. If the ring line says it
    failed, or anything in the picture is missing (GX-drawn meshes, UI), repeat with
-   `BBHOST_HOST_MAP_DMABUF=0` and say so.
+   `HELIAS_HOST_MAP_DMABUF=0` and say so.
 2. **At the Old Yharnam spot** (F11 there, stand still, F11 ~30 s later):
    - the periodic ~12 ms frame should be gone or much rarer: compare `>11 ms` frames and the
      frame-time graph with rc5b (MangoHud's frametime graph shows it too);
@@ -190,21 +190,21 @@ commit without the profile).
    - [cpu] `recorder_wait: … clock=tsc`;
    - [cpu] `cp_cost:` / `cp_split:` and bb-submit's CPU in [seconds]/[threads] against rc5b
      (bb-submit should drop: no userptr to re-check, and fewer pieces with step 0).
-3. **PGO A/B** (same spot, same routine): swap in `bbhost.bin.nopgo` for one run (`cp
-   bbhost.bin.nopgo bbhost.bin` in the game folder after keeping a copy), F11 twice; compare
+3. **PGO A/B** (same spot, same routine): swap in `heliasdream.bin.nopgo` for one run (`cp
+   heliasdream.bin.nopgo heliasdream.bin` in the game folder after keeping a copy), F11 twice; compare
    [cpu] `cp_cost: exec_ns_per_draw` and `cp_split: sum=`, bb-cp0/bb-record ms/s.
-4. **Logs still complete:** run-bbhost.sh's tee writes logs/ as before; after closing the
+4. **Logs still complete:** run-heliasdream.sh's tee writes logs/ as before; after closing the
    game the log ends with `log: N lines through the writer thread …`. A crash (if one
    happens) still ends with the SIGSEGV report.
 5. Debug reverts, only for an A/B or if something looks wrong (no menu entries):
-   `BBHOST_LOG_SYNC=1` (synchronous logging), `BBHOST_GX_REPORT_INLINE=1` (the native-draw
-   report on bb-cp0), `BBHOST_GX_REPORT_MAPS=1` (name the slow reads' regions in play, the
-   rc5 cost), `BBHOST_HOST_MAP_DMABUF=0` (the ring as a host-pointer import),
-   `BBHOST_DMABUF_PIECE_MB=64` (rc5's pieces), `BBHOST_RECORDER_TSC=0` (clock_gettime).
+   `HELIAS_LOG_SYNC=1` (synchronous logging), `HELIAS_GX_REPORT_INLINE=1` (the native-draw
+   report on bb-cp0), `HELIAS_GX_REPORT_MAPS=1` (name the slow reads' regions in play, the
+   rc5 cost), `HELIAS_HOST_MAP_DMABUF=0` (the ring as a host-pointer import),
+   `HELIAS_DMABUF_PIECE_MB=64` (rc5's pieces), `HELIAS_RECORDER_TSC=0` (clock_gettime).
 
 Snapshot additions (rc6): [cpu] `log_writer: on= lines= deepest= slots= drained_by_loggers=
 waited=` and `recorder_wait: … clock=`. New log labels: `log:` (start with
-`BBHOST_LOG_SYNC=1`, exit), `gpu: dma-buf pieces of`, `gpu: the host's own GPU mappings`,
+`HELIAS_LOG_SYNC=1`, exit), `gpu: dma-buf pieces of`, `gpu: the host's own GPU mappings`,
 `gpu: host mapping 0x… imported as`, `kernel: host mapping … (a memfd, for a dma-buf import)`,
 `recorder: its wait loop timed with`. The `gx-native:`/`gx:`/`yebis:` periodic lines are
 the same, written by `bb-gx-report` a moment later; `gx:   0x… is in …` lines appear at exit
@@ -222,36 +222,36 @@ A guided ~30 min session that measures what the next build should target, with i
 binaries (rc5b plus off-by-default debug instrumentation, and a PGO-instrumented one). The
 kit folder's README has the exact commands; `bbprofile.sh --help` the options. In short:
 `bash bbprofile.sh` from the kit folder; it asks for sudo once (perf, the sysctls below,
-`dmidecode`), swaps the game folder's `bbhost.bin` for each step and puts the original back
+`dmidecode`), swaps the game folder's `heliasdream.bin` for each step and puts the original back
 at the end (also on Ctrl-C), and leaves one tarball `~/bbprofile-<date>-<time>.tar.gz`.
 Steps (each can be skipped; `--resume` continues a session):
 1. **A1 plain + CPU profile** at the heavy Old Yharnam spot: two snapshots (~60 s), then
    `cpuprofile.sh` (perf stat, flat, DWARF call graphs of bb-cp0 and the hot chain, sched).
-2. **A2 `BBHOST_TABLES_VRAM=0`**, **A3 `BBHOST_PARAMS_VRAM=1`**, **A4 `BBHOST_PARAMS_WC=1`**:
+2. **A2 `HELIAS_TABLES_VRAM=0`**, **A3 `HELIAS_PARAMS_VRAM=1`**, **A4 `HELIAS_PARAMS_WC=1`**:
    ~60 s each at the same spot (the GPU idle with work queued).
-3. **M4**: `BBHOST_FLIP_TRACE=1 BBHOST_FRAME_STATS=1 BBHOST_FRAME_DETAIL=1
-   BBHOST_FRAME_SLOW_MS=11 BBHOST_WAIT_LOG=GXRender BBHOST_WAIT_LOG_MS=8
-   BBHOST_HLE_COUNT=1`, with `perf sched record -k CLOCK_MONOTONIC` (system-wide, 20 s),
-   then two presented-frame captures (`BBHOST_VK_CAPTURE=1`) as reference pictures.
+3. **M4**: `HELIAS_FLIP_TRACE=1 HELIAS_FRAME_STATS=1 HELIAS_FRAME_DETAIL=1
+   HELIAS_FRAME_SLOW_MS=11 HELIAS_WAIT_LOG=GXRender HELIAS_WAIT_LOG_MS=8
+   HELIAS_HLE_COUNT=1`, with `perf sched record -k CLOCK_MONOTONIC` (system-wide, 20 s),
+   then two presented-frame captures (`HELIAS_VK_CAPTURE=1`) as reference pictures.
 4. **PGO**: the instrumented binary, a few minutes in Old Yharnam and the Hunter's Dream; the
    profiles land in the game folder's `pgo/`.
-5. **A5 `BBHOST_PS_WAVE32=32`** and an optional **plain again** (drift check).
+5. **A5 `HELIAS_PS_WAVE32=32`** and an optional **plain again** (drift check).
 perf needs `kernel.perf_event_paranoid=1` and `kernel.kptr_restrict=0` for the session; the
 kit sets them and restores the values it found. Box side: `tools/bbprofile/bbprofile_analyze.py`.
 
 Debugging variables added for it (none changes anything unless set):
-- `BBHOST_FLIP_TRACE=1`, `BBHOST_FLIP_TRACE_MS=11`: the per-flip trace; log
+- `HELIAS_FLIP_TRACE=1`, `HELIAS_FLIP_TRACE_MS=11`: the per-flip trace; log
   `fliptrace: slow frame … at <s> monotonic: flip N: submit gap, main frame, back-pressure
   (backlog), submit->CP pickup, CP walk (jobs, CP busy, idle), to video, video->present`,
   then `the flip before:` and `threads run/run-queue ms …`; snapshot section `[flip_trace]`
   (CSV, `base_steady_ns=` for lining it up with a perf trace).
-- `BBHOST_FRAME_SLOW_MS` (33): with `BBHOST_FRAME_STATS=1`, which main-loop frames get their
+- `HELIAS_FRAME_SLOW_MS` (33): with `HELIAS_FRAME_STATS=1`, which main-loop frames get their
   waits by call site logged.
-- `BBHOST_PARAMS_VRAM=1`: the params ring in ReBAR video memory (A/B; log `gpu: params ring:`).
-- PGO builds: `-DBBHOST_PGO_GENERATE=ON` (writes `$BBHOST_PGO_DIR`, default `./pgo`,
-  `bbhost-<pid>.profraw`, every `BBHOST_PGO_DUMP_S`=30 s and on exit; log `pgo:`), then
-  `llvm-profdata merge -o bbhost.profdata pgo/*.profraw` (the llvm-profdata of the clang that
-  built it) and `-DBBHOST_PGO_USE=$PWD/bbhost.profdata`.
+- `HELIAS_PARAMS_VRAM=1`: the params ring in ReBAR video memory (A/B; log `gpu: params ring:`).
+- PGO builds: `-DHELIAS_PGO_GENERATE=ON` (writes `$HELIAS_PGO_DIR`, default `./pgo`,
+  `heliasdream-<pid>.profraw`, every `HELIAS_PGO_DUMP_S`=30 s and on exit; log `pgo:`), then
+  `llvm-profdata merge -o heliasdream.profdata pgo/*.profraw` (the llvm-profdata of the clang that
+  built it) and `-DHELIAS_PGO_USE=$PWD/heliasdream.profdata`.
 
 ## Snapshot additions (rc5b)
 - **[cpu]** gains `cp_split:` (since the previous snapshot) and `cp_split_total:` (since
@@ -266,9 +266,9 @@ Debugging variables added for it (none changes anything unless set):
 - New log labels: `cp split:` (every 100,000 sampled draws), `gpu: compute cb:` (at start,
   the first 24 compute pipelines with constant buffers, every 20,000 dispatches).
 - Debugging variables (no menu entries; each `=0` is rc5's behaviour):
-  - `BBHOST_CS_CB=0` (compute constant buffers walk the page table; compute shaders then
+  - `HELIAS_CS_CB=0` (compute constant buffers walk the page table; compute shaders then
     translate as in rc5, from the cache rc5 left)
-  - `BBHOST_CP_SPLIT=0` (no section timing)
+  - `HELIAS_CP_SPLIT=0` (no section timing)
 
 ## vk.1-rc5b checks (~15 min)
 As the rc5 checks below, with `bbtest start vk1-rc5b`, plus:
@@ -284,8 +284,8 @@ As the rc5 checks below, with `bbtest start vk1-rc5b`, plus:
    - [cpu] `cp_split:` — send it; it decides the next CP work.
 3. Watch for anything in the picture unlike rc5, especially effects drawn by compute
    (particles, fog, lighting, motion blur): if something differs, F11 there, then repeat
-   that spot once with `BBHOST_CS_CB=0`.
-4. Only as an A/B: `BBHOST_CS_CB=0` at the `010838` spot, F11.
+   that spot once with `HELIAS_CS_CB=0`.
+4. Only as an A/B: `HELIAS_CS_CB=0` at the `010838` spot, F11.
 
 ## Snapshot additions (rc5)
 - **[cpu]** (new):
@@ -305,14 +305,14 @@ As the rc5 checks below, with `bbtest start vk1-rc5b`, plus:
 - New log labels: `recorder: wait for the next block …`, the 300-flip recorder line's
   `rc5 wait …`, `placement:`, `timer slack:`, `page tables:`.
 - Debugging variables (no menu entries; each `=0` is rc4's behaviour):
-  - `BBHOST_RECORDER_MWAITX=0` (the PAUSE loop)
-  - `BBHOST_AFFINITY=0` (no placement)
-  - `BBHOST_TIMER_SLACK=0` (the default 50 us slack and rc4's 300 us floors)
-  - `BBHOST_TABLES_VRAM=0` (page tables in system memory)
-  - build option `-DBBHOST_THINLTO=OFF`
+  - `HELIAS_RECORDER_MWAITX=0` (the PAUSE loop)
+  - `HELIAS_AFFINITY=0` (no placement)
+  - `HELIAS_TIMER_SLACK=0` (the default 50 us slack and rc4's 300 us floors)
+  - `HELIAS_TABLES_VRAM=0` (page tables in system memory)
+  - build option `-DHELIAS_THINLTO=OFF`
 - A/B-only, unchanged defaults (try one at a time at the same spot, F11 each):
-  - `BBHOST_PS_WAVE32=32`: pixel shaders in wave32 (the GPU audit's #8; unknown sign);
-  - `BBHOST_PARAMS_WC=1`: the params ring write-combined (#4; may cost CPU).
+  - `HELIAS_PS_WAVE32=32`: pixel shaders in wave32 (the GPU audit's #8; unknown sign);
+  - `HELIAS_PARAMS_WC=1`: the params ring write-combined (#4; may cost CPU).
 
 ## vk.1-rc5 checks (~10-15 min)
 FSR 4.1.1 Performance, 4K/120, all effects on, MangoHud as usual. The translator did not
@@ -335,12 +335,12 @@ change, so the shader caches stay; no rebuild stutter is expected.
    different, note where and press F11.
 6. Run `bbtest stop`, then send the session folder.
 7. Only if something looked wrong, or as an A/B at the `010838` spot: repeat once with each
-   of `BBHOST_RECORDER_MWAITX=0`, `BBHOST_AFFINITY=0`, `BBHOST_TIMER_SLACK=0`,
-   `BBHOST_TABLES_VRAM=0`, F11 each time.
+   of `HELIAS_RECORDER_MWAITX=0`, `HELIAS_AFFINITY=0`, `HELIAS_TIMER_SLACK=0`,
+   `HELIAS_TABLES_VRAM=0`, F11 each time.
 
 ## CPU profile (rc5): `cpuprofile.sh`
 For the next build's CP work (bb-cp0's ~2.9 us/draw bind section). It only reads perf
-samples of bbhost.bin, its /proc maps and thread names. `cpuprofile.sh` and
+samples of heliasdream.bin, its /proc maps and thread names. `cpuprofile.sh` and
 `perf_cpu_summary.py` are next to the tarball (and in `tools/`); keep them in one folder.
 
 1. Once per session: `sudo pacman -S --needed perf zstd`, then
@@ -360,7 +360,7 @@ samples of bbhost.bin, its /proc maps and thread names. `cpuprofile.sh` and
 - **[gpu_idle]** gains `idle_by_span_before:`: the queued idle by how long the command
   buffer before it ran (`lt50us`, `50_200us`, `200us_1ms`, `gt1ms`, ms and gaps), and
   `reset_first_cmdbufs`. The 300-flip `gpu idle queued after:` log line names the sites
-  (`present=` is the blit). `gpu_gaps.py --idle bbhost.log --exe bbhost` prints both.
+  (`present=` is the blit). `gpu_gaps.py --idle heliasdream.log --exe heliasdream` prints both.
 - **[walks]** gains `fetch_inline:`: `fetch_inlined`, `fetch_inlined_walking`,
   `soffset_bound`, `soffset_bound_sites`. Log lines `fetch inline:` and `soffset bound:`.
 - **[pass_stats]** (new): the GPU sampler's latest frame, per top pass: `ms`, `vs_k`,
@@ -369,13 +369,13 @@ samples of bbhost.bin, its /proc maps and thread names. `cpuprofile.sh` and
 - session.txt: `render targets re-created (contents lost): N` on its own line, no longer
   under errors.
 - Debugging variables (no menu entries; each `=0` is rc3's behaviour):
-  - `BBHOST_RESET_ORDER=0`
-  - `BBHOST_BLIT_RIDE=0`
-  - `BBHOST_FETCH_INLINE=0`
-  - `BBHOST_SOFFSET_BOUND=0`
-  - `BBHOST_GPU_SAMPLE_STATS=0`
-  - `BBHOST_PRESENT_PRIORITY_WAIT_MS=<ms>` sets the cap.
-  - `BBHOST_RGP_LABELS=1` labels the render passes for RGP.
+  - `HELIAS_RESET_ORDER=0`
+  - `HELIAS_BLIT_RIDE=0`
+  - `HELIAS_FETCH_INLINE=0`
+  - `HELIAS_SOFFSET_BOUND=0`
+  - `HELIAS_GPU_SAMPLE_STATS=0`
+  - `HELIAS_PRESENT_PRIORITY_WAIT_MS=<ms>` sets the cap.
+  - `HELIAS_RGP_LABELS=1` labels the render passes for RGP.
 
 ## vk.1-rc4 checks (~10-15 min)
 FSR 4.1.1 Performance, 4K/120, all effects on, MangoHud as usual. The first start
@@ -396,14 +396,14 @@ minutes of each area. Don't judge the frame rate until it settles.
    - If you see one, note where and press F11.
 5. Run `bbtest stop`, then send the session folder.
 6. Only if something looked wrong, repeat the spot once with each of
-   `BBHOST_BLIT_RIDE=0`, `BBHOST_FETCH_INLINE=0`, `BBHOST_SOFFSET_BOUND=0` and
-   `BBHOST_RESET_ORDER=0`, pressing F11 each time.
+   `HELIAS_BLIT_RIDE=0`, `HELIAS_FETCH_INLINE=0`, `HELIAS_SOFFSET_BOUND=0` and
+   `HELIAS_RESET_ORDER=0`, pressing F11 each time.
 7. Optional, to confirm the queued-idle theory (DEVLOG rc4). Leave it out if unsure.
    - Boot once with the kernel parameter `amdgpu.sched_hw_submission=4`, then repeat
      step 3.
    - If `idle_by_span_before: lt50us_ms` and `50_200us_ms` fall sharply, the gaps are the
      scheduler's round trip.
-   - Remove the parameter afterwards. bbhost needs nothing from it.
+   - Remove the parameter afterwards. Helia's Dream needs nothing from it.
 
 ## Snapshot additions (rc3)
 - `flip_to_present_split:` in the summary gives the averages and maxima of `record` (the
@@ -417,8 +417,8 @@ minutes of each area. Don't judge the frame rate until it settles.
   - **[walks]:** the pipelines whose VS still walks page tables, the post chain's by name;
   - **[gpu_idle]:** the GPU idle with work queued, also split by whether an occlusion
     resolve or a present came before.
-- Debugging variables (no menu entries): `BBHOST_PRESENT_PRIORITY=0` (the blit always goes
-  through the stream) and `BBHOST_OCCLUSION_STATS=1` (the resolve's pair statistics).
+- Debugging variables (no menu entries): `HELIAS_PRESENT_PRIORITY=0` (the blit always goes
+  through the stream) and `HELIAS_OCCLUSION_STATS=1` (the resolve's pair statistics).
 
 ## vk.1-rc3 checks (~10-15 min)
 FSR 4.1.1 Performance, 4K/120, all effects on, MangoHud as usual.
@@ -434,9 +434,9 @@ FSR 4.1.1 Performance, 4K/120, all effects on, MangoHud as usual.
    - a frame shown out of order or a tear-like jump (the blit's priority submit).
    - If one appears, note where and press F11.
 5. Run `bbtest stop`, then send the session folder (`snaps/`, `summary.txt`,
-   `session.txt`, `bbhost.log`).
-6. Only if something looked wrong: repeat that spot with `BBHOST_PRESENT_PRIORITY=0` and
-   then `BBHOST_OCCLUSION_STATS=1`, and press F11 in each.
+   `session.txt`, `heliasdream.log`).
+6. Only if something looked wrong: repeat that spot with `HELIAS_PRESENT_PRIORITY=0` and
+   then `HELIAS_OCCLUSION_STATS=1`, and press F11 in each.
 
 ## Profiling session (rc2): `bbtest profile`
 For RADV (Mesa 25.1+ has RGP on RDNA4/GFX12; Mesa 26.2.4 here) and AMD's Radeon GPU
@@ -444,15 +444,15 @@ Profiler (RGP) to open the captures.
 
 1. Run `bbtest profile "dream dips"` (add `--detach` to start from a shortcut).
    - This is a normal session plus `MESA_VK_TRACE=rgp`,
-     `MESA_VK_TRACE_TRIGGER=<session>/rgp/trigger`, `BBHOST_RGP_DIR=<session>/rgp` and
-     `BBHOST_SHADER_STATS=<session>/shader-stats.tsv`.
+     `MESA_VK_TRACE_TRIGGER=<session>/rgp/trigger`, `HELIAS_RGP_DIR=<session>/rgp` and
+     `HELIAS_SHADER_STATS=<session>/shader-stats.tsv`.
 2. Play to the spot. At a dip, press **F11**, or run `bbtest snap "note"`.
-   - bbhost writes the 30 s snapshot as usual and creates the trigger file. RADV then
+   - Helia's Dream writes the 30 s snapshot as usual and creates the trigger file. RADV then
      traces the next frame.
    - That frame takes much longer, a visible hitch of a second or more, while RADV writes
-     `/tmp/bbhost.bin_<date>_<time>....rgp`. Mesa always writes to /tmp; TMPDIR does not
+     `/tmp/heliasdream.bin_<date>_<time>....rgp`. Mesa always writes to /tmp; TMPDIR does not
      change it.
-   - bbhost waits for the file and moves it to `rgp/<snapshot name>.rgp`. It adds a line
+   - Helia's Dream waits for the file and moves it to `rgp/<snapshot name>.rgp`. It adds a line
      to `rgp/captures.tsv` (time, rgp, snapshot, area, note, MiB) and a `[rgp]` section to
      the snapshot, and the banner says "GPU capture saved".
    - At most one GPU capture is taken every 10 s. A snapshot inside that window says
@@ -471,19 +471,19 @@ Profiler (RGP) to open the captures.
      statistic as name=value (SGPRs, VGPRs, spilled SGPRs/VGPRs, code size, LDS size,
      scratch, subgroups per SIMD, instructions, latency...).
 4. Expect more compile stutter early in a profile session. Pipelines are built with the
-   capture-statistics flag and without bbhost's pipeline cache (the flag is part of the
+   capture-statistics flag and without heliasdream's pipeline cache (the flag is part of the
    driver's cache key), so they compile once more. Mesa's own disk cache keeps them for
    the next profile session.
    - A normal launch never sets the flag and is unchanged. Normal launches don't read the
      profile session's cache entries, and don't lose theirs.
 5. Run `bbtest stop`. It also moves any `.rgp` left in /tmp from this session into `rgp/`.
-   Send `rgp/`, `snaps/`, `shader-stats.tsv` and `bbhost.log`.
+   Send `rgp/`, `snaps/`, `shader-stats.tsv` and `heliasdream.log`.
 
 ## v0.2.18-vk.1 defaults check (~3 min)
 
-1. Move `bbhost-options.toml` aside:
-   `mv bbhost-options.toml bbhost-options.toml.mine`.
-2. Run `./bbhost --setup`.
+1. Move `HeliasDream-options.toml` aside:
+   `mv HeliasDream-options.toml HeliasDream-options.toml.mine`.
+2. Run `./heliasdream --setup`.
    - The Graphics defaults: AA Auto.
    - Even frame pacing and Post-processing at render size are both ticked.
    - Pick FSR 4.1.1, Performance, 120 fps, and play.
@@ -496,35 +496,35 @@ Profiler (RGP) to open the captures.
    - The FPS stays at 120.
 5. Go through one loading screen (lamp travel) and back.
 6. Run `./bbtest stop`, then put your file back:
-   `mv bbhost-options.toml.mine bbhost-options.toml`.
-7. Send session.txt and bbhost.log.
+   `mv HeliasDream-options.toml.mine HeliasDream-options.toml`.
+7. Send session.txt and heliasdream.log.
    - The `120 LOCK:` line.
    - The log should say `post-at-render: on (the options' ...)` and `present: pacing on`.
 
 ## test11 checks (one run, ~5 min)
 
-Keep test10's `bbhost.bin` as `bbhost.bin.test10`. Use the same settings as test10: FSR
+Keep test10's `heliasdream.bin` as `heliasdream.bin.test10`. Use the same settings as test10: FSR
 4.1.1 Performance, 4K, 120, chromatic aberration as you have it, motion blur off.
 
-1. At the Cathedral lamp: `BBHOST_AB_SECONDS=30 ./bbtest start --capture t13-pace-ab`.
+1. At the Cathedral lamp: `HELIAS_AB_SECONDS=30 ./bbtest start --capture t13-pace-ab`.
 2. Stay 3 minutes. Camera still for the first 2, then walk out of the lamp room and back.
 3. Watch the lights and fog in the on and off halves. Run `./bbtest mark "flicker"` if they
    flicker. The log's `ab: present pace on/off` lines say which half a mark fell in.
-4. `./bbtest stop`. Send session.txt and bbhost.log. The things to read:
+4. `./bbtest stop`. Send session.txt and heliasdream.log. The things to read:
    - the `a/b` line: the 1% low and the frames over 8.5 and 9 ms per side;
    - the `motion blur skip on` line, and `pairs skipped` rising;
    - `present: pacing on`.
 
-Fallbacks: `BBHOST_PRESENT_PACE=0` turns the pacing off. `BBHOST_POST_AT_RENDER=0` brings
+Fallbacks: `HELIAS_PRESENT_PACE=0` turns the pacing off. `HELIAS_POST_AT_RENDER=0` brings
 back test9.
 
 ## test10 checks (one run, ~6 min)
 
-Keep test9's `bbhost.bin` as `bbhost.bin.test9`. Use FSR 4.1.1 Performance, 4K, 120,
+Keep test9's `heliasdream.bin` as `heliasdream.bin.test9`. Use FSR 4.1.1 Performance, 4K, 120,
 sharpness 5/10, AA Auto, motion blur off, chromatic aberration as you have it, at the
 Cathedral lamp.
 
-1. `BBHOST_AB_SECONDS=30 ./bbtest start --capture t12-post-ab`. Stay 3 minutes with the
+1. `HELIAS_AB_SECONDS=30 ./bbtest start --capture t12-post-ab`. Stay 3 minutes with the
    camera still. About every 30 s, run `./bbtest mark "lamp"`. The log's `ab: post at
    render on/off` lines say which half each mark fell in.
 2. Look at the same things in the on and off halves:
@@ -537,21 +537,21 @@ Cathedral lamp.
 3. Turn motion blur on for 20 s and move the camera: `./bbtest mark "blur on"`. It should
    still blur. Turn it off again.
 4. `./bbtest stop`. Send session.txt (`120 LOCK:`, `a/b ...` with frames over 8.33 ms per
-   side) and bbhost.log (`post-at-render:` lines).
+   side) and heliasdream.log (`post-at-render:` lines).
 
-Fallback: `BBHOST_POST_AT_RENDER=0`.
+Fallback: `HELIAS_POST_AT_RENDER=0`.
 
 ## test9 checks (one run, ~5 min)
 
-Same as test8 (keep test8's `bbhost.bin` as `bbhost.bin.test8`): FSR 4.1.1 Performance,
+Same as test8 (keep test8's `heliasdream.bin` as `heliasdream.bin.test8`): FSR 4.1.1 Performance,
 4K, 120, sharpness 5/10, AA Auto, motion blur off, at the Cathedral lamp with the camera
 still.
 
-1. `BBHOST_AB_SECONDS=30 ./bbtest start --capture t11-lamp-ab`. Stay 3 minutes, and run
+1. `HELIAS_AB_SECONDS=30 ./bbtest start --capture t11-lamp-ab`. Stay 3 minutes, and run
    `./bbtest mark "lamp"` about every 30 s.
 2. Turn motion blur on for 30 s and move the camera: `./bbtest mark "blur on"`. It must blur.
    Turn it off again.
-3. `./bbtest stop`, then send session.txt and bbhost.log. In the log:
+3. `./bbtest stop`, then send session.txt and heliasdream.log. In the log:
    - `motion blur skip on: its two draws copy ... now one copy` should appear about a second
      into the world;
    - the `ab:` lines should show pairs skipped going up;
@@ -559,28 +559,28 @@ still.
 
 ## test8 checks (one run, ~6 min)
 
-Install test8 (keep test7c's `bbhost.bin` as `bbhost.bin.test7c`) and `cd` into the folder.
+Install test8 (keep test7c's `heliasdream.bin` as `heliasdream.bin.test7c`) and `cd` into the folder.
 Use the same settings as t9: FSR 4.1.1 Performance, 4K, 120, sharpness 5/10, AA Auto,
 **motion blur off**. Stand at the spawn lamp with the lamp and the fog in view, and keep the
 camera still.
 
-1. `BBHOST_AB_SECONDS=30 ./bbtest start --capture t10-lamp-ab`. Stay 3 minutes (6 halves).
+1. `HELIAS_AB_SECONDS=30 ./bbtest start --capture t10-lamp-ab`. Stay 3 minutes (6 halves).
    About every 30 s, run `./bbtest mark "lamp"`: it takes a presented-frame capture.
 2. Turn motion blur **on** in the game's settings for 30 s, moving the camera, then
    `./bbtest mark "blur on"`. It must blur as in test7c. Turn it off again.
 3. `./bbtest stop`. Send:
-   - session.txt (`120 LOCK:`, `a/b (BBHOST_AB_SECONDS): skip on ... skip off ...`);
-   - the `render: motion blur skip ...` and `post-chain:` lines from bbhost.log, or the
+   - session.txt (`120 LOCK:`, `a/b (HELIAS_AB_SECONDS): skip on ... skip off ...`);
+   - the `render: motion blur skip ...` and `post-chain:` lines from heliasdream.log, or the
      whole log.
    - Compare the captures from the on and off halves. They must look identical apart from
      the fog's movement. `ab:` lines in the log say which half each capture fell in.
 
-If anything looks wrong, `BBHOST_MOTION_BLUR_SKIP=0` brings back test7c's behaviour.
+If anything looks wrong, `HELIAS_MOTION_BLUR_SKIP=0` brings back test7c's behaviour.
 
 ## test7c checks (~20 min)
 
-Install test7c the same way as test7b (keep the test7b `bbhost.bin` as a backup, for example
-`bbhost.bin.test7b`), then `cd` into the folder. Use the same settings as test7: FSR 4.1.1
+Install test7c the same way as test7b (keep the test7b `heliasdream.bin` as a backup, for example
+`heliasdream.bin.test7b`), then `cd` into the folder. Use the same settings as test7: FSR 4.1.1
 Performance, 3840x2160, 120, sharpness 5/10, Anti-aliasing Auto, **Show upscaler GPU time**
 on, motion blur off. Stand at the spawn lamp with the lamp and the fog in view and the
 camera still. Do not use `--record`.
@@ -590,7 +590,7 @@ A. **Batching off (the baseline):** `./bbtest start t9-lamp` for 60 s,
    - In the log: `gpu: submit batching off`, and `render: motion blur 7d668276+e0305cef
      draws into ...` (two or more lines) plus `texture: 7d668276+e0305cef b..` lines. These
      are only data for the next build.
-B. **Batching on, same spot:** `BBHOST_SUBMIT_BATCH=1 ./bbtest start t9-lamp-batch` for
+B. **Batching on, same spot:** `HELIAS_SUBMIT_BATCH=1 ./bbtest start t9-lamp-batch` for
    60 s, `./bbtest mark "lamp batch on"`, `./bbtest stop`.
    - In the log: `gpu: submit batching on`.
    - Watch for flashing, black or stale frames, or stutter. Stop at once if you see any
@@ -598,7 +598,7 @@ B. **Batching on, same spot:** `BBHOST_SUBMIT_BATCH=1 ./bbtest start t9-lamp-bat
 C. **Compare A and B:**
    - session.txt: average fps, 1% and 0.1% lows, `N of M seconds under 120`.
    - The idle split of each, with gpu_gaps.py:
-     `for s in t9-lamp t9-lamp-batch; do python3 gpu_gaps.py --idle "$(ls -d ~/.local/share/bbtest/sessions/*-$s | tail -1)/bbhost.log"; done`.
+     `for s in t9-lamp t9-lamp-batch; do python3 gpu_gaps.py --idle "$(ls -d ~/.local/share/bbtest/sessions/*-$s | tail -1)/heliasdream.log"; done`.
      The `queued` ms/s should fall with batching on (test7: ~60 ms/s). The `gpu idle:`
      line's `batched N jobs/s into M submits/s` shows how much was merged.
    - Also walk once through the Cathedral fog with batching on and look at the fps there.
@@ -611,7 +611,7 @@ upscaler GPU time** in the launcher. In the launcher, set **Anti-aliasing** to *
 with FSR 4.1.1)**: your saved Off stays Off until you change it. Stand at the spawn lamp.
 Do not use `--record`.
 
-A. **The lamp, profiled per pass:** `BBHOST_GPU_PROFILE=3 ./bbtest start t8-lamp-p3`.
+A. **The lamp, profiled per pass:** `HELIAS_GPU_PROFILE=3 ./bbtest start t8-lamp-p3`.
    - Look at the lamp and the fog for 30 s with the camera still: `./bbtest mark "lamp"`.
    - Turn away from the lamp for 30 s: `./bbtest mark "away"`.
    - `./bbtest stop`.
@@ -627,15 +627,15 @@ A. **The lamp, profiled per pass:** `BBHOST_GPU_PROFILE=3 ./bbtest start t8-lamp
 B. **Sharpening, A/B (same spot, same sharpness 5/10, the lamp in view):**
    - `./bbtest start t8-lamp-sharp` for 60 s, `./bbtest mark "lamp sharp ours"`,
      `./bbtest stop`.
-   - Then the same with the old pass: `BBHOST_FSR4_SHARPEN=amd ./bbtest start
+   - Then the same with the old pass: `HELIAS_FSR4_SHARPEN=amd ./bbtest start
      t8-lamp-sharp-amd`, `./bbtest mark "lamp sharp amd"`, `./bbtest stop`.
    - Compare the FPS, the FSR 4.1.1 time and how sharp it looks.
    - Check whether the lamp flicker at 0.5 is gone with ours.
 C. **Idle gaps:**
    - `./bbtest start t8-gaps` for 60 s looking forward, `./bbtest mark "forward"`,
      `./bbtest stop`, then (gpu_gaps.py ships beside bbtest)
-     `python3 gpu_gaps.py --idle "$(ls -d ~/.local/share/bbtest/sessions/*-t8-gaps | tail -1)/bbhost.log" --exe "$HOME/BloodBorne PC/bbhost-linux-v0.2.18/bbhost"`. Read which kind dominates: late, queued or before present.
-   - Then the experimental split: `BBHOST_SUBMIT_SPLIT=32 ./bbtest start t8-split`, the same
+     `python3 gpu_gaps.py --idle "$(ls -d ~/.local/share/bbtest/sessions/*-t8-gaps | tail -1)/heliasdream.log" --exe "$HOME/BloodBorne PC/heliasdream-linux-v0.2.18/heliasdream"`. Read which kind dominates: late, queued or before present.
+   - Then the experimental split: `HELIAS_SUBMIT_SPLIT=32 ./bbtest start t8-split`, the same
      view, `./bbtest mark "forward split"`, `./bbtest stop`. Watch for flashing or black
      frames and stop at once if you see any. Compare the `gpu idle:` ms/s, the `splits N/s`
      and the FPS.
@@ -661,8 +661,8 @@ B. **Sharpening's cost (0.315 ms in t6):** the same with sharpness 0:
    `./bbtest start t7-fsr4p-sharp0`. Note the FPS looking forward.
 C. **Game anti-aliasing (t6's "noaa" run still had it on: options-before and -after say
    `anti_alias = "On"`):** in the game's settings set Anti-aliasing Off, check
-   `~/.config/bbhost/bbhost-options.toml` says `anti_alias = "Off"`, then
-   `BBHOST_GPU_PROFILE=3 ./bbtest start t7-fsr4p-noaa-p3`. The profile shows which 4K
+   `~/.config/HeliasDream/HeliasDream-options.toml` says `anti_alias = "Off"`, then
+   `HELIAS_GPU_PROFILE=3 ./bbtest start t7-fsr4p-noaa-p3`. The profile shows which 4K
    pass goes (dc609f83+da1faca9 is the candidate) and what it cost. Set it back On after.
 
 ## test5 checks (~40 min)
@@ -678,11 +678,11 @@ A. **FSR 3.1 Quality, shimmer check:** `bbtest start t5-fsr3 --record`.
    - If the shimmer is still there, narrow it down one switch per run (in this order):
      1. Upscaler settings: **Reactive mask off** (FSR 3.1 uses it, FSR 4.1.1 does not).
      2. **Sharpness 0**.
-     3. `BBHOST_FSR_DIRECT_TARGET=0 bbtest start t5-copy`.
-     4. `BBHOST_OBJECT_MOTION=0 bbtest start t5-noobj` (camera motion only).
-     5. `BBHOST_OBJECT_MOTION_MIN=3 bbtest start t5-min3`.
+     3. `HELIAS_FSR_DIRECT_TARGET=0 bbtest start t5-copy`.
+     4. `HELIAS_OBJECT_MOTION=0 bbtest start t5-noobj` (camera motion only).
+     5. `HELIAS_OBJECT_MOTION_MIN=3 bbtest start t5-min3`.
      Note which one makes it go away. For a still character, a `bbtest mark` with
-     `BBHOST_FSR_DUMP=1` writes the reactive mask (`4-reactive.png`). If the character
+     `HELIAS_FSR_DUMP=1` writes the reactive mask (`4-reactive.png`). If the character
      lights up there, the mask is the cause.
 B. **Motion-vector view, characters:** Upscaler settings > **Show motion vectors** on (FSR
    3.1 or 4.1.1 chosen). Red and green are the motion (8 render pixels a frame is full).
@@ -705,7 +705,7 @@ D. **FSR 4.1.1 Performance** (1920x1080 -> 3840x2160, the goal): `bbtest start t
    - If 120 is not held, also try sharpness 0: that skips FSR 4.1.1's RCAS pass and its
      extra 3840x2160 image.
 
-Not to use: `BBHOST_SUBMIT_EVERY_JOB=0` (test4 run C: 64 fps, flashing effects).
+Not to use: `HELIAS_SUBMIT_EVERY_JOB=0` (test4 run C: 64 fps, flashing effects).
 
 ## test4 checks (~40 min)
 
@@ -715,7 +715,7 @@ busy, repeatable spot for every run (test3's spot), wait ~20 s, then `bbtest mar
 `gpu busy:`, `pass-timer:` and `fsr3:` lines.
 
 A. **FSR 3.1 Quality, 3840x2160** (test4 defaults):
-   `BBHOST_MOTION_PROBE=1 bbtest start t4-fsr3 --capture`
+   `HELIAS_MOTION_PROBE=1 bbtest start t4-fsr3 --capture`
    - `fsr3: FSR 3.1 writes the scale pass's 3840x2160 target directly`, and in the
      summaries `N written directly, 0 copied`. The `pass-timer:` line has no `copy` any more.
    - The picture is as correct as in test3 (no band, normal brightness).
@@ -723,18 +723,18 @@ A. **FSR 3.1 Quality, 3840x2160** (test4 defaults):
      summaries show `resets` near 0 outside warps and loads (test3: 1582 of 3000). Few or no
      `jitter: paused` / `camera-cut: no scene camera` lines while you play.
 B. **The same with the copy** (the direct write's A/B):
-   `BBHOST_FSR_DIRECT_TARGET=0 bbtest start t4-copy`. Expected: about 0.2 ms more GPU
+   `HELIAS_FSR_DIRECT_TARGET=0 bbtest start t4-copy`. Expected: about 0.2 ms more GPU
    time a frame, and the `copy` figure is back.
 C. **Merged submissions** (the gaps between command buffers, ~9% of the GPU's time):
-   `BBHOST_SUBMIT_EVERY_JOB=0 bbtest start t4-merge`. Result: REJECTED (64 fps, 1% low
+   `HELIAS_SUBMIT_EVERY_JOB=0 bbtest start t4-merge`. Result: REJECTED (64 fps, 1% low
    14.5, flashing effects). The default stays a submit per job.
 D. **The cheaper FSR inputs:** in A's setup, turn the reactive mask off, then sharpening
    to 0 (Upscaler settings). Note the FPS and the `FSR 3.1` / `reactive` figures for each.
 E. **Where the GPU time goes** (the game's passes at 4K; FPS here is not representative):
-   `BBHOST_GPU_PROFILE=3 bbtest start t4-profile` at A's settings, ~30 s at the spot.
+   `HELIAS_GPU_PROFILE=3 bbtest start t4-profile` at A's settings, ~30 s at the spot.
    The log's `graphics=... compute=... <pass>=<ms>(<count>)` lines name the heaviest
    passes (YEBIS post-processing and UI at 3840x2160, the scene at 2560x1440).
-   Then `BBHOST_GPU_PROFILE=2 bbtest start t4-gaps` for the time between draws, charged to
+   Then `HELIAS_GPU_PROFILE=2 bbtest start t4-gaps` for the time between draws, charged to
    what was recorded there (barriers, copies, fills).
 F. **FSR 4.1.1** (see "FSR 4.1.1 assets" below), then FSR 4.1.1 Quality at 3840x2160:
    `bbtest start t4-fsr4 --capture`. Look for `fsr4: FSR 4.1.1 assets in ...`, then
@@ -742,7 +742,7 @@ F. **FSR 4.1.1** (see "FSR 4.1.1 assets" below), then FSR 4.1.1 Quality at 3840x
    `N FSR 4.1.1`, and `pass-timer:` shows `FSR 4.1.1 x.xx ms`.
 
 ### FSR 4.1.1 assets (once, ~10-20 min, on the PC)
-Nothing of AMD's ships with bbhost-vk. The assets are built on your PC from your own DLL.
+Nothing of AMD's ships with heliasdream-vk. The assets are built on your PC from your own DLL.
 1. Get OptiScaler **v0.9.4** (github.com/optiscaler/OptiScaler/releases/tag/v0.9.4) and
    unpack it. Use its `amd_fidelityfx_upscaler_dx12.dll`: version 4.1.1.2740, about
    27 MB. A >30 MB file with the same version number has been reported not to work. Keep
@@ -758,14 +758,14 @@ Nothing of AMD's ships with bbhost-vk. The assets are built on your PC from your
 3. From the unpacked test4 tarball:
    `./build-fsr4.sh ~/Downloads/OptiScaler_0.9.4/amd_fidelityfx_upscaler_dx12.dll`
    (`PROTONPATH=<a Proton folder> ./build-fsr4.sh ...` picks one Proton).
-   It records 40 sizes on RDNA4 (FP8 and INT8). Work files go to `~/.cache/bbhost/fsr4cap`
+   It records 40 sizes on RDNA4 (FP8 and INT8). Work files go to `~/.cache/heliasdream/fsr4cap`
    (`BB_FSR4CAP_CLEAN=1` removes them after a successful build).
-4. The assets land in `~/.local/share/bbhost/fsr4_411/` (bbhost reads them there, or
-   wherever `BBHOST_FSR411_DIR` points). Check that `t1080_m0/initializer.bin` or
+4. The assets land in `~/.local/share/HeliasDream/fsr4_411/` (Helia's Dream reads them there, or
+   wherever `HELIAS_FSR411_DIR` points). Check that `t1080_m0/initializer.bin` or
    `fp8/t1080_m0/initializer.bin` exists in that folder.
    Exit codes: 2 the DLL is not 4.1.x, 3 no Proton, 4 tools missing, 5 FSR 4.1 did not start
    under any Proton, 7 a loader is needed. Keep the last 30 lines if it fails.
-5. test3's log said `fsr4: no FSR 4.1.1 assets in /home/helias/.local/share/bbhost/fsr4_411`.
+5. test3's log said `fsr4: no FSR 4.1.1 assets in /home/helias/.local/share/HeliasDream/fsr4_411`.
    After the build, that line must be gone.
 
 ## test3 checks (~20 min)
@@ -775,7 +775,7 @@ buffers are now sized to the output when the game starts with an upscaler preset
 the Resolution only between runs. A live change runs without the upscaler until the next
 start, and the log says `scene-split: not split at ...`.
 
-Start with `BBHOST_FSR_DUMP=1 BBHOST_MOTION_PROBE=1 bbtest start test3 --capture`, set to
+Start with `HELIAS_FSR_DUMP=1 HELIAS_MOTION_PROBE=1 bbtest start test3 --capture`, set to
 FSR 3.1 Quality at 3840x2160.
 1. The picture fills the screen at normal brightness, with no grey band. Run `bbtest mark` in
    the world: it also writes an `fsr-*/` folder of FSR stage PNGs into the session's `frames/`.
@@ -793,9 +793,9 @@ FSR 3.1 Quality at 3840x2160.
 ## Test build session (test1, ~90 min)
 This session covers the first test build from start to finish. The most important checks come
 first, so if time runs out, stop after part 4. The build is
-`/workspace/bbhost-vk-builds/test1/bbhost-vk-linux-<version>.tar.gz` on the build box; check it
-against its `.sha256`. Install it as the README's "Testing bbhost-vk" section describes:
-`cp bbhost.bin bbhost.bin.upstream` first, then copy the tarball's `bbhost` over `bbhost.bin`,
+`/workspace/heliasdream-vk-builds/test1/heliasdream-vk-linux-<version>.tar.gz` on the build box; check it
+against its `.sha256`. Install it as the README's "Testing heliasdream-vk" section describes:
+`cp heliasdream.bin heliasdream.bin.upstream` first, then copy the tarball's `heliasdream` over `heliasdream.bin`,
 and keep your own `plugins/`. Resolution is 3840x2160 (4K) unless a part says otherwise. Keep
 **Show FPS** on throughout, and MangoHud/goverlay as usual.
 
@@ -818,13 +818,13 @@ Pass:
   split ...)`).
 
 ### 2. Online (E, 5 min), FSR 3.1 at Quality
-Online must work exactly as with upstream bbhost: same servers, sign-in and networking.
-1. Sign in as usual. The log shows sign-in succeeding and the user agent `bbhost/v0.2.18-vk...`.
+Online must work exactly as with upstream Helia's Dream: same servers, sign-in and networking.
+1. Sign in as usual. The log shows sign-in succeeding and the user agent `heliasdream/v0.2.18-vk...`.
 2. In an online area: other players' messages and bloodstains are visible (read one, touch one).
 3. Put down a summon sign or ring a bell (Beckoning or Small Resonant Bell) and check it is
    accepted. If someone answers, do a summon round trip.
 
-Pass: as with upstream. If not, run once with `bbhost.bin.upstream` to compare.
+Pass: as with upstream. If not, run once with `heliasdream.bin.upstream` to compare.
 
 ### 3. FSR 3.1 picture (D, 20 min): `bbtest start t1-fsr3 --record`
 Turn on **Show Upscaler GPU Time**. The GPU line now also shows `scene: MV x  reactive x
@@ -836,7 +836,7 @@ opaque x  FSR 3.1 x  copy x ms`.
    - **Stand still at a detailed spot** (fences, railings, roof tiles, hair, coat fringes):
      stable, no crawling, sharper than FSR 1 at the same preset.
    - **Walk, strafe, spin the camera:** no smearing, no wobble or jelly. If the whole picture
-     wobbles while still, run once with `BBHOST_FSR_JITTER_SIGN=xy`, then `=x`, then `=y`, and
+     wobbles while still, run once with `HELIAS_FSR_JITTER_SIGN=xy`, then `=x`, then `=y`, and
      note which one fixes it.
    - **Fight a group, roll around them:** look for ghost trails behind enemies, weapons, cloth
      and your coat.
@@ -865,7 +865,7 @@ Pass:
    - Note how long it took and its last lines. The exit codes are in
      `tools/fsr4cap/build_assets.sh`'s header: 3 means no Proton, 5 means the DLL's FSR 4.1
      did not run under Proton.
-   - The setup window then says "FSR 4.1.1 assets built in ~/.local/share/bbhost/fsr4_411".
+   - The setup window then says "FSR 4.1.1 assets built in ~/.local/share/HeliasDream/fsr4_411".
 2. `bbtest start t1-fsr4 --record`. Choose **FSR 4.1.1** at **Quality**, load your save, and
    repeat part 3's still spot, the fight, the particles and a warp. Then **Performance**.
 3. Note the GPU line (`FSR 4.1.1 x.xx ms`) and the FPS, compared with FSR 3.1.
@@ -904,7 +904,7 @@ Pass:
 - The scene is softer at 67% but the UI and text are sharp, and nothing is corrupt.
 - In the log: one `scene-split: render size` line per toggle, and `yebis: restart` only next
   to size changes.
-- If you see a band or corruption, run once with `BBHOST_SCENE_SPLIT=0`.
+- If you see a band or corruption, run once with `HELIAS_SCENE_SPLIT=0`.
 
 ### 7. Motion vectors (C, 10 min), FSR 3.1 at Quality, **Show motion vectors** on
 1. Walk and strafe: red/green, even across the screen. Standing still: dark.
@@ -916,12 +916,12 @@ Pass:
 Pass:
 - `motion: first motion pass ... camera valid`, and `camera-cut:` lines only at warps, loads
   and cutscenes.
-- If blue never appears, run once with `BBHOST_OBJECT_MOTION=0`.
+- If blue never appears, run once with `HELIAS_OBJECT_MOTION=0`.
 
 ### 8. FaceGen / vertex explosion (F, 5 min), FSR 3.1 at Quality
-shadPS4's "exploding vertices" came from FaceGen GPU writes the CPU never read back. bbhost
+shadPS4's "exploding vertices" came from FaceGen GPU writes the CPU never read back. Helia's Dream
 imports the game's GPU-visible memory into Vulkan, so it should not happen here. This part
-checks that bbhost-vk's changes kept it that way. Optional: `BBHOST_GLITCH=1`.
+checks that heliasdream-vk's changes kept it that way. Optional: `HELIAS_GLITCH=1`.
 1. PC enhancements: **Hunter's Dream mirror** on (restart if it was off).
 2. Use the mirror and change face shape, hair and the sliders rapidly for ~30 s while rotating
    the preview. `bbtest clip`.
@@ -939,7 +939,7 @@ close before it changes the size (docs/vk/KNOWN_ISSUES.md).
 2. Pick a size and leave PC Graphics before the question appears: nothing should pop up later,
    and the size goes back after ~13 s.
 3. If it still freezes: wait 15 s without input and note whether it recovers. Repeat once with
-   `BBHOST_SCENE_SPLIT=0` and once with **Upscaler Off**.
+   `HELIAS_SCENE_SPLIT=0` and once with **Upscaler Off**.
 
 Pass:
 - The question works every time.

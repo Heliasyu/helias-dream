@@ -1,6 +1,6 @@
 #include "host/updater.h"
 
-#include "bbhost_version.h"
+#include "heliasdream_version.h"
 #include "core/config.h"
 #include "log.h"
 #include "replay/json.h"
@@ -14,13 +14,13 @@
 #include <mutex>
 #include <thread>
 
-#if defined(BBHOST_HAVE_CURL)
+#if defined(HELIAS_HAVE_CURL)
 #include <curl/curl.h>
 #endif
 #if defined(_WIN32)
 #include <windows.h>
 #endif
-#if defined(BBHOST_HAVE_SDL3)
+#if defined(HELIAS_HAVE_SDL3)
 #include <SDL3/SDL.h>
 #endif
 
@@ -42,7 +42,7 @@ constexpr std::uint8_t kReleaseKey[32] = {
 const std::uint8_t* release_key() { return kReleaseKey; }
 
 namespace {
-// bbhost-vk: the fork's own releases (a public repository: read anonymously, as upstream's).
+// heliasdream-vk: the fork's own releases (a public repository: read anonymously, as upstream's).
 constexpr const char* kDefaultSource = "https://api.github.com/repos/Heliasyu/helias-dream/releases/latest";
 // The official plugins stay upstream's: signed with upstream's release key (kReleaseKey).
 constexpr const char* kPluginSource = "https://api.github.com/repos/droogie/bbhost/releases/latest";
@@ -86,7 +86,7 @@ struct Fetch {
     bool ok() const { return error.empty() && status >= 200 && status < 300; }
 };
 
-#if defined(BBHOST_HAVE_CURL)
+#if defined(HELIAS_HAVE_CURL)
 std::size_t write_cb(char* ptr, std::size_t size, std::size_t nmemb, void* user) {
     auto* s = static_cast<std::string*>(user);
     if (s->size() + size * nmemb > kMaxDownload) return 0;  // ends the transfer
@@ -100,7 +100,7 @@ std::size_t write_cb(char* ptr, std::size_t size, std::size_t nmemb, void* user)
 // redirect takes it to another host, which is where asset downloads go).
 Fetch fetch(const std::string& url, bool binary, int timeout_ms, const std::string& token) {
     Fetch r;
-#if defined(BBHOST_HAVE_CURL)
+#if defined(HELIAS_HAVE_CURL)
     static std::once_flag once;
     std::call_once(once, [] { curl_global_init(CURL_GLOBAL_DEFAULT); });
     CURL* c = curl_easy_init();
@@ -114,7 +114,7 @@ Fetch fetch(const std::string& url, bool binary, int timeout_ms, const std::stri
     if (!token.empty() && url.rfind("https://api.github.com/", 0) == 0) {
         h = curl_slist_append(h, ("Authorization: Bearer " + token).c_str());
     }
-    const std::string agent = std::string("bbhost/") + BBHOST_VERSION;
+    const std::string agent = std::string("bbhost/") + HELIAS_VERSION;
     curl_easy_setopt(c, CURLOPT_URL, url.c_str());
     curl_easy_setopt(c, CURLOPT_HTTPHEADER, h);
     curl_easy_setopt(c, CURLOPT_USERAGENT, agent.c_str());
@@ -154,23 +154,23 @@ void check_thread(const std::string& source, const std::string& token) {
             why = "no release found";
         }
         host_log("update: check failed: %s", why.c_str());
-        set_lines(std::string("Helia's Dream ") + BBHOST_VERSION + " - could not check for updates", why);
+        set_lines(std::string("Helia's Dream ") + HELIAS_VERSION + " - could not check for updates", why);
         g_busy.store(false);
         return;
     }
-    if (!is_newer(tag, BBHOST_VERSION)) {
-        host_log("update: %s is current (latest release %s)", BBHOST_VERSION, tag.c_str());
-        set_lines(std::string("Helia's Dream ") + BBHOST_VERSION + " - up to date", "Latest release: " + tag);
+    if (!is_newer(tag, HELIAS_VERSION)) {
+        host_log("update: %s is current (latest release %s)", HELIAS_VERSION, tag.c_str());
+        set_lines(std::string("Helia's Dream ") + HELIAS_VERSION + " - up to date", "Latest release: " + tag);
         g_available.store(false);
         g_busy.store(false);
         return;
     }
-    host_log("update: %s is available (this is %s): %s", tag.c_str(), BBHOST_VERSION, page.c_str());
+    host_log("update: %s is available (this is %s): %s", tag.c_str(), HELIAS_VERSION, page.c_str());
     {
         std::lock_guard<std::mutex> lk(g_mu);
         g_tag = tag;
         g_page = page;
-        g_status = "Helia's Dream " + tag + " is available (this is " + BBHOST_VERSION + ")";
+        g_status = "Helia's Dream " + tag + " is available (this is " + HELIAS_VERSION + ")";
         g_detail = page;
     }
     g_available.store(true);
@@ -184,7 +184,7 @@ void check_thread(const std::string& source, const std::string& token) {
 void begin_check(bool delay) {
     if (g_busy.exchange(true)) return;
     g_checked.store(true);
-    set_lines(std::string("Helia's Dream ") + BBHOST_VERSION + " - checking for updates...", "");
+    set_lines(std::string("Helia's Dream ") + HELIAS_VERSION + " - checking for updates...", "");
     std::string source = config().update_source.empty() ? kDefaultSource : config().update_source;
     std::thread([delay, source = std::move(source), token = read_token()] {
         if (delay) std::this_thread::sleep_for(std::chrono::seconds(5));
@@ -220,7 +220,7 @@ constexpr const char* kPluginSuffix = "-linux.so";
 constexpr const char* kPluginExt = ".so";
 #endif
 
-// Every bbhost-plugin-<name><suffix> of the latest release, with its .sig:
+// Every bbhost-plugin-<name><suffix> of upstream's latest release, with its .sig:
 // verified against the release key, then written to <dir>/<name><ext>
 // (+ .sig) - or <name><ext>.new when that file is in use (a loaded plugin on
 // Windows), which plugins_load puts in place at the next start.
@@ -250,7 +250,7 @@ void fetch_plugins_thread(std::string dir) {
     int installed = 0, failed = 0;
     std::string names;
     for (const auto& [asset, url] : files) {
-        const std::string prefix = "bbhost-plugin-", suffix = kPluginSuffix;
+        const std::string prefix = "bbhost-plugin-", suffix = kPluginSuffix;  // upstream's asset names
         if (asset.rfind(prefix, 0) != 0 || asset.size() <= prefix.size() + suffix.size() ||
             asset.compare(asset.size() - suffix.size(), suffix.size(), suffix) != 0)
             continue;
@@ -302,7 +302,7 @@ void fetch_plugins_thread(std::string dir) {
     g_plugins_busy.store(false);
 }
 
-const char* current_version() { return BBHOST_VERSION; }
+const char* current_version() { return HELIAS_VERSION; }
 
 void fetch_plugins(const std::string& dir) {
     if (g_plugins_busy.exchange(true)) return;
@@ -318,26 +318,26 @@ bool plugins_busy() { return g_plugins_busy.load(); }
 
 void start() {
     {
-        // The copy an older build's update set aside (bbhost.exe.old,
-        // bbhost.old on Linux): gone once nothing runs it.
+        // The copy an older build's update set aside (heliasdream.exe.old,
+        // heliasdream.old on Linux): gone once nothing runs it.
         std::error_code ec;
         const fs::path cur = exe_path();
         if (!cur.empty()) fs::remove(fs::path(cur).concat(".old"), ec);
     }
-#if defined(BBHOST_RELEASE_BUILD)
+#if defined(HELIAS_RELEASE_BUILD)
     const bool release = true;
 #else
     const bool release = false;
 #endif
-    // BBHOST_UPDATE_TEST=1: check whatever the build and settings say, and
+    // HELIAS_UPDATE_TEST=1: check whatever the build and settings say, and
     // log what is found.
-    const bool test = std::getenv("BBHOST_UPDATE_TEST") != nullptr;
+    const bool test = std::getenv("HELIAS_UPDATE_TEST") != nullptr;
     if (config().headless && !test) return;  // nobody to offer it to
     if (g_checked.load()) return;            // the setup window has checked
     const int want = test ? 1 : config().update_check;
-    set_lines(std::string("Helia's Dream ") + BBHOST_VERSION, "");
+    set_lines(std::string("Helia's Dream ") + HELIAS_VERSION, "");
     if (want == 0 || (want < 0 && !release)) {
-        if (want < 0) set_lines(std::string("Helia's Dream ") + BBHOST_VERSION, "Built from source: checks only when asked (update.check)");
+        if (want < 0) set_lines(std::string("Helia's Dream ") + HELIAS_VERSION, "Built from source: checks only when asked (update.check)");
         return;
     }
     begin_check(true);
@@ -374,7 +374,7 @@ bool open_release_page() {
         url = g_page;
     }
     if (!g_available.load() || !release_page_ok(url)) return false;
-#if defined(BBHOST_HAVE_SDL3)
+#if defined(HELIAS_HAVE_SDL3)
     // The system's handler for links, the default browser: ShellExecute on
     // Windows, xdg-open on Linux (not waited for).
     if (SDL_OpenURL(url.c_str())) {

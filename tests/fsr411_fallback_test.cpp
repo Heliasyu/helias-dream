@@ -1,6 +1,6 @@
-// bbhost-vk: host/fsr411's failure paths on whatever Vulkan device there is
+// heliasdream-vk: host/fsr411's failure paths on whatever Vulkan device there is
 // (lavapipe is enough), the ones a tester without (or with broken) FSR 4.1.1
-// assets takes before bbhost falls back to FSR 3.1:
+// assets takes before heliasdream falls back to FSR 3.1:
 //   - no asset directory: Record fails, says what is missing;
 //   - a pass that is not SPIR-V: Record fails, nothing left behind;
 //   - every pass a real compute shader, no initializer.bin: Record fails

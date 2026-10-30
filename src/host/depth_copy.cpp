@@ -6,7 +6,7 @@
 // single item on the GPU profile - 0.43-0.48 ms on an RTX 4070, above every
 // draw pipeline - and GPU time is what the test laptop runs short of. The
 // pass reads the depth plane through a sampled view and stores the float as
-// it is, so the snapshot holds the same bits. BBHOST_DEPTH_COPY_COMPUTE=0
+// it is, so the snapshot holds the same bits. HELIAS_DEPTH_COPY_COMPUTE=0
 // keeps the buffer copies.
 #include "host/gpu_internal.h"
 #include "host/shaders/depthcopy.spv.h"
@@ -63,7 +63,7 @@ bool make_pipeline_locked() {
 
 bool depth_copy_available_locked() {
     static const bool wanted = [] {
-        const char* e = std::getenv("BBHOST_DEPTH_COPY_COMPUTE");
+        const char* e = std::getenv("HELIAS_DEPTH_COPY_COMPUTE");
         return !(e && e[0] == '0');
     }();
     if (!wanted) return false;

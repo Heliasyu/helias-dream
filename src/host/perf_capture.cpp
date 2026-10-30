@@ -1,4 +1,4 @@
-// bbhost-vk rc2: the performance capture (host/perf_capture.h).
+// heliasdream-vk rc2: the performance capture (host/perf_capture.h).
 #include "host/perf_capture.h"
 
 #include "core/portable.h"
@@ -189,7 +189,7 @@ std::uint32_t current_block() {
 }
 
 std::string snap_dir() {
-    const char* e = std::getenv("BBHOST_SNAP_DIR");
+    const char* e = std::getenv("HELIAS_SNAP_DIR");
     return e && *e ? std::string(e) : std::string("snaps");
 }
 
@@ -418,7 +418,7 @@ void capture(const std::string& trigger, const std::string& note) {
             o << buf;
         }
     } else {
-        o << "sample: none in the last 45 s (one every ~10 s, skipped after a frame over budget; BBHOST_GPU_SAMPLE_SLOW=1: every ~3 s, only after one)\n";
+        o << "sample: none in the last 45 s (one every ~10 s, skipped after a frame over budget; HELIAS_GPU_SAMPLE_SLOW=1: every ~3 s, only after one)\n";
     }
     o << "\n[samples]  # every GPU sample kept\n";
     for (const Sample& s : samples) {
@@ -471,7 +471,7 @@ void capture(const std::string& trigger, const std::string& note) {
     o << "\n[env]\n";
 #if defined(__linux__)
     for (char** e = environ; e && *e; ++e)
-        if (std::strncmp(*e, "BBHOST_", 7) == 0 || std::strncmp(*e, "MANGOHUD", 8) == 0 || std::strncmp(*e, "RADV_", 5) == 0)
+        if (std::strncmp(*e, "HELIAS_", 7) == 0 || std::strncmp(*e, "MANGOHUD", 8) == 0 || std::strncmp(*e, "RADV_", 5) == 0)
             o << *e << "\n";
 #endif
     o << "\n[seconds]  # t_s (from the window's start), area, gpu busy %, the game's command buffers ms/s, the presenter's ms/s, "
@@ -528,7 +528,7 @@ void capture(const std::string& trigger, const std::string& note) {
 // MESA_VK_TRACE=rgp with MESA_VK_TRACE_TRIGGER=<file>: RADV checks the file at
 // each present, deletes it and traces the next frame, writing
 // /tmp/<process>_<date>_<time>[_frameN].rgp (Mesa's own path, not TMPDIR).
-// BBHOST_RGP_DIR (bbtest profile sets it, with the two): the snapshot creates
+// HELIAS_RGP_DIR (bbtest profile sets it, with the two): the snapshot creates
 // the trigger, at most one every 10 s, and a helper thread moves the new .rgp
 // beside the snapshot as <snapshot>.rgp, notes it in captures.tsv there and
 // in the snapshot's [rgp] section; a trigger the driver never takes or a
@@ -542,7 +542,7 @@ const RgpMode& rgp_mode() {
         RgpMode r;
         const char* t = std::getenv("MESA_VK_TRACE");
         const char* f = std::getenv("MESA_VK_TRACE_TRIGGER");
-        const char* d = std::getenv("BBHOST_RGP_DIR");
+        const char* d = std::getenv("HELIAS_RGP_DIR");
         r.on = t && std::strstr(t, "rgp") && f && *f && d && *d;
         if (r.on) {
             r.trigger = f;
@@ -698,7 +698,7 @@ void thread_main() {
 
 bool enabled() {
     static const bool on = [] {
-        const char* e = std::getenv("BBHOST_SNAP");
+        const char* e = std::getenv("HELIAS_SNAP");
         return !(e && e[0] == '0');
     }();
     return on;
@@ -778,7 +778,16 @@ std::string banner() {
     return steady_ns() < g_banner_until ? g_banner : std::string();
 }
 
+std::atomic<std::uint64_t> g_last_compile_ns{0};
+
+bool compiling_recently(std::uint64_t within_ns) {
+    const std::uint64_t t = g_last_compile_ns.load(std::memory_order_relaxed);
+    return t && static_cast<std::uint64_t>(steady_ns()) - t < within_ns;
+}
+
 void note_compile(const char* kind, const std::string& name, std::uint64_t us, bool worker, bool waited) {
+    // Only one a frame waited for: the workers building ahead is not felt.
+    if (waited) g_last_compile_ns.store(static_cast<std::uint64_t>(steady_ns()), std::memory_order_relaxed);
     const int k = kind[0] == 't' ? 0 : kind[0] == 'g' ? 2 : 4;
     g_ct[k + (worker ? 0 : 1)].fetch_add(1, std::memory_order_relaxed);
     if (waited) {

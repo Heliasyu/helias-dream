@@ -14,6 +14,7 @@
 #include "core/write_watch.h"
 #include "hle/modules.h"
 #include "log.h"
+#include "host/options.h"
 
 #include <atomic>
 #include <limits>
@@ -212,7 +213,7 @@ bool untile_thick_slice(std::uint8_t* dst, const std::uint8_t* src, std::size_t 
 }
 
 // The per-element untiling this file used before the row-band version below;
-// BBHOST_UNTILE_CHECK=1 compares every slice against it.
+// HELIAS_UNTILE_CHECK=1 compares every slice against it.
 bool untile_slice_reference(std::uint8_t* dst, const std::uint8_t* src, std::size_t src_avail, std::uint32_t tiling,
                   std::uint32_t width_e, std::uint32_t height_e, std::uint32_t pitch_e, std::uint32_t esize) {
     if (tiling == 8 || tiling == 9) {  // linear (aligned / general)
@@ -256,12 +257,12 @@ bool untile_slice_reference(std::uint8_t* dst, const std::uint8_t* src, std::siz
 // world-load stall. Rows are now untiled in bands with the slice constants
 // hoisted, the micro tile's pipe, bank and macro offset computed once per tile,
 // the element order from a table and fixed-size copies. Large slices split
-// their bands across a small worker pool (BBHOST_UNTILE_THREADS, 0 = none);
+// their bands across a small worker pool (HELIAS_UNTILE_THREADS, 0 = none);
 // the command processor runs a band itself and waits, so an upload still lands
-// when it did. BBHOST_UNTILE_CHECK=1 (checks) also runs the reference on the
+// when it did. HELIAS_UNTILE_CHECK=1 (checks) also runs the reference on the
 // same snapshot of the source and counts slices whose bytes differ.
 const bool g_untile_check = [] {
-    const char* e = std::getenv("BBHOST_UNTILE_CHECK");
+    const char* e = std::getenv("HELIAS_UNTILE_CHECK");
     return e && e[0] == '1';
 }();
 std::atomic<std::uint64_t> g_untile_checked{0}, g_untile_mismatched{0};
@@ -400,7 +401,7 @@ public:
 
 private:
     UntilePool() {
-        const char* e = std::getenv("BBHOST_UNTILE_THREADS");
+        const char* e = std::getenv("HELIAS_UNTILE_THREADS");
         const unsigned hw = std::max(1u, std::thread::hardware_concurrency());
         const unsigned n = e ? static_cast<unsigned>(std::strtoul(e, nullptr, 10)) : std::min(7u, hw > 2 ? hw / 2 - 1 : 0u);
         for (unsigned i = 0; i < n; ++i) {
@@ -587,10 +588,10 @@ constexpr std::uint64_t kExactMs = 100;  // the budget window
 // denied keeps its old timestamp and stays due, so a busy frame spreads the
 // sweep over several windows rather than dropping anyone out of it.
 constexpr std::size_t kExactBudgetPerWindow = 16u << 20;  // 160 MB/s ceiling
-// BBHOST_TEXTURE_EXACT=0 turns the catch-up off, which is both the kill switch
+// HELIAS_TEXTURE_EXACT=0 turns the catch-up off, which is both the kill switch
 // and how its cost was measured rather than asserted.
 const bool g_exact_enabled = [] {
-    const char* e = std::getenv("BBHOST_TEXTURE_EXACT");
+    const char* e = std::getenv("HELIAS_TEXTURE_EXACT");
     return !e || e[0] != '0';
 }();
 std::atomic<std::uint64_t> g_exact_catches{0}, g_exact_hashes{0}, g_exact_too_big{0}, g_exact_no_budget{0};
@@ -786,11 +787,11 @@ std::uint64_t us_since(std::chrono::steady_clock::time_point t0) {
     return static_cast<std::uint64_t>(std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - t0).count());
 }
 
-// BBHOST_TEX_PROBE=0xbase: the surface at that address, as it is created
+// HELIAS_TEX_PROBE=0xbase: the surface at that address, as it is created
 // (texture_view_uncached) and every time it is uploaded again.
 std::uint64_t tex_probe_base() {
     static const std::uint64_t probe = [] {
-        const char* e = std::getenv("BBHOST_TEX_PROBE");
+        const char* e = std::getenv("HELIAS_TEX_PROBE");
         return e ? std::strtoull(e, nullptr, 0) : 0ull;
     }();
     return probe;
@@ -807,7 +808,7 @@ std::uint64_t tex_probe_base() {
 // them (settle_prep). The watch is armed when the copy is recorded, before
 // the read: a write in between marks the surface and it is uploaded again.
 //
-// On by default (BBHOST_TEX_ASYNC=0 turns it off; BBHOST_TEX_PREP_THREADS,
+// On by default (HELIAS_TEX_ASYNC=0 turns it off; HELIAS_TEX_PREP_THREADS,
 // default 4). First measured 2026-09-19 it shortened the area-entry stall but
 // steady play looked no better, across too few runs to tell the pool from
 // run-to-run variance, and it stayed off. Three alternating soak rounds on a
@@ -829,7 +830,7 @@ struct TexturePrep {
 };
 
 const bool g_tex_async = [] {
-    const char* e = std::getenv("BBHOST_TEX_ASYNC");
+    const char* e = std::getenv("HELIAS_TEX_ASYNC");
     return !(e && e[0] == '0');
 }();
 // The creation-ahead path (textures_create_ahead_locked) always preps off
@@ -905,7 +906,7 @@ public:
 
 private:
     PrepPool() {
-        const char* e = std::getenv("BBHOST_TEX_PREP_THREADS");
+        const char* e = std::getenv("HELIAS_TEX_PREP_THREADS");
         const unsigned n = e ? std::max(1u, static_cast<unsigned>(std::strtoul(e, nullptr, 10))) : 4u;
         for (unsigned i = 0; i < n; ++i) {
             std::thread([this, i] {
@@ -974,15 +975,15 @@ void settle_prep(Surface& sf) {
 }
 
 // Untiles the guest memory into a staging buffer and copies it into the image.
-// BBHOST_GPU_UNTILE: 1 (default) untiles uploads on the GPU where it can
+// HELIAS_GPU_UNTILE: 1 (default) untiles uploads on the GPU where it can
 // (gpu_untile.cpp), 0 on the CPU always, 2 both - the GPU's feeds the image,
 // the CPU's is kept beside it and the two are compared once the command
 // buffer has retired (10,168 uploads, 0 differ).
 const int g_gpu_untile = [] {
-    const char* e = std::getenv("BBHOST_GPU_UNTILE");
+    const char* e = std::getenv("HELIAS_GPU_UNTILE");
     return e && *e ? std::atoi(e) : 1;
 }();
-// BBHOST_UNTILE_VRAM (on unless 0): the GPU untile read the surface's tiled
+// HELIAS_UNTILE_VRAM (on unless 0): the GPU untile read the surface's tiled
 // bytes where they live - guest memory, imported host memory across the
 // bus, element by element in tile order - and wrote its linear result to the
 // host-visible staging, which the image copy then read back across the bus.
@@ -993,7 +994,7 @@ const int g_gpu_untile = [] {
 // device-local scratch; the untile works scratch to scratch and the image
 // copy reads scratch.
 const bool g_untile_vram = [] {
-    const char* e = std::getenv("BBHOST_UNTILE_VRAM");
+    const char* e = std::getenv("HELIAS_UNTILE_VRAM");
     return !(e && e[0] == '0');
 }();
 std::atomic<std::uint64_t> g_untiled_vram{0}, g_untiled_vram_bytes{0};
@@ -1112,7 +1113,7 @@ bool upload_surface(Surface& sf, VkImageAspectFlags aspect, bool first) {
     const bool on_gpu = in_vram || (g_gpu_untile && !g_untile_check && sf.base != tex_probe_base() && untile_gpu_available_locked() &&
                                     gpu_untile_plan(sf, staging.address + staging_offset, passes));
     if (g_gpu_untile && !on_gpu) g_gpu_untile_declined.fetch_add(1, std::memory_order_relaxed);
-    DevBuffer cpu_copy;  // BBHOST_GPU_UNTILE=2: the CPU's untile of the same upload, compared later
+    DevBuffer cpu_copy;  // HELIAS_GPU_UNTILE=2: the CPU's untile of the same upload, compared later
     if (on_gpu && g_gpu_untile == 2) {
         VkDeviceSize cpu_offset = 0;
         if (acquire_staging_locked(cpu_copy, sf.total_dst, cpu_offset)) {
@@ -1181,7 +1182,7 @@ bool upload_surface(Surface& sf, VkImageAspectFlags aspect, bool first) {
             g.slots[g.slot].untile_checks.push_back(
                 {static_cast<const std::uint8_t*>(staging.map), static_cast<const std::uint8_t*>(cpu_copy.map), sf.total_dst, sf.base});
         }
-        // BBHOST_GPU_PROFILE: the untile and the copy as entries of their own.
+        // HELIAS_GPU_PROFILE: the untile and the copy as entries of their own.
         static const std::string untile_name = "tex-untile";
         profile_begin_locked(&untile_name);
         for (const UntileGpuPass& pass : passes) untile_gpu_record_locked(pass);
@@ -1279,7 +1280,7 @@ bool g_last_view_no_memo = false;
 std::uint64_t g_view_memo_hits = 0, g_view_memo_misses = 0, g_view_memo_evictions = 0, g_view_memo_mismatch = 0;
 // 0 off, 1 on, 2 verify (resolve both ways and report any disagreement).
 const int g_view_memo_mode = [] {
-    const char* e = std::getenv("BBHOST_VIEW_MEMO");
+    const char* e = std::getenv("HELIAS_VIEW_MEMO");
     if (!e) return 1;
     if (*e == 'v') return 2;
     return std::atoi(e) ? 1 : 0;
@@ -1351,10 +1352,10 @@ void note_surface_erased(const Surface& sf) {
 // and then read as a texture at another address or format. Each such upload is
 // counted, the first ones logged, and every one goes into the F12 history -
 // the pattern behind the blood layers' noise and, likely, the new-character
-// cutscenes' magenta. BBHOST_STALE_LOG=N logs N (default 40).
+// cutscenes' magenta. HELIAS_STALE_LOG=N logs N (default 40).
 std::atomic<std::uint64_t> g_stale_over_rt{0}, g_stale_over_surface{0};
 const int g_stale_log = [] {
-    const char* e = std::getenv("BBHOST_STALE_LOG");
+    const char* e = std::getenv("HELIAS_STALE_LOG");
     return e && *e ? std::atoi(e) : 40;
 }();
 std::atomic<int> g_stale_logged{0};
@@ -1673,9 +1674,9 @@ void census_upload(Surface& sf, const char* why) {
 // command-processor time a walk for the surfaces they were hashing. One in
 // 64 refreshes of such a surface still hashes it, as the check that this
 // stays true (g_census_check_hashed / g_census_check_missed).
-// BBHOST_TEX_HASH_REGISTERED=1 hashes them all again.
+// HELIAS_TEX_HASH_REGISTERED=1 hashes them all again.
 const bool g_hash_registered = [] {
-    const char* e = std::getenv("BBHOST_TEX_HASH_REGISTERED");
+    const char* e = std::getenv("HELIAS_TEX_HASH_REGISTERED");
     return e && e[0] == '1';
 }();
 std::atomic<std::uint64_t> g_census_hash_skipped{0}, g_census_check_hashed{0}, g_census_check_missed{0};
@@ -1684,14 +1685,14 @@ std::atomic<std::uint64_t> g_ahead_used{0}, g_ahead_replaced{0}, g_ahead_bind_be
 // Keeps a surface in step with the guest memory behind it. Split out of
 // texture_view() so a memo hit runs it too: it is the one part of resolving a
 // T# that is not a function of the descriptor.
-// BBHOST_REFRESH_ONCE=0: check a surface on every bind, as before. The check
+// HELIAS_REFRESH_ONCE=0: check a surface on every bind, as before. The check
 // (write-watch pages, then a content hash when due) is per texture per draw,
 // and a streaming surface marked hot is hashed on every one of them: a
 // texture bound thirty times in a frame was hashed thirty times. Once per
 // command buffer catches the same CPU writes, a few milliseconds later at
 // most, and CP writes still land at once through the dirty mark.
 const bool g_refresh_once = [] {
-    const char* e = std::getenv("BBHOST_REFRESH_ONCE");
+    const char* e = std::getenv("HELIAS_REFRESH_ONCE");
     return !e || e[0] != '0';
 }();
 
@@ -1891,7 +1892,7 @@ bool carry_surface_locked(Surface& dst, const Surface& src) {
     }
     // Levels the old image does not have: from memory first, then the rest on top.
     const bool partial = dst.levels.size() > nlevels;
-    static const bool no_partial = [] { const char* e = std::getenv("BBHOST_CARRY_LEVELS"); return e && *e == '0'; }();
+    static const bool no_partial = [] { const char* e = std::getenv("HELIAS_CARRY_LEVELS"); return e && *e == '0'; }();
     if (partial && no_partial) return false;
     if (partial && !upload_surface(dst, VK_IMAGE_ASPECT_COLOR_BIT, true)) return false;
     begin_recording_locked();
@@ -1954,7 +1955,7 @@ bool carry_surface_locked(Surface& dst, const Surface& src) {
 // So the region is copied into an image of the T#'s size and that is sampled.
 // The target is drawn again every frame and such a T# is bound a handful of
 // times a frame, so the copy is made at every bind (the memos skip the view).
-// BBHOST_RT_REGIONS=0: the whole image, as before.
+// HELIAS_RT_REGIONS=0: the whole image, as before.
 struct RtRegion {
     RtImage img;             // not in g_rts; img.base is a key of its own for g_rt_views
     VkImage source = VK_NULL_HANDLE;  // the target image it was made for
@@ -1978,7 +1979,7 @@ void textures_drop_rt_regions_locked(std::uint64_t base) {
 
 VkImageView rt_region_view(RtImage& rt, const std::uint32_t* w, std::uint32_t width, std::uint32_t height) {
     static const bool on = [] {
-        const char* e = std::getenv("BBHOST_RT_REGIONS");
+        const char* e = std::getenv("HELIAS_RT_REGIONS");
         return !(e && e[0] == '0');
     }();
     if (!on || rt.depth || rt.layers != 1 || width > rt.width || height > rt.height || (width == rt.width && height == rt.height)) {
@@ -2066,9 +2067,9 @@ VkImageView rt_copied_view(RtImage& rt, const std::uint32_t* w, std::uint32_t wi
     // Into the draw's packet, started for it now, with the pass end before it:
     // recorded in place, the copy waited for the recorder to finish the draws
     // before it (~11 copies a frame on a Steam Deck at 960x600, 2.5% of its
-    // command processor). BBHOST_REGION_COPY_PACKETS=0: in place.
+    // command processor). HELIAS_REGION_COPY_PACKETS=0: in place.
     static const bool packets = [] {
-        const char* e = std::getenv("BBHOST_REGION_COPY_PACKETS");
+        const char* e = std::getenv("HELIAS_REGION_COPY_PACKETS");
         return !(e && e[0] == '0');
     }();
     DrawCmds* open = packets ? draw_packet_early_locked() : nullptr;
@@ -2095,7 +2096,7 @@ VkImageView rt_copied_view(RtImage& rt, const std::uint32_t* w, std::uint32_t wi
 // result through a 1x1 T# at that level's address (0x15716db00) - which read
 // stale memory every frame, so the exposure never followed the scene. The
 // level is copied into an image of the T#'s size at every bind, as a render
-// target's region is (rt_region_view). BBHOST_LEVEL_ALIAS=0: memory, as before.
+// target's region is (rt_region_view). HELIAS_LEVEL_ALIAS=0: memory, as before.
 struct LevelAlias {
     RtImage img;                      // not in g_rts; img.base is a key of its own for g_rt_views
     VkImage source = VK_NULL_HANDLE;  // the surface image it was made for
@@ -2106,7 +2107,7 @@ std::atomic<std::uint64_t> g_level_alias_copies{0};
 VkImageView level_alias_view(std::uint64_t base, const std::uint32_t* w, VkFormat image_fmt, VkFormat view_fmt, std::uint32_t esize,
                              std::uint32_t block, std::uint32_t tiling, std::uint32_t width, std::uint32_t height) {
     static const bool on = [] {
-        const char* e = std::getenv("BBHOST_LEVEL_ALIAS");
+        const char* e = std::getenv("HELIAS_LEVEL_ALIAS");
         return !(e && e[0] == '0');
     }();
     if (!on || block != 1) return VK_NULL_HANDLE;
@@ -2543,7 +2544,7 @@ VkImageView texture_view_uncached(const std::uint32_t* w, bool storage, bool& di
             note_surface_added(g_surfaces[base] = sf);
             return VK_NULL_HANDLE;
         }
-        // BBHOST_TEX_PROBE=0xbase: every surface created at that address, with
+        // HELIAS_TEX_PROBE=0xbase: every surface created at that address, with
         // what the guest memory it was uploaded from held.
         const std::uint64_t probe = tex_probe_base();
         if (probe && base == probe) {
@@ -2621,12 +2622,12 @@ VkImageView texture_view_uncached(const std::uint32_t* w, bool storage, bool& di
     return view;
 }
 
-// Who moved the epoch, by return address (BBHOST_EPOCH_SITES=1): every bump
+// Who moved the epoch, by return address (HELIAS_EPOCH_SITES=1): every bump
 // empties both view memos, so a bump every frame costs every binding a resolve.
 namespace {
 struct EpochSite { void* site; std::uint64_t n; };
 EpochSite g_epoch_sites[16];
-const bool g_epoch_sites_on = [] { const char* e = std::getenv("BBHOST_EPOCH_SITES"); return e && e[0] == '1'; }();
+const bool g_epoch_sites_on = [] { const char* e = std::getenv("HELIAS_EPOCH_SITES"); return e && e[0] == '1'; }();
 }
 __attribute__((noinline)) void bump_view_epoch() {
     ++g_view_epoch;
@@ -2743,7 +2744,7 @@ struct IdViewEntry {
     Surface* sf = nullptr;
     std::uint32_t dim = 0;
     // The recording its surface was last kept fresh in (record_serial + 1):
-    // under BBHOST_REFRESH_ONCE a surface is checked once a recording, and the
+    // under HELIAS_REFRESH_ONCE a surface is checked once a recording, and the
     // Surface itself is a cold line to read just to learn that it was.
     std::uint64_t refreshed = 0;
 };
@@ -2793,17 +2794,23 @@ VkSampler sampler_for(const std::uint32_t* s, bool compare) {
     struct Memo {
         std::uint32_t w[4];
         bool compare;
+        float bias;
         VkSampler sampler = VK_NULL_HANDLE;
     };
     static Memo memo[64];  // under g.mu
+    // Texture detail (host_opt_mip_bias): part of the sampler, so a change
+    // makes new ones (samplers are few and never destroyed).
+    const float extra_bias = host_opt_mip_bias();
     Memo& m = memo[(s[0] ^ (s[1] * 31u) ^ (s[2] * 17u) ^ (s[3] * 7u) ^ (compare ? 1u : 0u)) & 63];
-    if (m.sampler && m.compare == compare && std::memcmp(m.w, s, 16) == 0) return m.sampler;
+    if (m.sampler && m.compare == compare && m.bias == extra_bias && std::memcmp(m.w, s, 16) == 0) return m.sampler;
     std::uint64_t key = fnv1a(s, 16);
     key = fnv1a(&compare, 1, key);
+    key = fnv1a(&extra_bias, sizeof(extra_bias), key);
     auto it = g_samplers.find(key);
     if (it != g_samplers.end()) {
         std::memcpy(m.w, s, 16);
         m.compare = compare;
+        m.bias = extra_bias;
         m.sampler = it->second;
         return it->second;
     }
@@ -2836,6 +2843,8 @@ VkSampler sampler_for(const std::uint32_t* s, bool compare) {
     std::int32_t bias = static_cast<std::int32_t>(s[2] & 0x3fff);
     if (bias & 0x2000) bias -= 0x4000;
     sci.mipLodBias = static_cast<float>(bias) / 256.0f;
+    // Only where there are mips to choose from (render targets and UI have one).
+    if (mip != 0) sci.mipLodBias = std::clamp(sci.mipLodBias + extra_bias, -16.0f, 15.99f);
     // The comparison only applies to samplers the shader uses with
     // image_sample_c* (Vulkan needs compareEnable for Dref ops and forbids it
     // for plain sampling); DEPTH_COMPARE_FUNC gives the function.
@@ -3103,13 +3112,13 @@ bool copy_side_locked(const std::uint32_t* w, CopySide& out) {
 // render targets here, so the fills went to cached textures, and the targets
 // created a moment later by the first draws started as whatever the image
 // heap held: 72 of them across the two scene changes of the new-character
-// cutscenes. BBHOST_RT_FROM_SURFACE=0: as before.
+// cutscenes. HELIAS_RT_FROM_SURFACE=0: as before.
 std::atomic<std::uint64_t> g_rt_from_surface{0};
 
 bool textures_carry_into_target_locked(std::uint64_t base, std::uint32_t width, std::uint32_t height, std::size_t bytes_per_pixel,
                                        VkImage target) {
     static const bool on = [] {
-        const char* e = std::getenv("BBHOST_RT_FROM_SURFACE");
+        const char* e = std::getenv("HELIAS_RT_FROM_SURFACE");
         return !(e && e[0] == '0');
     }();
     if (!on) return false;
@@ -3824,11 +3833,11 @@ void textures_report() {
              static_cast<unsigned long long>(g_exact_too_big.load()), static_cast<unsigned long long>(g_exact_no_budget.load()));
     host_log("texture: uploads prepared off the command processor %s; waited for %llu times (%llu ms in all), %llu of them run on "
              "the waiting thread",
-             g_tex_async ? "(BBHOST_TEX_ASYNC)" : "off", static_cast<unsigned long long>(g_prep_waits.load()),
+             g_tex_async ? "(HELIAS_TEX_ASYNC)" : "off", static_cast<unsigned long long>(g_prep_waits.load()),
              static_cast<unsigned long long>(g_prep_wait_us.load() / 1000), static_cast<unsigned long long>(g_prep_inline.load()));
     if (g_gpu_untile) {
-        host_log("texture: untiled on the GPU (BBHOST_GPU_UNTILE=%d): %llu uploads (%llu MiB), %llu left to the CPU, %llu (%llu MiB) "
-                 "through device-local scratch (BBHOST_UNTILE_VRAM); %s",
+        host_log("texture: untiled on the GPU (HELIAS_GPU_UNTILE=%d): %llu uploads (%llu MiB), %llu left to the CPU, %llu (%llu MiB) "
+                 "through device-local scratch (HELIAS_UNTILE_VRAM); %s",
                  g_gpu_untile, static_cast<unsigned long long>(g_gpu_untiled.load()), static_cast<unsigned long long>(g_gpu_untiled_bytes.load() >> 20),
                  static_cast<unsigned long long>(g_gpu_untile_declined.load()), static_cast<unsigned long long>(g_untiled_vram.load()),
                  static_cast<unsigned long long>(g_untiled_vram_bytes.load() >> 20), untile_gpu_report().c_str());

@@ -3,7 +3,7 @@
 //   gcn2spv --check <bundle.dcx>...          translate + validate every shader
 //   gcn2spv <bundle.dcx> <name-substr> [out.spv]   translate matching entries (prints errors, writes the first)
 //   gcn2spv --raw <code.bin> <vs|ps|cs|ls|ds[:level]> <rsrc1> <rsrc2> [fetch.bin] [out.spv]
-//                                            a program saved from guest memory (BBHOST_TESS_PROBE's tmp/tess/*.bin):
+//                                            a program saved from guest memory (HELIAS_TESS_PROBE's tmp/tess/*.bin):
 //                                            ls = LS as the tessellation compute pass, ds = domain shader as a vertex stage;
 //                                            tri:<window hex> for a triangle patch of 3 with its own LDS window (hs, tes, ls)
 #include "gcn/container.h"
@@ -63,7 +63,7 @@ gcn::TranslateOptions options_for(const Header& h) {
         return e && e[0] == '1';
     }();
     o.cb_no_fallback = o.cb_ssbo && cb_lean;
-    // GCN2SPV_EXEC_KNOWN=0: keep every EXEC-masked write (BBHOST_EXEC_KNOWN=0).
+    // GCN2SPV_EXEC_KNOWN=0: keep every EXEC-masked write (HELIAS_EXEC_KNOWN=0).
     static const bool exec_known = [] {
         const char* e = std::getenv("GCN2SPV_EXEC_KNOWN");
         return !(e && e[0] == '0');

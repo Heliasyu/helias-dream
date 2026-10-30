@@ -12,7 +12,7 @@
 #include <cstring>
 #include <string>
 
-#if defined(BBHOST_HAVE_SDL3)
+#if defined(HELIAS_HAVE_SDL3)
 #include <SDL3/SDL.h>
 #endif
 
@@ -82,7 +82,7 @@ const BindingInfo kInfo[kBindCount] = {
     {"debug_menu", "Debug Menu", "Opens and closes the developers' debug menu (the Debug Menu plugin).", 0, "`", 0},
 };
 
-// Earlier names a bbhost.toml may still use.
+// Earlier names a HeliasDream.toml may still use.
 const struct {
     const char* old_name;
     int action;
@@ -116,7 +116,7 @@ std::int64_t now_ms() {
 }
 
 int scancode_from_name(const std::string& name) {
-#if defined(BBHOST_HAVE_SDL3)
+#if defined(HELIAS_HAVE_SDL3)
     return static_cast<int>(SDL_GetScancodeFromName(name.c_str()));
 #else
     (void)name;
@@ -125,7 +125,7 @@ int scancode_from_name(const std::string& name) {
 }
 
 const char* scancode_name(int sc) {
-#if defined(BBHOST_HAVE_SDL3)
+#if defined(HELIAS_HAVE_SDL3)
     const char* n = SDL_GetScancodeName(static_cast<SDL_Scancode>(sc));
     return n && *n ? n : nullptr;
 #else
@@ -210,10 +210,10 @@ void host_bindings_load_defaults() {
     for (const auto& [name, value] : config().keys) {
         const int a = action_named(name.c_str());
         if (a < 0) {
-            host_log("keys: bbhost.toml names no action \"%s\"", name.c_str());
+            host_log("keys: HeliasDream.toml names no action \"%s\"", name.c_str());
             continue;
         }
-        set_from_text(a, value, "bbhost.toml");
+        set_from_text(a, value, "HeliasDream.toml");
     }
 }
 
@@ -391,7 +391,7 @@ void finish(int a, const char* what) {
 bool host_bind_capture_key(int scancode) {
     const int a = g_capture.load(std::memory_order_relaxed);
     if (a < 0) return false;
-#if defined(BBHOST_HAVE_SDL3)
+#if defined(HELIAS_HAVE_SDL3)
     if (scancode == SDL_SCANCODE_ESCAPE) {
         finish(a, "unchanged");
         return true;

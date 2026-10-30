@@ -1,6 +1,6 @@
 # Building
 
-bbhost builds with CMake on x86-64 Linux. The Windows executable is
+Helia's Dream builds with CMake on x86-64 Linux. The Windows executable is
 cross-compiled from Linux with Clang and the mingw-w64 runtime; MSVC is not
 supported, because the host needs `__attribute__((sysv_abi))` to call into
 the game's code.
@@ -28,10 +28,10 @@ cmake -S . -B build -DCMAKE_BUILD_TYPE=RelWithDebInfo
 cmake --build build -j
 ```
 
-The result is `build/bbhost`, plus the official plugins in `build/plugins/`
+The result is `build/heliasdream`, plus the official plugins in `build/plugins/`
 and the developer tools (`gcn2spv`, `gcndis`, `drawreplay`, ...).
 
-`-DBBHOST_RELEASE=ON` makes a release build, which by default checks at start
+`-DHELIAS_RELEASE=ON` makes a release build, which by default checks at start
 whether a newer release is out and offers to open its page in the browser.
 
 ## Windows (cross-compiled)
@@ -47,7 +47,7 @@ cmake -S . -B build-win -G Ninja -DCMAKE_TOOLCHAIN_FILE=cmake/mingw-toolchain.cm
 cmake --build build-win
 ```
 
-The result is `build-win/bbhost.exe`, a single static executable that needs
+The result is `build-win/heliasdream.exe`, a single static executable that needs
 only the system DLLs and the GPU driver's `vulkan-1.dll`. It is linked at a
 fixed base (`0x600000000`) because the game's memory windows are reserved at
 fixed addresses before anything else runs.
@@ -63,13 +63,13 @@ wine.
 cd build && ctest --output-on-failure
 ```
 
-Tests that read game files skip unless `BBHOST_APP0` names the game folder
+Tests that read game files skip unless `HELIAS_APP0` names the game folder
 (the one that contains `dvdroot_ps4`). No game file is ever part of the
 repository.
 
 `cmake --build build --target smoke` boots the game to the title screen and
 checks the log for crashes and unimplemented system calls; it needs a
-configured `bbhost.toml` with the game paths (see [running.md](running.md)).
+configured `HeliasDream.toml` with the game paths (see [running.md](running.md)).
 The Windows build has the same target under wine (`build-win`, target
 `smoke`).
 
@@ -80,20 +80,20 @@ every shader in the game's shader bundles.
 
 | Target or script | Produces |
 |---|---|
-| `cmake --build build-win --target package-win` | `build/win/bbhost-win-<rev>.zip`, and the unstripped `.debug.exe` for symbolising crash reports |
-| `tools/package_linux.sh <bbhost> <outdir>` | a Linux tarball (built with `tools/linux_portable_build.sh` for a portable binary) |
+| `cmake --build build-win --target package-win` | `build/win/heliasdream-win-<rev>.zip`, and the unstripped `.debug.exe` for symbolising crash reports |
+| `tools/package_linux.sh <Helia's Dream> <outdir>` | a Linux tarball (built with `tools/linux_portable_build.sh` for a portable binary) |
 | `tools/package_steamdeck.sh` | the Linux package with the Steam Deck's settings |
 | `tools/package_plugins.sh` | the official plugins with their signatures |
 | `tools/package_playtest.sh` | tester kits for a playtest on a dev server, built by hand |
 
 The release workflow (`.github/workflows/release.yml`) builds the Windows,
 Linux and Steam Deck packages from a `v*` tag, signs `SHA256SUMS` and the
-official plugins with the release key, and publishes the release that bbhost's
+official plugins with the release key, and publishes the release that heliasdream's
 update check looks for. The bare executables it attaches are named the same in
-every release (`bbhost.exe`, and `bbhost` for Linux), so a shortcut or a Steam
+every release (`heliasdream.exe`, and `heliasdream` for Linux), so a shortcut or a Steam
 entry pointing at one keeps working when it is replaced. The packages pick no
 server, so they play on the live server (`https://thehuntersdream.com`),
-bbhost's default; `tools/check_release_bundle.sh` fails a release whose
+heliasdream's default; `tools/check_release_bundle.sh` fails a release whose
 packages would go anywhere else, or that carries a playtest kit.
 
 ## Continuous integration

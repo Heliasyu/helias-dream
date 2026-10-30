@@ -1,5 +1,5 @@
-// The command stream: draws, and with BBHOST_STREAM_SUBMIT the command
-// buffers themselves, recorded on their own thread (BBHOST_RECORDER, on
+// The command stream: draws, and with HELIAS_STREAM_SUBMIT the command
+// buffers themselves, recorded on their own thread (HELIAS_RECORDER, on
 // unless 0).
 //
 // Of each draw's ~11 us on the command processor, ~2.5 went to the driver:
@@ -12,7 +12,7 @@
 // barriers, fills, copies, query resets, timestamps, dispatches, and the
 // command buffer's begin and its end-and-submit.
 //
-// With BBHOST_STREAM_SUBMIT (on unless 0, or with the recorder off) bb-record
+// With HELIAS_STREAM_SUBMIT (on unless 0, or with the recorder off) bb-record
 // owns the command pool's buffers: it begins each one (kBegin), records into
 // it, ends it and hands the submission to bb-submit (kEndSubmit). The submit
 // path's barriers, label fills and copies are ops, so a submission no longer
@@ -22,7 +22,7 @@
 // still recorded in place takes the command buffer through g_cmd(), which
 // publishes what is open and waits for the recorder to replay every block
 // published so far: one ordered stream of commands, whichever thread
-// records them. BBHOST_STREAM_SUBMIT=0: the command processor begins, ends
+// records them. HELIAS_STREAM_SUBMIT=0: the command processor begins, ends
 // and submits, and every op is recorded in place, as before the stream.
 //
 // Only the thread holding g.mu appends, publishes or drains. The recorder
@@ -39,7 +39,7 @@
 // replays (R1); the producer before it publishes (R2: the command processor's
 // writes to host-visible memory the GPU reads after a submission the
 // recorder makes, and the presenter's own command buffer;
-// BBHOST_STREAM_FENCE=kick fences only at the submissions and after an
+// HELIAS_STREAM_FENCE=kick fences only at the submissions and after an
 // in-place section); the producer before its first publish after it
 // recorded in place (R3); and the recorder again before a command buffer goes
 // to bb-submit (R4).
@@ -276,7 +276,7 @@ inline void add_relaxed(std::atomic<std::uint64_t>& c, std::uint64_t n) { c.stor
 // 0xF0), so it wakes about as fast as the spin saw the store. The window is
 // the same as the spin's: 4,000 PAUSEs timed once at start, in TSC ticks.
 // After it the recorder sleeps on the futex as before. Without MONITORX (Intel,
-// older CPUs) the PAUSE loop is unchanged. BBHOST_RECORDER_MWAITX=0: the PAUSE
+// older CPUs) the PAUSE loop is unchanged. HELIAS_RECORDER_MWAITX=0: the PAUSE
 // loop everywhere. Log label `recorder: wait`, snapshot [cpu] `recorder_wait:`.
 bool g_use_mwaitx = false;
 std::uint64_t g_spin_tsc = 0;  // the spin's length in TSC ticks (mwaitx only)
@@ -316,19 +316,19 @@ __attribute__((target("mwaitx"))) std::uint64_t mwaitx_until(std::uint64_t done,
 // each, became four RDTSCs. Only where the counter is invariant and the
 // kernel's own clock source is the TSC (so it is synchronized across cores);
 // the ticks become nanoseconds at the reports, by the counter's rate measured
-// against CLOCK_MONOTONIC since the recorder started. BBHOST_RECORDER_TSC=0
+// against CLOCK_MONOTONIC since the recorder started. HELIAS_RECORDER_TSC=0
 // (or no usable TSC): clock_gettime as before; =2: the TSC whatever the
 // kernel's clock source (a test).
 std::atomic<bool> g_wait_tsc{false};  // set once at the recorder's start
 std::uint64_t g_tsc_base = 0, g_ns_base = 0;
 bool tsc_usable() {
 #if defined(__x86_64__) && !defined(_WIN32)
-    const char* e = std::getenv("BBHOST_RECORDER_TSC");
+    const char* e = std::getenv("HELIAS_RECORDER_TSC");
     if (e && e[0] == '0') return false;
     unsigned a = 0, b = 0, c = 0, d = 0;
     if (!__get_cpuid(0x80000000u, &a, &b, &c, &d) || a < 0x80000007u) return false;
     if (!__get_cpuid(0x80000007u, &a, &b, &c, &d) || !(d & (1u << 8))) return false;  // invariant TSC
-    if (e && e[0] == '2') return true;  // BBHOST_RECORDER_TSC=2: whatever the kernel's clock source (a test)
+    if (e && e[0] == '2') return true;  // HELIAS_RECORDER_TSC=2: whatever the kernel's clock source (a test)
     char src[32] = {};
     if (FILE* f = std::fopen("/sys/devices/system/clocksource/clocksource0/current_clocksource", "r")) {
         if (!std::fgets(src, sizeof(src), f)) src[0] = 0;
@@ -358,42 +358,42 @@ std::uint64_t wait_ns(std::uint64_t ticks) {
 }
 
 int g_mode = [] {
-    const char* e = std::getenv("BBHOST_RECORDER");
+    const char* e = std::getenv("HELIAS_RECORDER");
     if (e && e[0] == '0') return kModeOff;
-    // BBHOST_RECORDER_INLINE=1 (a diagnostic): the blocks are replayed on the
+    // HELIAS_RECORDER_INLINE=1 (a diagnostic): the blocks are replayed on the
     // publishing thread at once, no recorder thread - the stream's command
     // order, recorded in place.
-    const char* i = std::getenv("BBHOST_RECORDER_INLINE");
+    const char* i = std::getenv("HELIAS_RECORDER_INLINE");
     return i && i[0] == '1' ? kModeInline : kModeThread;
 }();
-// BBHOST_STREAM_SUBMIT=0 (or BBHOST_STREAM=0): the command processor begins,
+// HELIAS_STREAM_SUBMIT=0 (or HELIAS_STREAM=0): the command processor begins,
 // ends and submits, and every op is recorded in place.
 bool g_submit_on = [] {
-    const char* e = std::getenv("BBHOST_STREAM_SUBMIT");
-    const char* s = std::getenv("BBHOST_STREAM");
+    const char* e = std::getenv("HELIAS_STREAM_SUBMIT");
+    const char* s = std::getenv("HELIAS_STREAM");
     return !(e && e[0] == '0') && !(s && s[0] == '0');
 }();
-// BBHOST_STREAM_FENCE=kick: the producer fences only at the submissions and
+// HELIAS_STREAM_FENCE=kick: the producer fences only at the submissions and
 // after an in-place section, not at every publish (R2).
 const bool g_fence_all = [] {
-    const char* e = std::getenv("BBHOST_STREAM_FENCE");
+    const char* e = std::getenv("HELIAS_STREAM_FENCE");
     return !(e && std::strcmp(e, "kick") == 0);
 }();
-// BBHOST_CMD_CENSUS=1: the in-place recording sites, counted.
+// HELIAS_CMD_CENSUS=1: the in-place recording sites, counted.
 const bool g_census_on = [] {
-    const char* e = std::getenv("BBHOST_CMD_CENSUS");
+    const char* e = std::getenv("HELIAS_CMD_CENSUS");
     return e && e[0] == '1';
 }();
 std::unordered_map<void*, std::uint64_t> g_census;  // under g.mu
 
 // How long the recorder spins for the next block before it sleeps, in
-// pauses (BBHOST_RECORDER_SPIN, 4000). That rides the few microseconds between
+// pauses (HELIAS_RECORDER_SPIN, 4000). That rides the few microseconds between
 // a burst's draws. On a Steam Deck 61% of the recorder's time is this loop and
 // 12% its work, but spinning less did not give its GPU the power: 300 and 50
 // pauses, windowed, 56.7 and 56.6 fps against 57.0 - the command processor
 // waited longer on the recorder's wake-ups instead.
 const int g_recorder_spin = [] {
-    const char* e = std::getenv("BBHOST_RECORDER_SPIN");
+    const char* e = std::getenv("HELIAS_RECORDER_SPIN");
     return e && *e ? std::max(0, std::atoi(e)) : 4000;
 }();
 
@@ -671,12 +671,12 @@ void recorder_thread() {
     g_tsc_base = __rdtsc();
 #endif
     g_wait_tsc.store(tsc_usable());
-    host_log("recorder: its wait loop timed with %s", g_wait_tsc.load() ? "the TSC (rc6; BBHOST_RECORDER_TSC=0: clock_gettime)"
-                                                                  : "clock_gettime (no invariant TSC as the kernel's clock source, or BBHOST_RECORDER_TSC=0)");
+    host_log("recorder: its wait loop timed with %s", g_wait_tsc.load() ? "the TSC (rc6; HELIAS_RECORDER_TSC=0: clock_gettime)"
+                                                                  : "clock_gettime (no invariant TSC as the kernel's clock source, or HELIAS_RECORDER_TSC=0)");
     const int spin = g_recorder_spin;
 #if defined(__x86_64__)
     {
-        const char* e = std::getenv("BBHOST_RECORDER_MWAITX");
+        const char* e = std::getenv("HELIAS_RECORDER_MWAITX");
         g_use_mwaitx = !(e && e[0] == '0') && spin > 0 && cpu_has_mwaitx();
         if (g_use_mwaitx) {
             // The PAUSE loop's length on this CPU, the best of three.
@@ -690,11 +690,11 @@ void recorder_thread() {
         }
         if (g_use_mwaitx) {
             host_log("recorder: wait for the next block with MONITORX/MWAITX for %llu TSC ticks (%d pauses' worth), then the futex "
-                     "(rc5; BBHOST_RECORDER_MWAITX=0: the PAUSE loop)",
+                     "(rc5; HELIAS_RECORDER_MWAITX=0: the PAUSE loop)",
                      static_cast<unsigned long long>(g_spin_tsc), spin);
         } else {
             host_log("recorder: wait for the next block with %d pauses, then the futex (%s)", spin,
-                     cpu_has_mwaitx() ? (spin > 0 ? "BBHOST_RECORDER_MWAITX=0" : "BBHOST_RECORDER_SPIN=0") : "no MONITORX on this CPU");
+                     cpu_has_mwaitx() ? (spin > 0 ? "HELIAS_RECORDER_MWAITX=0" : "HELIAS_RECORDER_SPIN=0") : "no MONITORX on this CPU");
         }
     }
 #endif
@@ -757,7 +757,7 @@ void ensure_started() {
     ensure_rings();
     if (g_mode == kModeInline) {
         static const bool said = [] {
-            host_log("recorder: blocks replayed in place as they are published (BBHOST_RECORDER_INLINE)%s",
+            host_log("recorder: blocks replayed in place as they are published (HELIAS_RECORDER_INLINE)%s",
                      g_submit_on ? "; the stream begins, ends and hands over the command buffers" : "");
             return true;
         }();
@@ -766,15 +766,15 @@ void ensure_started() {
     if (g_mode != kModeThread || g_thread_started) return;
     g_thread_started = true;
     std::thread(recorder_thread).detach();
-    host_log("recorder: draws are recorded on their own thread (BBHOST_RECORDER=0 records them in place)");
+    host_log("recorder: draws are recorded on their own thread (HELIAS_RECORDER=0 records them in place)");
     if (g_submit_on) {
-        host_log("recorder: it also begins, ends and hands over the command buffers (BBHOST_STREAM_SUBMIT=0: the command processor does); "
+        host_log("recorder: it also begins, ends and hands over the command buffers (HELIAS_STREAM_SUBMIT=0: the command processor does); "
                  "%s",
-                 g_fence_all ? "a store fence at every hand-over (BBHOST_STREAM_FENCE=kick: at submissions only)"
-                             : "a store fence at submissions and after in-place recording (BBHOST_STREAM_FENCE=kick)");
+                 g_fence_all ? "a store fence at every hand-over (HELIAS_STREAM_FENCE=kick: at submissions only)"
+                             : "a store fence at submissions and after in-place recording (HELIAS_STREAM_FENCE=kick)");
     } else {
         host_log("recorder: the command processor begins, ends and submits the command buffers and records everything but the draws in "
-                 "place (BBHOST_STREAM_SUBMIT=0)");
+                 "place (HELIAS_STREAM_SUBMIT=0)");
     }
 }
 
@@ -854,7 +854,7 @@ void publish_block(bool kick) {
 // Before an op: a packet holding commands goes first, so the op lands after
 // them (under g.mu).
 void before_op(void* site) {
-    if (g.profile_gaps) profile_note_site_locked(site);  // BBHOST_GPU_PROFILE=2: an op is recorded by its caller too
+    if (g.profile_gaps) profile_note_site_locked(site);  // HELIAS_GPU_PROFILE=2: an op is recorded by its caller too
     if (g_open && g_open->holds_commands()) g_open->publish();
 }
 
@@ -892,7 +892,7 @@ template <class T> void put_array(std::uint8_t*& at, const T* src, std::size_t n
 
 // The command buffer, for recording in place: everything published first and
 // replayed (under g.mu). `site` is who records, for the census and
-// BBHOST_GPU_PROFILE=2's gaps.
+// HELIAS_GPU_PROFILE=2's gaps.
 VkCommandBuffer in_place(void* site) {
     ++g_activity;
     if (g.profile_gaps) profile_note_site_locked(site);
@@ -942,7 +942,7 @@ void stream_wait_submitted(std::uint64_t serial) {
     // replays it and bb-submit submits it. With 16 slots this rarely waits,
     // but a flush waits for the submission it just made. The same holds when
     // the command processor hands its submissions to bb-submit itself
-    // (BBHOST_STREAM_SUBMIT=0, BBHOST_RECORDER=0): a fence waited for while
+    // (HELIAS_STREAM_SUBMIT=0, HELIAS_RECORDER=0): a fence waited for while
     // bb-submit was still submitting it was used on two threads at once
     // (vkQueueSubmit's fence must be externally synchronised), which the
     // validation layer reports and AMD's driver answered once with a
@@ -1005,8 +1005,8 @@ std::string cpu_section() {
     char b[768];
     std::snprintf(b, sizeof(b),
                   "\nrecorder_wait: mode=%s pauses=%d tsc=%llu wait_ms=%.1f replay_ms=%.1f sleeps=%llu mwaitx=%llu mwaitx_woken=%llu clock=%s "
-                  "(totals since start; rc5: BBHOST_RECORDER_MWAITX=0 spins with PAUSE; bb-record's CPU in [seconds] is what it saves; "
-                  "rc6 clock: what times the wait, BBHOST_RECORDER_TSC=0)",
+                  "(totals since start; rc5: HELIAS_RECORDER_MWAITX=0 spins with PAUSE; bb-record's CPU in [seconds] is what it saves; "
+                  "rc6 clock: what times the wait, HELIAS_RECORDER_TSC=0)",
                   g_use_mwaitx ? "mwaitx" : "pause", g_recorder_spin, static_cast<unsigned long long>(g_spin_tsc), wait_ns(g_spin_ns.load()) / 1e6,
                   wait_ns(g_replay_ns.load()) / 1e6, static_cast<unsigned long long>(g_sleeps.load()), static_cast<unsigned long long>(g_own.mwaitx.load()),
                   static_cast<unsigned long long>(g_own.mwaitx_woken.load()), g_wait_tsc.load() ? "tsc" : "clock_gettime");
@@ -1076,13 +1076,13 @@ std::string recorder_report() {
         ull((c.drain_ns - l.drain_ns) / 1000), ull(c.submitted_waits - l.submitted_waits), ull((c.submitted_wait_ns - l.submitted_wait_ns) / 1000),
         ull(c.full_waits - l.full_waits), ull(c.packet_waits - l.packet_waits), ull((spin - last.spin) / 1000000),
         ull((replay - last.replay) / 1000000), ull(sleeps - last.sleeps),
-        g_mode == kModeOff ? " (recorder off)" : g_mode == kModeInline ? " (inline)" : stream_on() ? "" : " (BBHOST_STREAM_SUBMIT=0)",
+        g_mode == kModeOff ? " (recorder off)" : g_mode == kModeInline ? " (inline)" : stream_on() ? "" : " (HELIAS_STREAM_SUBMIT=0)",
         g_use_mwaitx ? "mwaitx" : "pause", ull(g_own.mwaitx.load() - last.mwaitx), ull(g_own.mwaitx_woken.load() - last.mwaitx_woken));
     // What a submission costs on its way, wherever it runs.
     const std::uint64_t ns = subs - last.submits;
     if (n > 0 && static_cast<std::size_t>(n) < sizeof(buf)) {
         n += std::snprintf(buf + n, sizeof(buf) - static_cast<std::size_t>(n),
-                           "\n[bbhost]   submit: %llu, end+begin %llu us (%.1f us each), retire %llu us (%llu retired; fence %llu us)", ull(ns),
+                           "\n[heliasdream]   submit: %llu, end+begin %llu us (%.1f us each), retire %llu us (%llu retired; fence %llu us)", ull(ns),
                            ull((eb_ns - last.endbegin_ns) / 1000),
                            eb_n > last.endbegin_n ? static_cast<double>(eb_ns - last.endbegin_ns) / 1000.0 / static_cast<double>(eb_n - last.endbegin_n) : 0.0,
                            ull((r_ns - last.retire_ns) / 1000), ull(r_n - last.retires), ull((f_ns - last.fence_ns) / 1000));
@@ -1090,11 +1090,11 @@ std::string recorder_report() {
     std::string out = buf;
     if (g_census_on && !g_census.empty()) {
         // The in-place recording sites, the top twelve, as offsets in
-        // bbhost's image (tools/gpu_gaps.py --census names them).
+        // heliasdream's image (tools/gpu_gaps.py --census names them).
         std::vector<std::pair<void*, std::uint64_t>> v(g_census.begin(), g_census.end());
         std::sort(v.begin(), v.end(), [](const auto& a, const auto& b) { return a.second > b.second; });
         const double flips = flip > last.flip ? static_cast<double>(flip - last.flip) : 1.0;
-        out += "\n[bbhost]   cmd census:";
+        out += "\n[heliasdream]   cmd census:";
         for (std::size_t i = 0; i < v.size() && i < 12; ++i) {
             char e[64];
             std::snprintf(e, sizeof(e), " %llx=%.1f/flip", ull(reinterpret_cast<std::uintptr_t>(v[i].first) - host_image_base()),
@@ -1840,12 +1840,12 @@ void record_stencil_words(VkCommandBuffer cmd, const std::uint32_t w[6]) {
     vkCmdSetStencilWriteMask(cmd, VK_STENCIL_FACE_BACK_BIT, w[5]);
 }
 
-// BBHOST_RENDER_MIN=1: a test client. Everything is recorded but the draws
+// HELIAS_RENDER_MIN=1: a test client. Everything is recorded but the draws
 // and dispatches themselves, so the game sees its labels, flips and
 // readbacks and the GPU does next to nothing - several instances on one
 // GPU for the online tests. The screen is whatever the clears leave.
 const bool g_render_min = [] {
-    const char* e = std::getenv("BBHOST_RENDER_MIN");
+    const char* e = std::getenv("HELIAS_RENDER_MIN");
     return e && e[0] == '1';
 }();
 

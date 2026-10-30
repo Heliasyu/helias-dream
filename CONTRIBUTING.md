@@ -6,17 +6,17 @@
   game, no saves. Everyone brings their own 1.09 dump and decrypted eboot.
 - **Your own code.** Other projects (shadPS4 in particular) are useful as a
   reference for facts - enum values, error codes, register layouts, how a
-  working run behaves - but bbhost is its own implementation; don't paste
+  working run behaves - but Helia's Dream is its own implementation; don't paste
   their code.
-- **No secrets.** Tokens, passwords, keys and `bbhost-options.toml` (it holds
+- **No secrets.** Tokens, passwords, keys and `heliasdream-options.toml` (it holds
   an account token) stay out of commits.
 
 ## Setup
 
 1. Build it ([docs/building.md](docs/building.md)).
-2. Write a config with your paths: `./build/bbhost --write-config bbhost.toml`
+2. Write a config with your paths: `./build/heliasdream --write-config heliasdream.toml`
    (ignored by git), then set `app0` and `eboot`.
-3. `export BBHOST_APP0=/path/to/CUSA00900` so the tests that read game files
+3. `export HELIAS_APP0=/path/to/CUSA00900` so the tests that read game files
    run instead of skipping.
 
 ## Workflow
@@ -39,7 +39,7 @@ notes:
 
 1. Write the notes for players in a Markdown file: what changed for them
    first, then the details. No title line; the release is named
-   `bbhost v0.2.17`.
+   `heliasdream v0.2.17`.
 2. `tools/tag_release.sh v0.2.17 notes.md [commit]` tags the commit (default
    `HEAD`) with the notes, then `git push <remote> v0.2.17`. The script keeps
    the notes verbatim: a plain `git tag -F` would drop every line starting with
@@ -67,7 +67,7 @@ release* from the Actions page.
   listed in `src/decomp/decomp.h`, and come with a compare mode that checks
   them against the game's own version ([docs/decomp.md](docs/decomp.md)).
 - **Engine knowledge** (layouts, addresses) that plugins can use belongs in
-  `include/bbhost/engine/`.
+  `include/heliasdream/engine/`.
 - Windows builds use Clang only (`__attribute__((sysv_abi))`).
 
 ## Rendering changes
@@ -81,7 +81,7 @@ Bring evidence from a run:
 - Before and after screenshots of the same place, from a copy of a save
   (`tools/menu_drive.sh` drives the game headless to a screenshot).
 - No regressions elsewhere: the smoke target, a run with
-  `BBHOST_VK_VALIDATE=1` and no new validation messages, and a second area.
+  `HELIAS_VK_VALIDATE=1` and no new validation messages, and a second area.
 - Where it makes sense, an environment switch that turns the change off, for
   A/B comparisons.
 
@@ -92,6 +92,6 @@ Bring evidence from a run:
 - Compare the same place, alternating configurations, at least two rounds
   each, on an otherwise idle machine. Run the same configuration twice first
   to know the noise.
-- Prefer GPU profile totals (`BBHOST_GPU_PROFILE=1`) and per-phase timings to
+- Prefer GPU profile totals (`HELIAS_GPU_PROFILE=1`) and per-phase timings to
   frame counts: the game paces itself.
 - Put the numbers, the GPU and the method in the pull request.

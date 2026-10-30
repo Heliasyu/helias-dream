@@ -66,9 +66,9 @@ int g_said = 0;
 // the three share one walk (event_flags_get). Coming into the map clears the
 // four flags, as every load still does (a request a save carried over is
 // not one), and leaving it ends a handshake as a load does.
-// BBHOST_REBIRTH_EVERYWHERE=1: every frame in every map, as before.
+// HELIAS_REBIRTH_EVERYWHERE=1: every frame in every map, as before.
 const bool g_everywhere = [] {
-    const char* e = std::getenv("BBHOST_REBIRTH_EVERYWHERE");
+    const char* e = std::getenv("HELIAS_REBIRTH_EVERYWHERE");
     return e && e[0] == '1';
 }();
 bool g_at_altar = false;  // the last frame with a world was in the altar's map
@@ -305,7 +305,7 @@ std::string rebirth_report() {
     if (read == last_read && skipped == last_skipped) return {};
     char buf[192];
     std::snprintf(buf, sizeof(buf), "rebirth: the altar's flags read in %llu frames (its map%s), not read in %llu (other maps)",
-                  static_cast<unsigned long long>(read - last_read), g_everywhere ? ", or every map: BBHOST_REBIRTH_EVERYWHERE=1" : "",
+                  static_cast<unsigned long long>(read - last_read), g_everywhere ? ", or every map: HELIAS_REBIRTH_EVERYWHERE=1" : "",
                   static_cast<unsigned long long>(skipped - last_skipped));
     last_read = read;
     last_skipped = skipped;
@@ -333,7 +333,7 @@ void rebirth_install(ElfImage* image) {
         host_log("rebirth: off - the level-up menu cannot be watched");
         return;
     }
-    const fs::path out = fs::path(data) / "bbhost" / "rebirth-assets";
+    const fs::path out = fs::path(data) / "heliasdream" / "rebirth-assets";
     const auto have = read_file(out / "stamp");
     const bool fresh = have && std::string(have->begin(), have->end()) == kStamp && fs::exists(out / kArchive);
     if (!fresh) {
@@ -374,5 +374,5 @@ void rebirth_install(ElfImage* image) {
     hle_fs_add_generated_root(out.string().c_str());
     g_on = true;
     host_log("rebirth: the Altar of Despair offers Rebirth in the Nightmare (with the Yharnam Stone); its flags are read %s",
-             g_everywhere ? "every frame in every map (BBHOST_REBIRTH_EVERYWHERE=1)" : "only while the hunter is in its map");
+             g_everywhere ? "every frame in every map (HELIAS_REBIRTH_EVERYWHERE=1)" : "only while the hunter is in its map");
 }

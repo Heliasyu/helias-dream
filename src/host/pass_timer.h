@@ -1,6 +1,6 @@
 #pragma once
 
-// bbhost-vk Phase 5: GPU time of the renderer's own passes, each on its own
+// heliasdream-vk Phase 5: GPU time of the renderer's own passes, each on its own
 // (Show Upscaler GPU Time): the motion-vector pass, the reactive mask, the
 // opaque snapshot, the upscaler's dispatch (FSR 3.1 or FSR 4.1.1) and the copy
 // of its output into the game's target. Timestamp pairs in a ring, read back
@@ -31,8 +31,8 @@ std::int32_t pass_timer_begin_locked(VkCommandBuffer cmd, TimedPass pass,
 void pass_timer_end_locked(VkCommandBuffer cmd, std::int32_t slot);
 // Reads the retired slots (cheap; once a frame from the scale pass).
 void pass_timer_collect_locked();
-// Which upscaler the Upscale pass was, for its label.
-void pass_timer_upscaler_is_fsr4(bool fsr4);
+// Which upscaler the Upscale pass was, for its label: a string literal.
+void pass_timer_upscaler_name(const char* name);
 
 }  // namespace gpu
 

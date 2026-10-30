@@ -1,5 +1,5 @@
 #!/bin/bash
-# Builds a bbhost that runs on other Linux machines, not just this one.
+# Builds a heliasdream that runs on other Linux machines, not just this one.
 #
 # A plain `cmake --build build` here links against this machine's glibc
 # (2.43 on Arch today: acosf@GLIBC_2.43, __isoc23_strtol@GLIBC_2.38), its
@@ -17,7 +17,7 @@
 # leaving libvulkan.so.1, libcurl.so.4 and libz.so.1 (plus glibc) as the only
 # shared libraries it needs, which every desktop distribution ships.
 #
-#   tools/linux_portable_build.sh            -> build-linux-portable/build/bbhost
+#   tools/linux_portable_build.sh            -> build-linux-portable/build/heliasdream
 #                                               (and plugins/, the official ones
 #                                               tools/package_linux.sh packs)
 #
@@ -66,7 +66,7 @@ if [ "${1:-}" != --inside ]; then
     if [ -n "$(git -c core.excludesFile=/dev/null status --porcelain --untracked-files=no 2>/dev/null)" ]; then
         rev="$rev+"
     fi
-    export BBHOST_GIT_REV=$rev
+    export HELIAS_GIT_REV=$rev
     exec unshare -rm --fork sh -c '
         R=$1; SRC=$2; shift 2
         mount --rbind /dev "$R/dev"
@@ -74,7 +74,7 @@ if [ "${1:-}" != --inside ]; then
         mount --rbind /sys "$R/sys"
         mkdir -p "$R/src" && mount --bind "$SRC" "$R/src"
         exec chroot "$R" /usr/bin/env -i PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin \
-            HOME=/root DEBIAN_FRONTEND=noninteractive LANG=C.UTF-8 BBHOST_GIT_REV="$BBHOST_GIT_REV" \
+            HOME=/root DEBIAN_FRONTEND=noninteractive LANG=C.UTF-8 HELIAS_GIT_REV="$HELIAS_GIT_REV" \
             bash /src/tools/linux_portable_build.sh --inside
     ' sh "$ROOTFS" "$SRC"
 fi
@@ -125,14 +125,14 @@ fi
 # machine (Fedora keeps it in its own package): the static archive instead.
 sed -i 's/ -latomic/ -l:libatomic.a/' "$P"/lib/pkgconfig/*.pc
 
-# bbhost. pkg-config sees only the prefix's ffmpeg; the static archives'
+# heliasdream. pkg-config sees only the prefix's ffmpeg; the static archives'
 # private libraries (-lm, -lpthread) come with libstdc++'s.
 export PKG_CONFIG_PATH=$P/lib/pkgconfig
 cmake -S /src -B "$W/build" -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo \
     -DCMAKE_PREFIX_PATH="$P" -DVulkan_INCLUDE_DIR="$P/include" \
     -DCMAKE_EXE_LINKER_FLAGS="-static-libstdc++ -static-libgcc -fuse-ld=lld" \
-    -DCMAKE_MODULE_LINKER_FLAGS="-static-libgcc -fuse-ld=lld" > "$W/bbhost-configure.log"
-grep -E "^-- bbhost" "$W/bbhost-configure.log" || true
-cmake --build "$W/build" --target bbhost bb_plugin_hello bb_plugin_randomizer bb_plugin_boss_rush bb_plugin_mutators -j"$(nproc)" > "$W/bbhost-build.log" 2>&1 \
-    || { grep -E "error|undefined" "$W/bbhost-build.log" | head -30; exit 1; }
-echo "portable build: $W/build/bbhost"
+    -DCMAKE_MODULE_LINKER_FLAGS="-static-libgcc -fuse-ld=lld" > "$W/heliasdream-configure.log"
+grep -E "^-- heliasdream" "$W/heliasdream-configure.log" || true
+cmake --build "$W/build" --target heliasdream bb_plugin_hello bb_plugin_randomizer bb_plugin_boss_rush bb_plugin_mutators -j"$(nproc)" > "$W/heliasdream-build.log" 2>&1 \
+    || { grep -E "error|undefined" "$W/heliasdream-build.log" | head -30; exit 1; }
+echo "portable build: $W/build/heliasdream"

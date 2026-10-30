@@ -1,4 +1,4 @@
-// bbhost-vk Phase 4: FSR 4.1.1 at the scale pass (host/fsr4_pass.h).
+// heliasdream-vk Phase 4: FSR 4.1.1 at the scale pass (host/fsr4_pass.h).
 #include "host/fsr4_pass.h"
 
 #include "host/fsr411/fsr411.h"
@@ -61,7 +61,7 @@ struct OutImage {
 
 // test7: the sharpening of the output, one pass from a shared-memory tile
 // (shaders/fsr4_sharpen.comp) instead of the replay's RCAS (0.32-0.35 ms at
-// 4K whatever the strength). BBHOST_FSR4_SHARPEN=amd keeps the replay's.
+// 4K whatever the strength). HELIAS_FSR4_SHARPEN=amd keeps the replay's.
 struct SharpenPass {
     VkDescriptorSetLayout set_layout = VK_NULL_HANDLE;
     VkPipelineLayout layout = VK_NULL_HANDLE;
@@ -75,7 +75,7 @@ struct SharpenConstants {
 };
 
 bool sharpen_amd() {
-    const char* e = std::getenv("BBHOST_FSR4_SHARPEN");
+    const char* e = std::getenv("HELIAS_FSR4_SHARPEN");
     return e && std::strcmp(e, "amd") == 0;
 }
 
@@ -111,7 +111,7 @@ bool make_sharpen() {
     ci.layout = g_sharpen.layout;
     if (vkCreateComputePipelines(g.device, g.cache, 1, &ci, nullptr, &g_sharpen.pipeline) != VK_SUCCESS) g_sharpen.pipeline = VK_NULL_HANDLE;
     vkDestroyShaderModule(g.device, module, nullptr);
-    host_log("fsr4: sharpening %s", g_sharpen.pipeline ? "in one tiled pass (BBHOST_FSR4_SHARPEN=amd for the replay's RCAS)"
+    host_log("fsr4: sharpening %s", g_sharpen.pipeline ? "in one tiled pass (HELIAS_FSR4_SHARPEN=amd for the replay's RCAS)"
                                                        : "pipeline failed: the replay's RCAS");
     return g_sharpen.pipeline != VK_NULL_HANDLE;
 }
@@ -198,11 +198,15 @@ VkImageView frame_view(const UpscalerImage& img) { return pass_view_locked(img.i
 }  // namespace
 
 std::string fsr4_assets_dir() {
-    if (const char* e = std::getenv("BBHOST_FSR411_DIR"); e && e[0]) return e;
+    if (const char* e = std::getenv("HELIAS_FSR411_DIR"); e && e[0]) return e;
     std::string base;
-    if (const char* x = std::getenv("XDG_DATA_HOME"); x && x[0]) base = x;
+#if defined(_WIN32)
+    if (const char* l = std::getenv("LOCALAPPDATA"); l && l[0]) base = l;
+#endif
+    if (!base.empty()) {
+    } else if (const char* x = std::getenv("XDG_DATA_HOME"); x && x[0]) base = x;
     else if (const char* h = std::getenv("HOME"); h && h[0]) base = std::string(h) + "/.local/share";
-    return base.empty() ? std::string("fsr4_411") : base + "/bbhost/fsr4_411";
+    return base.empty() ? std::string("fsr4_411") : base + "/HeliasDream/fsr4_411";
 }
 
 bool fsr4_assets_present(const std::string& dir) {
@@ -213,9 +217,9 @@ bool fsr4_assets_present(const std::string& dir) {
 
 void fsr4_device_features(VkPhysicalDeviceFeatures& f, VkPhysicalDeviceVulkan12Features& f12, VkPhysicalDeviceVulkan13Features& f13,
                           std::vector<const char*>& exts, void** chain) {
-    if (env_off("BBHOST_FSR4")) return;
+    if (env_off("HELIAS_FSR4")) return;
     const std::string dir = fsr4_assets_dir();
-    const char* force = std::getenv("BBHOST_FSR4_FEATURES");
+    const char* force = std::getenv("HELIAS_FSR4_FEATURES");
     if (!fsr4_assets_present(dir) && !(force && force[0] == '1')) {
         host_log("fsr4: no FSR 4.1.1 assets in %s: FSR 4.1.1 is FSR 3.1 (build them from your DLL: tools/fsr4cap)", dir.c_str());
         return;
@@ -320,7 +324,7 @@ bool fsr4_record_locked(VkCommandBuffer cmd, const UpscalerInputs& in, std::uint
         *why = g_fatal_why;
         return false;
     }
-    if (env_off("BBHOST_FSR4")) return fail_for_good("BBHOST_FSR4=0");
+    if (env_off("HELIAS_FSR4")) return fail_for_good("HELIAS_FSR4=0");
     if (!g_support.asked) return fail_for_good("no FSR 4.1.1 assets in " + fsr4_assets_dir() + " (build them from your DLL: tools/fsr4cap)");
     if (!g_support.int8) return fail_for_good("the GPU lacks " + g_support.missing);
     if (!g_fsr4) {
@@ -365,7 +369,7 @@ bool fsr4_record_locked(VkCommandBuffer cmd, const UpscalerInputs& in, std::uint
         f.jitter[0] = p.jitter_x;
         f.jitter[1] = p.jitter_y;
         f.sharpen = p.sharpen && p.sharpness > 0.0f;
-        // rc2, BBHOST_SHARPEN_AT_PRESENT=1 (debugging): the presenter's pass
+        // rc2, HELIAS_SHARPEN_AT_PRESENT=1 (debugging): the presenter's pass
         // sharpens instead (host/present_pass.h). Not the default: it would
         // sharpen the HUD drawn after this, and halo its text.
         if (f.sharpen && present_sharpen_at_present() && present_pass_set_sharpen(p.sharpness)) f.sharpen = false;
