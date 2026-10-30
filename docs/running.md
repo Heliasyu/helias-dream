@@ -36,8 +36,10 @@ display and graphics options, link your account on the **Online** page if you wa
 play online, and press **Play**. The launcher writes the per-user `HeliasDream.toml`
 and starts the engine.
 
-The engine can also be started on its own (`HeliasDream-engine.exe`, `run-engine.bat`
-or `./run-heliasdream.sh`). Without a configuration it opens its own setup window, and
+The launcher is the only program in a release: the engine is inside it, written to
+`%LOCALAPPDATA%\HeliasDream\engine` (Windows) or `~/.local/share/HeliasDream/engine`
+(Linux) when it changes. `HeliasDream --play [arguments]` (or `./run-heliasdream.sh`)
+starts the game without the launcher's window. Without a configuration it opens its own setup window, and
 `--setup` opens that again. Without a display (a headless run) it writes a template
 config instead and tells you which paths to fill in.
 

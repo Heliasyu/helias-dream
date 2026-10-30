@@ -52,6 +52,7 @@ public sealed class MainWindow : Window
     public MainWindow()
     {
         Title = "Helia's Dream";
+        Icon = new WindowIcon(Avalonia.Platform.AssetLoader.Open(new Uri("avares://HeliasDream/Assets/HeliasDream.ico")));
         Width = 1280; Height = 800; MinWidth = 1120; MinHeight = 720;
         // Centred on the primary monitor (KDE's priority 1), not whichever screen
         // the window system lists first.

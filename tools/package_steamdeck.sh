@@ -22,7 +22,7 @@ grep -q 'heliasdream-steamdeck.toml' "$ldir/run-heliasdream.sh" || { echo "run-h
 sed -i 's/^  heliasdream.example.toml lists every setting./  heliasdream.example.toml lists every setting; STEAMDECK.md has the Steam Deck steps./' "$ldir/README-linux.txt"
 grep -q 'STEAMDECK.md' "$ldir/README-linux.txt" || { echo "README-linux.txt: settings line not found"; exit 1; }
 find "$ldir" -type d -exec chmod 755 {} + && find "$ldir" -type f -exec chmod 644 {} +
-chmod 755 "$ldir/heliasdream" "$ldir/run-heliasdream.sh"
+chmod 755 "$ldir/HeliasDream" "$ldir/run-heliasdream.sh"
 mv "$ldir" "$work/$name"
 (cd "$work" && rm -f "$out/$name.tar.gz" && tar czf "$out/$name.tar.gz" --owner=0 --group=0 "$name")
 ls -la "$out/$name.tar.gz"

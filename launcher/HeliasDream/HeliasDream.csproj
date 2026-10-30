@@ -13,6 +13,7 @@
     <BuiltInComInteropSupport>false</BuiltInComInteropSupport>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
     <Version>0.1.0</Version>
+    <ApplicationIcon>Assets\HeliasDream.ico</ApplicationIcon>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Avalonia" Version="11.3.0" />
@@ -24,5 +25,9 @@
   </ItemGroup>
   <ItemGroup>
     <AvaloniaResource Include="Assets\**" />
+  </ItemGroup>
+  <!-- A release carries the engine inside (Core/Engine.cs): -p:EngineBinary=<the stripped engine>. -->
+  <ItemGroup Condition="'$(EngineBinary)' != ''">
+    <EmbeddedResource Include="$(EngineBinary)" LogicalName="engine" />
   </ItemGroup>
 </Project>

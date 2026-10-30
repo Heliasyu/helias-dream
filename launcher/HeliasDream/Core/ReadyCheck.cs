@@ -171,7 +171,7 @@ public static class GameRunner
     public static Process? Start(string gameDir, string presentMode, string? monitor, string? profileConfig, string? gamepad,
                                  Action<string>? onLine, Action onExit)
     {
-        var engine = Paths.EngineIn(gameDir);
+        var engine = Engine.Find(gameDir);
         if (engine == null) return null;
         var psi = new ProcessStartInfo(engine)
         {
@@ -180,6 +180,7 @@ public static class GameRunner
             // The Windows engine is a console program: its log goes to the Console page, not a window of its own.
             CreateNoWindow = OperatingSystem.IsWindows() && onLine != null,
         };
+        Engine.Prepare(psi, gameDir);
         if (profileConfig != null) { psi.ArgumentList.Add("--config"); psi.ArgumentList.Add(profileConfig); }
         // Native Wayland, the display's scale applied (as the old bbhost wrapper script set them).
         if (OperatingSystem.IsLinux() && !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("WAYLAND_DISPLAY")) &&

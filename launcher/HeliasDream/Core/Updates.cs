@@ -17,12 +17,12 @@ public static class Updates
 
     public static string? EngineVersion(string? gameDir)
     {
-        var engine = Paths.EngineIn(gameDir);
+        var engine = Engine.Find(gameDir);
         if (engine == null) return null;
         try
         {
             var psi = new ProcessStartInfo(engine, "--version") { RedirectStandardOutput = true, RedirectStandardError = true, UseShellExecute = false };
-            if (gameDir != null) psi.WorkingDirectory = gameDir;
+            if (gameDir != null) Engine.Prepare(psi, gameDir);
             using var p = Process.Start(psi);
             if (p == null) return null;
             var line = p.StandardOutput.ReadLine();

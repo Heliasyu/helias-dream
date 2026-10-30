@@ -91,19 +91,25 @@ if [ -f README.md ]; then
     awk '/^## Testing heliasdream-vk/{on=1} on && /^## / && !/^## Testing heliasdream-vk/{exit} on' README.md > "$dir/README-TESTING.txt"
     [ -s "$dir/README-TESTING.txt" ] || rm -f "$dir/README-TESTING.txt"
 fi
-objcopy --strip-debug "$bin" "$dir/heliasdream" 2>/dev/null || llvm-objcopy --strip-debug "$bin" "$dir/heliasdream"
-chmod +x "$dir/heliasdream"
+# The engine goes inside the launcher (launcher/HeliasDream/Core/Engine.cs):
+# HeliasDream is the one program in the folder.
+mkdir -p "$out/engine"
+objcopy --strip-debug "$bin" "$out/engine/heliasdream" 2>/dev/null || llvm-objcopy --strip-debug "$bin" "$out/engine/heliasdream"
+chmod +x "$out/engine/heliasdream"
 cp "$bin" "$out/$name.debug"
 cp heliasdream.example.toml "$dir/heliasdream.example.toml"
-# The launcher (HeliasDream): the settings window that starts the engine,
-# built with dotnet when there is one (LAUNCHER_BIN to give one).
+# The launcher (HeliasDream) with the engine inside it (LAUNCHER_BIN: one
+# already built that way).
 launcher=${LAUNCHER_BIN:-}
-if [ -z "$launcher" ] && command -v dotnet > /dev/null; then
+if [ -z "$launcher" ]; then
+    command -v dotnet > /dev/null || { echo "package: dotnet is needed for the launcher"; exit 1; }
     dotnet publish launcher/HeliasDream/HeliasDream.csproj -c Release -r linux-x64 --self-contained true \
-        -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o "$out/launcher" > "$out/launcher.log" 2>&1 \
-        && launcher=$out/launcher/HeliasDream || echo "launcher: dotnet publish failed (log: $out/launcher.log)"
+        -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true \
+        -p:EngineBinary="$(realpath "$out/engine/heliasdream")" -o "$out/launcher" > "$out/launcher.log" 2>&1 \
+        || { echo "package: dotnet publish failed (log: $out/launcher.log)"; exit 1; }
+    launcher=$out/launcher/HeliasDream
 fi
-if [ -n "$launcher" ] && [ -f "$launcher" ]; then install -m 755 "$launcher" "$dir/HeliasDream"; else echo "launcher: none packed (no dotnet)"; fi
+install -m 755 "$launcher" "$dir/HeliasDream"
 
 # What the binary still loads from the system, from its own dynamic section,
 # so the README cannot drift from the build.
@@ -125,7 +131,7 @@ args=()
 [ -f "$cfg" ] && args=(--config "$cfg")
 echo "heliasdream: config ${args[1]:-per-user}, log $(pwd)/$log"
 # tee -i: Ctrl-C stops the game, not the log, so its last lines are kept.
-./heliasdream "${args[@]}" "$@" 2>&1 | tee -i "$log"
+./HeliasDream --play "${args[@]}" "$@" 2>&1 | tee -i "$log"
 exit "${PIPESTATUS[0]}"
 EOF
 chmod +x "$dir/run-heliasdream.sh"
@@ -182,8 +188,10 @@ Setup
 
 Run
   ./HeliasDream                 the launcher: press Play (its Console page shows the log)
-  ./run-heliasdream.sh          the game alone (the log goes to logs/ and the terminal;
-                                --setup opens the engine's own setup window)
+  ./run-heliasdream.sh          the game without the launcher's window (the log goes to
+                                logs/ and the terminal; --setup opens the engine's own
+                                setup window). It runs ./HeliasDream --play: the game is
+                                inside HeliasDream, kept in ~/.local/share/HeliasDream/engine.
   The first visit to an area stutters for a moment while its graphics are
   prepared for your GPU; later visits do not. F10 in the game window opens
   the PC settings: resolution, window mode, V-Sync, frame cap, mouse, key
@@ -266,7 +274,7 @@ fi
 stage=$(mktemp -d); trap 'rm -rf "$stage"' EXIT
 cp -r "$dir" "$stage/"
 find "$stage" -type d -exec chmod 755 {} + && find "$stage" -type f -exec chmod 644 {} +
-chmod 755 "$stage/$name/heliasdream" "$stage/$name/run-heliasdream.sh" "$stage/$name/build-fsr4.sh"
+chmod 755 "$stage/$name/HeliasDream" "$stage/$name/run-heliasdream.sh" "$stage/$name/build-fsr4.sh"
 find "$stage/$name/tools" -name '*.sh' -exec chmod 755 {} +
 if [ -d "$stage/$name/tools/fsr4cap/bin" ]; then chmod 755 "$stage/$name/tools/fsr4cap/bin/dxil-spirv" "$stage/$name/tools/fsr4cap/bin/"*.so*; fi
 rm -f "$out/$name.tar.gz"
