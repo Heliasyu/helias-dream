@@ -53,9 +53,12 @@ public static class Paths
         return null;
     }
 
-    /// The game folder: the saved one, else beside this launcher, else the usual places.
+    /// The game folder: the saved one, else beside this launcher, else the usual places. A
+    /// launcher that carries the engine (Engine.Embedded) is its own install: its folder.
     public static string? FindGameDir(string? saved)
     {
+        if (Engine.Embedded && Env("HELIAS_GAME_DIR") == null)
+            return Path.GetFullPath(AppContext.BaseDirectory);
         var tries = new List<string?>
         {
             Env("HELIAS_GAME_DIR"),

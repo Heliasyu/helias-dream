@@ -635,7 +635,7 @@ public static class Pages
         {
             var d = await ctx.PickFolder(ctx.GameDir());
             if (d == null) return;
-            if (Paths.EngineIn(d) == null) { dirText.Text = "No Helia's Dream engine in that folder"; return; }
+            if (!Engine.Embedded && Paths.EngineIn(d) == null) { dirText.Text = "No Helia's Dream engine in that folder"; return; }
             s.GameDir = d; s.Save(); dirText.Text = d; ctx.Changed();
         });
         var folderRow = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto"), ColumnSpacing = 18 };

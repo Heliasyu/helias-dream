@@ -219,6 +219,17 @@ void apply_values(const std::map<std::string, std::string>& kv, HostConfig* c) {
 std::map<std::string, std::string> g_values;  // the config file's raw values, for config_value
 
 std::string exe_dir() {
+    // The launcher carries the engine inside itself and runs it from the
+    // per-user folder: the install folder (patches/, plugins/, data/) is then
+    // the launcher's, which it names here.
+    if (const char* h = std::getenv("HELIAS_HOME_DIR"); h && h[0]) {
+        std::string p(h);
+        for (char& ch : p) {
+            if (ch == '\\') ch = '/';
+        }
+        while (p.size() > 1 && p.back() == '/') p.pop_back();
+        return p;
+    }
 #if defined(_WIN32)
     char buf[4096];
     const DWORD n = GetModuleFileNameA(nullptr, buf, sizeof(buf));

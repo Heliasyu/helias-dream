@@ -10,6 +10,8 @@ internal static class Program
         // The engine's old bbhost folders and the launcher's old settings, copied over once.
         HeliasDream.Core.Paths.Migrate();
         if (args.Length > 0 && args[0] == "--shot") { Shot.Run(args); return; }
+        // --play [engine arguments]: the game alone, without this window (scripts, Steam's Game Mode).
+        if (args.Length > 0 && args[0] == "--play") System.Environment.Exit(HeliasDream.Core.Engine.Play(args));
         if (args.Length == 3 && args[0] == "--steam-check") { HeliasDream.Core.Steam.RoundTrip(args[1], args[2]); return; }
         // --add-to-steam [art folder]: what Game setup's Add does, from a terminal.
         if (args.Length >= 1 && args[0] == "--add-to-steam")

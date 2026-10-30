@@ -28,7 +28,8 @@ while IFS= read -r f; do
     if tr -d '\r' < "$f" | grep -E '^[^r#].*--config|^(heliasdream|HeliasDream-engine)\.exe .*--config'; then fail "${f#"$work"/} passes a config"; fi
 done < <(find "$work" -name 'run-engine.bat' -o -name 'run-heliasdream.bat')
 # What a first start writes (core/config.cpp's template), in each executable.
-for b in "$d"/heliasdream "$d"/HeliasDream-engine.exe; do
+# The launchers carry the engine as it is (an uncompressed resource), so its strings are there.
+for b in "$d"/HeliasDream "$d"/HeliasDream.exe; do
     [ -f "$b" ] || continue
     s=$(strings -a "$b")
     for want in 'host = "thehuntersdream.com"' 'scheme = "https"' 'verify_tls = true' 'require_account = true' \

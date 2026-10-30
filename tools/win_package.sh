@@ -1,10 +1,9 @@
 #!/bin/bash
 # Packs the Windows cross build into the zip a Windows machine runs from
 # (docs/building.md), the release's Windows bundle: the engine without its
-# DWARF as HeliasDream-engine.exe (Windows names ignore case, so it cannot be
-# heliasdream.exe beside the launcher), the launcher HeliasDream.exe (built
-# with dotnet when there is one, LAUNCHER_EXE to give one), a script that
-# starts the engine alone and keeps a log (run-engine.bat), a config template with
+# DWARF inside the launcher, HeliasDream.exe - the one program in the folder
+# (launcher/HeliasDream/Core/Engine.cs writes it out and runs it; dotnet
+# publishes it, LAUNCHER_EXE to give one already built), a config template with
 # Windows paths, the player's README, and the empty data/, build/ and logs/
 # directories the run writes into. Nothing in it picks a server: heliasdream's
 # defaults are the live server's (https://thehuntersdream.com). The
@@ -38,15 +37,19 @@ if [ -f third_party/FSR-Vulkan/LICENSE.txt ]; then
     cp third_party/FSR-Vulkan/upstream/ffx-1.1.4/sdk/LICENSE.txt "$dir/licenses/FSR-Vulkan/FidelityFX-SDK-LICENSE.txt"
 fi
 tools/package_plugins.sh "$(dirname "$exe")/plugins" "$dir/plugins"
-llvm-objcopy --strip-debug "$exe" "$dir/HeliasDream-engine.exe"
-# The launcher: the settings window that starts the engine.
+mkdir -p "$out/engine"
+llvm-objcopy --strip-debug "$exe" "$out/engine/HeliasDream-engine.exe"
+# The launcher, with the engine inside it.
 launcher=${LAUNCHER_EXE:-}
-if [ -z "$launcher" ] && command -v dotnet > /dev/null; then
+if [ -z "$launcher" ]; then
+    command -v dotnet > /dev/null || { echo "package: dotnet is needed for the launcher"; exit 1; }
     dotnet publish launcher/HeliasDream/HeliasDream.csproj -c Release -r win-x64 --self-contained true \
-        -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o "$out/launcher" > "$out/launcher.log" 2>&1 \
-        && launcher=$out/launcher/HeliasDream.exe || echo "launcher: dotnet publish failed (log: $out/launcher.log)"
+        -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true \
+        -p:EngineBinary="$(realpath "$out/engine/HeliasDream-engine.exe")" -o "$out/launcher" > "$out/launcher.log" 2>&1 \
+        || { echo "package: dotnet publish failed (log: $out/launcher.log)"; exit 1; }
+    launcher=$out/launcher/HeliasDream.exe
 fi
-if [ -n "$launcher" ] && [ -f "$launcher" ]; then cp "$launcher" "$dir/HeliasDream.exe"; else echo "launcher: none packed (no dotnet)"; fi
+cp "$launcher" "$dir/HeliasDream.exe"
 cp "$exe" "$out/$name.debug.exe"
 sed -e 's#^app0 = .*#app0 = "C:/Games/CUSA00900"#' \
     -e 's#^eboot = .*#eboot = "./eboot-109-decrypted.bin"#' \
@@ -93,19 +96,20 @@ Start the game
   Double-click HeliasDream.exe and press Play. Its Console page shows the
   game's log, also written to logs\\HeliasDream-<date>-<time>.log. The first
   time, Windows may say "Windows protected your PC": click More info, then
-  Run anyway. run-engine.bat starts the engine without the launcher (its
-  own setup window: run-engine.bat --setup) and keeps a log the same way.
+  Run anyway. HeliasDream.exe is the only program here: the game itself is
+  inside it, kept in %LOCALAPPDATA%\\HeliasDream\\engine while it runs.
 
   HD haptics: plug a DualSense or DualSense Edge in by USB and set Haptics to
   HD. Windows must show its speaker as a 4-channel device (Sound settings >
   the controller's speaker > Properties > Advanced: 4 channel); Bluetooth
   plays the classic rumble.
 
-  When Windows Defender Firewall asks whether HeliasDream-engine may communicate on
+  When Windows Defender Firewall asks whether Helia's Dream may communicate on
   networks, tick Private and Public and click Allow access: other players
   reach you on UDP port 9307, and a blocked port is the most common reason
   summons fail. (If you clicked Cancel: Windows Security > Firewall & network
-  protection > Allow an app through firewall, and allow HeliasDream-engine.exe.)
+  protection > Allow an app through firewall, and allow HeliasDream-engine.exe,
+  in %LOCALAPPDATA%\\HeliasDream\\engine.)
 
   The first visit to an area stutters for a moment while its graphics are
   prepared for your card; later visits do not.
@@ -139,10 +143,8 @@ Online
   [online] in the per-user HeliasDream.toml to each PC's local address.
 
 Plugins
-  plugins/ holds the official ones. Turn them on and set them up in the
-  setup window's Plugins tab (run-engine.bat --setup), which can also fetch the
-  latest official plugins; in the game, F9 opens the plugin menu (start the
-  boss rush there). Or in the per-user HeliasDream.toml:
+  plugins/ holds the official ones. In the game, F9 opens the plugin menu
+  (start the boss rush there). Turn them on in the per-user HeliasDream.toml:
       [plugins]
       randomizer = true    # every pickup and shop shuffled from a seed
       boss_rush = true     # the game's bosses back to back, timed
@@ -176,7 +178,7 @@ Reporting a problem
 Switches (environment variables)
   Set one in a Command Prompt opened in this folder, then start from there:
       set HELIAS_F12_PNG=1
-      run-engine.bat
+      HeliasDream.exe
   HELIAS_GPU_DEVICE=N      the GPU to use, by the log's "gpu: device N"
                            index or part of its name; the default is a
                            discrete GPU over an on-board one
@@ -190,9 +192,6 @@ Switches (environment variables)
   HELIAS_SAMPLE=main       the sampler: build/samples.txt + .maps
   HELIAS_HEADLESS=1        no window
 EOF
-# The engine alone, with a log (tools/win/run-engine.bat); CRLF for cmd and
-# Notepad.
-sed 's/\r*$/\r/' tools/win/run-engine.bat > "$dir/run-engine.bat"
 sed -i 's/\r*$/\r/' "$dir/README.txt"
 mkdir -p "$dir/logs"
 rm -f "$out/$name.zip"
