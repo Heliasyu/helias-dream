@@ -108,8 +108,12 @@ public sealed class MainWindow : Window
 
         // Header
         var logo = new Grid { Width = 34, Height = 34 };
-        logo.Children.Add(new Ellipse { Stroke = Brush.Parse("#C9D6EE"), StrokeThickness = 1.5 });
-        logo.Children.Add(new Path { Data = Geometry.Parse("M16,5 C22,10 22,22 16,27 C20,21 20,11 16,5 Z"), Fill = Brush.Parse("#C9D6EE"), Width = 32, Height = 32, Stretch = Stretch.None });
+        // The program icon's crescent and star (res/icon/heliasdream.svg).
+        var crescent = new CombinedGeometry(GeometryCombineMode.Exclude,
+            new EllipseGeometry(new Rect(2, 3.3, 28, 28)), new EllipseGeometry(new Rect(8.8, 1.3, 23.2, 23.2)));
+        logo.Children.Add(new Path { Data = crescent, Fill = Brush.Parse("#C9D6EE"), Width = 34, Height = 34, Stretch = Stretch.None });
+        logo.Children.Add(new Path { Data = Geometry.Parse("M23.5,10.5 L24.5,14.3 L28.3,15.3 L24.5,16.3 L23.5,20.1 L22.5,16.3 L18.7,15.3 L22.5,14.3 Z"),
+                                     Fill = Brush.Parse("#F7F9FD"), Width = 34, Height = 34, Stretch = Stretch.None });
         var name = Ui.Col(3, new TextBlock { Text = "Helia's Dream", FontSize = 28, Classes = { "display" }, LetterSpacing = 1.6 },
                              _version);
         var brand = Ui.Row(12, logo, name);
