@@ -119,7 +119,7 @@ constexpr std::uint32_t kMagicDead = 0x44414544u;    // 'DEAD'
 // on Windows those are winpthreads', a few system calls and kernel objects
 // a wait, millisecond timeouts against the system tick. A contended guest
 // lock, a condition wait and a read/write sleeper now cost one
-// WaitOnAddress, and their wake one WakeByAddress (BBHOST_FUTEX=0: the old
+// WaitOnAddress, and their wake one WakeByAddress (HELIAS_FUTEX=0: the old
 // primitives underneath, for an A/B).
 struct Mutex {
     std::uint32_t magic;
@@ -365,7 +365,7 @@ int mutex_lock_impl(Mutex* m, const Deadline* dl, bool try_only) {
     if (try_only) {
         return kEBUSY;
     }
-    // BBHOST_FUTEX_SPIN=<n>: look for the holder to let go before sleeping
+    // HELIAS_FUTEX_SPIN=<n>: look for the holder to let go before sleeping
     // (off by default: Kyo's stress test of the same lock measured a spin
     // costing 2-5x, and on the APU a spinning core takes the GPU's power).
     for (unsigned i = 0, n = host_futex_spin(); i < n; ++i) {

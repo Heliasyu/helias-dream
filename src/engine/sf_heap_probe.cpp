@@ -165,7 +165,7 @@ std::uint64_t heap_of(std::uint64_t addr) {
 }  // namespace
 
 void sf_heap_probe_install(ElfImage* image) {
-    const char* e = std::getenv("BBHOST_SF_PROBE");
+    const char* e = std::getenv("HELIAS_SF_PROBE");
     if (!e || *e != '1') return;
     g_slide = image->mem.slide;
     const bool grow = engine_prologue_hook(image, va(kGrow), kGrowPrologue, sizeof(kGrowPrologue), reinterpret_cast<void*>(&grow_hook));

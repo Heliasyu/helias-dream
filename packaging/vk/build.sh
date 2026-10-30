@@ -1,23 +1,23 @@
 #!/bin/bash
-# bbhost-vk's reproducible Linux build: the same build as the CI's
+# heliasdream-vk's reproducible Linux build: the same build as the CI's
 # (.github/workflows/build.yml, tools/ci_build.sh) in its portable release
-# form - clang + lld, RelWithDebInfo with BBHOST_RELEASE=ON, libstdc++ and
+# form - clang + lld, RelWithDebInfo with HELIAS_RELEASE=ON, libstdc++ and
 # libgcc linked statically, Vulkan-Headers, SDL3 and ffmpeg built into a
 # prefix at the versions ci_build.sh pins - then ctest, then the debug info
 # stripped exactly as tools/package_linux.sh strips the release binary
 # (objcopy --strip-debug), with its SHA-256 beside it.
 #
-#   packaging/vk/build.sh                     build into build-ci/, write dist/vk/bbhost.bin
-#   packaging/vk/build.sh -o DIR              write DIR/bbhost.bin and DIR/bbhost.bin.sha256
+#   packaging/vk/build.sh                     build into build-ci/, write dist/vk/heliasdream.bin
+#   packaging/vk/build.sh -o DIR              write DIR/heliasdream.bin and DIR/heliasdream.bin.sha256
 #   CI_APT=0 packaging/vk/build.sh            the packages are already installed (no sudo apt)
 #   CI_WORK=/somewhere packaging/vk/build.sh  another work folder (the prefix is rebuilt there)
 #   BUILD_SKIP_TESTS=1 ...                    stop after the build (ctest is part of ci_build.sh;
 #                                             this only skips it when set)
-#   PGO_PROFILE=bbhost.profdata ...           rc6: bbhost.bin with that merged profile (ThinLTO +
-#                                             PGO), and bbhost.bin.nopgo, the same commit without
+#   PGO_PROFILE=heliasdream.profdata ...           rc6: heliasdream.bin with that merged profile (ThinLTO +
+#                                             PGO), and heliasdream.bin.nopgo, the same commit without
 #                                             it (build-ci/build-nopgo), for an A/B. PGO_WARN=1:
 #                                             the compiler reports the functions the profile no
-#                                             longer matches (bbhost-build.log)
+#                                             longer matches (heliasdream-build.log)
 #
 # Reproducible here means: the same sources (this commit, the submodules at
 # their pinned commits), the same toolchain and the same prefix give the same
@@ -60,15 +60,15 @@ export SOURCE_DATE_EPOCH=${SOURCE_DATE_EPOCH:-$(git log -1 --format=%ct 2> /dev/
 
 export CI_PORTABLE=1
 W=${CI_WORK:-$SRC/build-ci}
-PGO_ARGS="-DBBHOST_PGO_USE="
+PGO_ARGS="-DHELIAS_PGO_USE="
 if [ -n "${PGO_PROFILE:-}" ]; then
     [ -f "$PGO_PROFILE" ] || { echo "build.sh: no PGO profile $PGO_PROFILE" >&2; exit 1; }
     pw=OFF
     [ "${PGO_WARN:-0}" = 1 ] && pw=ON
-    PGO_ARGS="-DBBHOST_PGO=ON -DBBHOST_PGO_USE=$(readlink -f "$PGO_PROFILE") -DBBHOST_PGO_WARN=$pw"
+    PGO_ARGS="-DHELIAS_PGO=ON -DHELIAS_PGO_USE=$(readlink -f "$PGO_PROFILE") -DHELIAS_PGO_WARN=$pw"
 fi
 run_ci() {  # run_ci CMAKE-ARGS [BUILD-DIR]
-    export CI_CMAKE_ARGS="-DBBHOST_RELEASE=ON $1 ${CI_CMAKE_ARGS_EXTRA:-}"
+    export CI_CMAKE_ARGS="-DHELIAS_RELEASE=ON $1 ${CI_CMAKE_ARGS_EXTRA:-}"
     if [ -n "${2:-}" ]; then export CI_BUILD_DIR=$2; else unset CI_BUILD_DIR; fi
     if [ "${BUILD_SKIP_TESTS:-0}" = 1 ]; then
         # ci_build.sh's steps without its ctest: run it with ctest made a no-op.
@@ -83,35 +83,35 @@ run_ci() {  # run_ci CMAKE-ARGS [BUILD-DIR]
 }
 run_ci "$PGO_ARGS"
 
-bin=$W/build/bbhost
+bin=$W/build/heliasdream
 [ -x "$bin" ] || { echo "build.sh: no $bin" >&2; exit 1; }
 mkdir -p "$OUT"
-objcopy --strip-debug "$bin" "$OUT/bbhost.bin" 2> /dev/null || llvm-objcopy --strip-debug "$bin" "$OUT/bbhost.bin"
-(cd "$OUT" && sha256sum bbhost.bin > bbhost.bin.sha256)
+objcopy --strip-debug "$bin" "$OUT/heliasdream.bin" 2> /dev/null || llvm-objcopy --strip-debug "$bin" "$OUT/heliasdream.bin"
+(cd "$OUT" && sha256sum heliasdream.bin > heliasdream.bin.sha256)
 if [ -n "${PGO_PROFILE:-}" ]; then
     # The same commit without the profile (the prefix is shared; the
     # packages are in by now).
-    CI_APT=0 run_ci "-DBBHOST_PGO=OFF -DBBHOST_PGO_USE=" "$W/build-nopgo"
-    objcopy --strip-debug "$W/build-nopgo/bbhost" "$OUT/bbhost.bin.nopgo" 2> /dev/null ||
-        llvm-objcopy --strip-debug "$W/build-nopgo/bbhost" "$OUT/bbhost.bin.nopgo"
-    (cd "$OUT" && sha256sum bbhost.bin.nopgo > bbhost.bin.nopgo.sha256)
+    CI_APT=0 run_ci "-DHELIAS_PGO=OFF -DHELIAS_PGO_USE=" "$W/build-nopgo"
+    objcopy --strip-debug "$W/build-nopgo/heliasdream" "$OUT/heliasdream.bin.nopgo" 2> /dev/null ||
+        llvm-objcopy --strip-debug "$W/build-nopgo/heliasdream" "$OUT/heliasdream.bin.nopgo"
+    (cd "$OUT" && sha256sum heliasdream.bin.nopgo > heliasdream.bin.nopgo.sha256)
 fi
 rev=$(git describe --tags --always --dirty 2> /dev/null || echo unknown)
-glibc=$(objdump -T "$OUT/bbhost.bin" 2> /dev/null | grep -o 'GLIBC_[0-9.]*' | sort -uV | tail -1 || true)
+glibc=$(objdump -T "$OUT/heliasdream.bin" 2> /dev/null | grep -o 'GLIBC_[0-9.]*' | sort -uV | tail -1 || true)
 {
     echo "revision: $rev"
     echo "commit:   $(git rev-parse HEAD 2> /dev/null || echo unknown)"
     echo "fsr-vulkan: $(git -C third_party/FSR-Vulkan rev-parse HEAD 2> /dev/null || echo unknown)"
     echo "built on: ${PRETTY_NAME:-unknown}, clang ${cv:-?}"
     echo "needs:    ${glibc:-?}"
-    echo "sha256:   $(cut -d' ' -f1 "$OUT/bbhost.bin.sha256")"
+    echo "sha256:   $(cut -d' ' -f1 "$OUT/heliasdream.bin.sha256")"
     if [ -n "${PGO_PROFILE:-}" ]; then
         echo "pgo:      $(basename "$PGO_PROFILE") (sha256 $(sha256sum "$PGO_PROFILE" | cut -d' ' -f1))"
-        echo "nopgo:    $(cut -d' ' -f1 "$OUT/bbhost.bin.nopgo.sha256")"
+        echo "nopgo:    $(cut -d' ' -f1 "$OUT/heliasdream.bin.nopgo.sha256")"
     else
         echo "pgo:      none"
     fi
 } > "$OUT/BUILDINFO.txt"
 cat "$OUT/BUILDINFO.txt"
-echo "build.sh: $OUT/bbhost.bin (stripped; the unstripped binary is $bin)"
-echo "Install: copy it over bbhost.bin beside the packaging/vk/bbhost wrapper in the game's bbhost folder."
+echo "build.sh: $OUT/heliasdream.bin (stripped; the unstripped binary is $bin)"
+echo "Install: copy it over heliasdream.bin beside the packaging/vk/heliasdream wrapper in the game's heliasdream folder."

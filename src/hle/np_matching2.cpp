@@ -218,7 +218,7 @@ struct M2 {
 M2 g;
 
 bool g_trace = [] {
-    const char* e = std::getenv("BBHOST_NP_TRACE");
+    const char* e = std::getenv("HELIAS_NP_TRACE");
     return e && e[0] == '1';
 }();
 

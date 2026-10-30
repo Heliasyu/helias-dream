@@ -197,7 +197,7 @@ constexpr std::size_t kFogBlock = 0x60;
 constexpr int kFogOpacity[] = {0, 8, 12};  // floats within a block
 constexpr std::uint64_t kFogUploadJump = 0x26daadf, kTableUpload = 0x122e6b0;
 std::atomic<float> g_fog{1.0f};
-// BBHOST_FOG_TEST=1=10,10=10: multiply those floats of every block too, at
+// HELIAS_FOG_TEST=1=10,10=10: multiply those floats of every block too, at
 // the upload, to see which ones the frame answers to; `0+0.8` adds instead,
 // for a place whose fog has no opacity to scale.
 struct FogTest {
@@ -208,7 +208,7 @@ struct FogTest {
 };
 const FogTest g_fog_test = [] {
     FogTest t;
-    const char* e = std::getenv("BBHOST_FOG_TEST");
+    const char* e = std::getenv("HELIAS_FOG_TEST");
     while (e && *e && t.n < 8) {
         char* end = nullptr;
         const long i = std::strtol(e, &end, 0);
@@ -247,11 +247,11 @@ const std::uint8_t kShadowSetupPrologue[] = {0x55, 0x48, 0x89, 0xe5, 0x41, 0x57,
 constexpr std::size_t kShadowBlock = 0x80, kShadowHeld = 0x297c;  // on the renderer
 constexpr std::size_t kShadowScaled[] = {0x38, 0x3c, 0x44, 0x48};
 std::atomic<float> g_shadow_scale{1.0f};
-// BBHOST_SHADOW_SCALE=0.1 stands in for the setting's x1.0, for an A/B run:
+// HELIAS_SHADOW_SCALE=0.1 stands in for the setting's x1.0, for an A/B run:
 // start there, move the setting in the same run, and the one frame pair shows
 // whether this place's shadows depend on the splits at all.
 const float g_shadow_scale_env = [] {
-    const char* e = std::getenv("BBHOST_SHADOW_SCALE");
+    const char* e = std::getenv("HELIAS_SHADOW_SCALE");
     return e && *e ? std::strtof(e, nullptr) : 0.0f;
 }();
 
@@ -317,7 +317,7 @@ bool install_ca_stub(ElfImage* image, std::uint64_t at) {
 
 std::atomic<bool> g_motion_blur{true};
 std::atomic<int> g_lod_bias{0};  // the model detail bias to keep (lod_bias_tick, below)
-bool g_lod_bias_env = false;     // BBHOST_LOD_BIAS set: the setting does not move it
+bool g_lod_bias_env = false;     // HELIAS_LOD_BIAS set: the setting does not move it
 
 // Motion blur's velocity post-pass. Before YEBIS blurs, the scene renderer
 // runs sub_1264430 (its only caller, 0x26ab381, when the graphics manager's
@@ -402,7 +402,7 @@ GUEST_ABI std::int64_t shadow_setup_hook(std::uint64_t, const std::uint64_t* sav
     return 0;
 }
 
-// BBHOST_POST_POKE=0xc8=0,0xa8=0.8: floats written into the post-process
+// HELIAS_POST_POKE=0xc8=0,0xa8=0.8: floats written into the post-process
 // block at the YEBIS record, after the settings - to see what a field does
 // before a setting is built on it.
 struct PostPoke {
@@ -412,7 +412,7 @@ struct PostPoke {
 };
 const PostPoke g_post_poke = [] {
     PostPoke p;
-    const char* e = std::getenv("BBHOST_POST_POKE");
+    const char* e = std::getenv("HELIAS_POST_POKE");
     while (e && *e && p.n < 8) {
         char* end = nullptr;
         const unsigned long off = std::strtoul(e, &end, 0);
@@ -538,7 +538,7 @@ GUEST_ABI std::int64_t yebis_record_hook(std::uint64_t, const std::uint64_t* sav
 constexpr std::uint64_t kCaAmount = 0x594078c;
 const float* g_ca_amount = nullptr;
 
-// BBHOST_DRAWPARAM_PROBE=1: which draw-parameter entries each view asks for,
+// HELIAS_DRAWPARAM_PROBE=1: which draw-parameter entries each view asks for,
 // and whether they exist. sub_269e990 fetches two entries from each of twelve
 // banks on the graphics manager (+0x5970..+0x59c8) by two ids the renderer
 // holds (from +0x2a78 and +0x2ae0, blended by a float from +0x2b48 - but not
@@ -565,7 +565,7 @@ const BankLookup kBanks[12] = {
 };
 std::uint64_t g_slide = 0;
 
-// BBHOST_DRAWPARAM_POKE=<bank>:<offset>:<float>:<expect>: write that float
+// HELIAS_DRAWPARAM_POKE=<bank>:<offset>:<float>:<expect>: write that float
 // into both entries a view asks that bank for, every view - to see whether a
 // field is read live, before anything is built on it. It is also how to test a
 // setting where the area has nothing to change: 0x5978:0x70:0.4:0 gives the
@@ -579,7 +579,7 @@ struct Poke {
 };
 const Poke g_poke = [] {
     Poke p;
-    if (const char* e = std::getenv("BBHOST_DRAWPARAM_POKE")) {
+    if (const char* e = std::getenv("HELIAS_DRAWPARAM_POKE")) {
         char* end = nullptr;
         p.bank = static_cast<std::uint32_t>(std::strtoul(e, &end, 0));
         if (end && *end == ':') p.offset = static_cast<std::uint32_t>(std::strtoul(end + 1, &end, 0));
@@ -615,12 +615,12 @@ void drawparam_poke(const std::uint8_t* mgr, const std::uint8_t* r) {
     }
 }
 
-// BBHOST_FOG_PROBE=1: the fog table, once the world is up - the fog manager
+// HELIAS_FOG_PROBE=1: the fog table, once the world is up - the fog manager
 // at the graphics manager's +0x5888, its 0x60-byte blocks at +0x250, their
 // count at +0x258.
 void fog_probe(const std::uint8_t* mgr, const std::uint8_t* r) {
     static const bool on = [] {
-        const char* e = std::getenv("BBHOST_FOG_PROBE");
+        const char* e = std::getenv("HELIAS_FOG_PROBE");
         return e && e[0] == '1';
     }();
     static int views = 0;
@@ -659,7 +659,7 @@ void drawparam_probe(const std::uint8_t* mgr, const std::uint8_t* r) {
     drawparam_poke(mgr, r);
     fog_probe(mgr, r);
     static const bool on = [] {
-        const char* e = std::getenv("BBHOST_DRAWPARAM_PROBE");
+        const char* e = std::getenv("HELIAS_DRAWPARAM_PROBE");
         return e && e[0] == '1';
     }();
     if (!on || !mgr || !r) return;
@@ -839,23 +839,23 @@ bool install_jump_hook(ElfImage* image, std::uint64_t at, std::uint64_t target, 
 // with one job ("Div" 1x1). Written on every view when it changed: the size
 // is read each frame (0x26a5d22, 0x26b4cb7) and the bins are allocated per
 // frame, so a resize or a new render size takes effect on the next frame.
-// Never 0 - it is a divisor (0x26a5d43). BBHOST_LIGHT_GRID=0 keeps the
+// Never 0 - it is a divisor (0x26a5d43). HELIAS_LIGHT_GRID=0 keeps the
 // game's tiles and jobs; =WxH a fixed tile, for measuring.
 constexpr std::uint64_t kGraphicsManagerSlot = 0x5940dd8;
 constexpr std::uint64_t kLightGridDiv = 0x553ae80;  // x, y
 constexpr std::size_t kLightTileW = 0x78a8, kLightTileH = 0x78ac;
 const std::uint64_t* g_graphics_manager = nullptr;  // the slot, slid; null when off
 const std::uint32_t* g_res_words = nullptr;         // render width, height
-std::uint32_t g_tile_fixed[2] = {0, 0};             // BBHOST_LIGHT_GRID=WxH: that tile instead (experiments)
+std::uint32_t g_tile_fixed[2] = {0, 0};             // HELIAS_LIGHT_GRID=WxH: that tile instead (experiments)
 // Tiles a side: 4 (a quarter of the window each way), or 1 with
-// BBHOST_LIGHT_GRID=window - one tile the window's size, the community "REAL
+// HELIAS_LIGHT_GRID=window - one tile the window's size, the community "REAL
 // LightGrid 1080p" patch's 1920x1080 at that size. Measured on a Radeon 8060S
 // (2026-10-08, the Hunter's Dream, 1080p, GPU ms per 300 flips, two minutes
 // each): 4 a side 1,878-2,027, one tile 1,960-2,096 (+5%), the main loop's
 // work 3.51 against 3.50 ms - the quarter tiles stay the default.
 std::uint32_t g_tiles_per_axis = 4;
 std::uint64_t g_tile_from = 0;
-bool g_task_steal = false;                          // BBHOST_TASK_TUNE=s (task_tune_install, below)                      // BBHOST_LIGHT_GRID_FROM=flip: the game's tiles before it (A/B in one run)
+bool g_task_steal = false;                          // HELIAS_TASK_TUNE=s (task_tune_install, below)                      // HELIAS_LIGHT_GRID_FROM=flip: the game's tiles before it (A/B in one run)
 
 void light_grid_tick() {
     if (!g_graphics_manager) return;
@@ -894,7 +894,7 @@ void light_grid_tick() {
 // settings (*(RendMan 0x5940298 + 0x10) + 0x530, the debug menu's "LodLvBias")
 // - five other readers take it from there too. So the bias is written at its
 // source, where all of them agree: the Model detail setting (Full -2,
-// Normal 0, Low 1, Lowest 2), or BBHOST_LOD_BIAS=N for an experiment.
+// Normal 0, Low 1, Lowest 2), or HELIAS_LOD_BIAS=N for an experiment.
 // Measured (2026-10-03, pinned, the frozen seed at the Cathedral Ward
 // doors): Lowest -7.5% GPU and 3.5% fewer draws, the relief over the doors
 // melted to blobs; Full no measurable cost there.
@@ -915,19 +915,19 @@ void lod_bias_tick() {
 
 void lod_bias_install(ElfImage* image) {
     g_rend_man = static_cast<const std::uint64_t*>(guest_ptr(image->mem, image->mem.slide + (kRendManSlot - kPreferredGuestSlide)));
-    if (const char* e = std::getenv("BBHOST_LOD_BIAS"); e && *e) {
+    if (const char* e = std::getenv("HELIAS_LOD_BIAS"); e && *e) {
         g_lod_bias.store(std::clamp(std::atoi(e), -2, 2));
         g_lod_bias_env = true;
-        host_log("graphics: model detail bias %d (BBHOST_LOD_BIAS)", g_lod_bias.load());
+        host_log("graphics: model detail bias %d (HELIAS_LOD_BIAS)", g_lod_bias.load());
     }
 }
 
-// BBHOST_TASK_TUNE (experiment, from the community "Performance Patch v3"):
+// HELIAS_TASK_TUNE (experiment, from the community "Performance Patch v3"):
 // "g" sets the render job granularities in .data - EntityDrawTask 4 -> 1
 // (0x5522750), InstanceTask 2 -> 1 (0x553acd4), Matrix 5 -> 30 (0x553ac90) -
 // and "s" turns on the graphics manager's render task stealing (+0x78bd).
 void task_tune_install(ElfImage* image) {
-    const char* e = std::getenv("BBHOST_TASK_TUNE");
+    const char* e = std::getenv("HELIAS_TASK_TUNE");
     if (!e || !*e) return;
     const auto at = [&](std::uint64_t bn) { return image->mem.slide + (bn - kPreferredGuestSlide); };
     if (std::strchr(e, 'g')) {
@@ -936,20 +936,20 @@ void task_tune_install(ElfImage* image) {
             auto* p = static_cast<std::uint32_t*>(guest_ptr(image->mem, at(w.bn)));
             if (*p != w.was || !guest_protect_rw(&image->mem, at(w.bn) & ~0xfffull, 0x1000)) continue;
             *p = w.now;
-            host_log("graphics: task granularity 0x%llx %u -> %u (BBHOST_TASK_TUNE)", static_cast<unsigned long long>(w.bn), w.was, w.now);
+            host_log("graphics: task granularity 0x%llx %u -> %u (HELIAS_TASK_TUNE)", static_cast<unsigned long long>(w.bn), w.was, w.now);
         }
     }
     g_task_steal = std::strchr(e, 's') != nullptr;
 }
 
 void light_grid_install(ElfImage* image) {
-    if (const char* e = std::getenv("BBHOST_LIGHT_GRID"); e && e[0] == '0') {
-        host_log("graphics: light grid as the game has it (BBHOST_LIGHT_GRID=0)");
+    if (const char* e = std::getenv("HELIAS_LIGHT_GRID"); e && e[0] == '0') {
+        host_log("graphics: light grid as the game has it (HELIAS_LIGHT_GRID=0)");
         return;
     }
-    if (const char* e = std::getenv("BBHOST_LIGHT_GRID_FROM"); e && *e) g_tile_from = std::strtoull(e, nullptr, 10);
-    if (const char* e = std::getenv("BBHOST_LIGHT_GRID"); e && std::strcmp(e, "window") == 0) g_tiles_per_axis = 1;
-    if (const char* e = std::getenv("BBHOST_LIGHT_GRID"); e && std::strchr(e, 'x')) {
+    if (const char* e = std::getenv("HELIAS_LIGHT_GRID_FROM"); e && *e) g_tile_from = std::strtoull(e, nullptr, 10);
+    if (const char* e = std::getenv("HELIAS_LIGHT_GRID"); e && std::strcmp(e, "window") == 0) g_tiles_per_axis = 1;
+    if (const char* e = std::getenv("HELIAS_LIGHT_GRID"); e && std::strchr(e, 'x')) {
         g_tile_fixed[0] = static_cast<std::uint32_t>(std::atoi(e));
         g_tile_fixed[1] = static_cast<std::uint32_t>(std::atoi(std::strchr(e, 'x') + 1));
     }
@@ -968,7 +968,7 @@ void light_grid_install(ElfImage* image) {
     div[1] = 1;
     g_res_words = static_cast<const std::uint32_t*>(guest_ptr(image->mem, at(0x55289f8)));  // res_width, res_height (below)
     g_graphics_manager = static_cast<const std::uint64_t*>(guest_ptr(image->mem, at(kGraphicsManagerSlot)));
-    host_log("graphics: light grid - one job of %ux%u tiles sized to the window (was 3x3 jobs of 128x128 tiles; BBHOST_LIGHT_GRID=window: one window-sized tile)",
+    host_log("graphics: light grid - one job of %ux%u tiles sized to the window (was 3x3 jobs of 128x128 tiles; HELIAS_LIGHT_GRID=window: one window-sized tile)",
              g_tiles_per_axis, g_tiles_per_axis);
 }
 
@@ -1136,10 +1136,10 @@ const Flag kFlags[] = {
     {0x296e, 0x26c2538, ""},
 };
 
-// BBHOST_GFX_FLAG=0x296c zeroes one of them. It refuses a field that is not in
+// HELIAS_GFX_FLAG=0x296c zeroes one of them. It refuses a field that is not in
 // the table and any byte that is not currently 1.
 void probe_patch(ElfImage* image) {
-    const char* env = std::getenv("BBHOST_GFX_FLAG");
+    const char* env = std::getenv("HELIAS_GFX_FLAG");
     if (!env || !*env) {
         return;
     }
@@ -1152,7 +1152,7 @@ void probe_patch(ElfImage* image) {
         }
     }
     if (!f) {
-        host_log("graphics: BBHOST_GFX_FLAG=%s is not one of +0x2968..+0x296e", env);
+        host_log("graphics: HELIAS_GFX_FLAG=%s is not one of +0x2968..+0x296e", env);
         return;
     }
     const std::uint64_t at = image->mem.slide + (f->at - kPreferredGuestSlide);
@@ -1193,7 +1193,7 @@ void probe_patch(ElfImage* image) {
 // 1920x1080). Changing the two words instead scales every pass together,
 // which is one 8-byte data write and no code patched at all.
 //
-// Chosen on the PC Graphics row, or by BBHOST_RES=WxH for an A/B run.
+// Chosen on the PC Graphics row, or by HELIAS_RES=WxH for an A/B run.
 constexpr std::uint64_t kResWidth = 0x55289f8, kResHeight = 0x55289fc;
 
 // The Scaleform stage stays 1920x1080 whatever the render size: SprjInitStuff

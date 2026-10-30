@@ -6,8 +6,8 @@
 // 1280x800, ~45 fps), and stretched bilinearly that looks soft on its own
 // screen. Two compute passes, the second into the swapchain image itself when
 // it takes storage writes (window.cpp asks for that where the surface allows),
-// else into an image of the output size and a 1:1 blit from it (BBHOST_FSR_DIRECT=0
-// always does that). BBHOST_UPSCALE=linear keeps the bilinear blit.
+// else into an image of the output size and a 1:1 blit from it (HELIAS_FSR_DIRECT=0
+// always does that). HELIAS_UPSCALE=linear keeps the bilinear blit.
 #include "host/gpu_internal.h"
 #include "host/shaders/fsr_easu.spv.h"
 #include "host/shaders/fsr_easu_h.spv.h"
@@ -72,7 +72,7 @@ struct Fsr {
 } g_fsr;
 
 const bool g_wanted = [] {
-    const char* e = std::getenv("BBHOST_UPSCALE");
+    const char* e = std::getenv("HELIAS_UPSCALE");
     return !(e && std::strcmp(e, "linear") == 0);
 }();
 
@@ -113,9 +113,9 @@ bool fsr_init_locked() {
     if (vkCreatePipelineLayout(g.device, &pli, nullptr, &g_fsr.layout) != VK_SUCCESS) return false;
     // In half precision where the device does f16 math (gpu.cpp g.has_f16_math):
     // RDNA packs two f16 operations into one - on a Steam Deck, 960x600 to
-    // 1280x800, 0.77 -> 0.60 ms a frame. BBHOST_FSR_HALF=0: the f32 shaders.
+    // 1280x800, 0.77 -> 0.60 ms a frame. HELIAS_FSR_HALF=0: the f32 shaders.
     static const bool half_wanted = [] {
-        const char* e = std::getenv("BBHOST_FSR_HALF");
+        const char* e = std::getenv("HELIAS_FSR_HALF");
         return !(e && e[0] == '0');
     }();
     g_fsr.half = half_wanted && g.has_f16_math;

@@ -1,6 +1,6 @@
 #pragma once
 
-// bbhost-vk rc2: the performance capture (F11, or `bbtest snap "note"`).
+// heliasdream-vk rc2: the performance capture (F11, or `bbtest snap "note"`).
 //
 // A rolling in-memory record of the last ~30 s, written out only when asked:
 //   - every presented frame: when it went, the interval to the one before
@@ -14,15 +14,15 @@
 //   - post at render's coverage: frames, moved draws, fallbacks and why, what
 //     closed the window (host/render.cpp);
 //   - the log's last 30 s (the 300-flip present/gpu busy/gpu idle lines);
-//   - the settings and every BBHOST_ environment variable.
+//   - the settings and every HELIAS_ environment variable.
 // Recording is a few stores a frame under an uncontended lock (the presenter's
 // thread). A capture copies the rings and hands them to a thread of its own,
 // which formats and writes the file: no frame waits on the disk.
 //
-// Where: $BBHOST_SNAP_DIR (bbtest start sets it to the session's snaps/),
-// else ./snaps beside bbhost. Requests: F11, or a file `snap.request` in that
+// Where: $HELIAS_SNAP_DIR (bbtest start sets it to the session's snaps/),
+// else ./snaps beside heliasdream. Requests: F11, or a file `snap.request` in that
 // folder (its text is the note), which `bbtest snap` writes.
-// BBHOST_SNAP=0 turns all of it off (debugging).
+// HELIAS_SNAP=0 turns all of it off (debugging).
 
 #include <cstdint>
 #include <string>

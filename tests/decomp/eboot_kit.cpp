@@ -94,11 +94,11 @@ std::size_t g_data_used = 0;
 
 const std::vector<std::uint8_t>& bytes(const char* test) {
     if (!g_bytes.empty()) return g_bytes;
-    const char* env = std::getenv("BBHOST_EBOOT");
-    g_path = env && *env ? env : std::string(BBHOST_SOURCE_DIR) + "/eboot-109-decrypted.bin";
+    const char* env = std::getenv("HELIAS_EBOOT");
+    g_path = env && *env ? env : std::string(HELIAS_SOURCE_DIR) + "/eboot-109-decrypted.bin";
     std::ifstream in(g_path, std::ios::binary);
     if (!in) {
-        std::printf("%s skipped: no eboot at %s (BBHOST_EBOOT)\n", test, g_path.c_str());
+        std::printf("%s skipped: no eboot at %s (HELIAS_EBOOT)\n", test, g_path.c_str());
         std::exit(kSkip);
     }
     g_bytes.assign(std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>());

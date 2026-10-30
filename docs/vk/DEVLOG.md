@@ -1,4 +1,4 @@
-# bbhost-vk development log
+# heliasdream-vk development log
 
 A running log: one dated entry per phase or work session (times are
 America/Chicago). Each says what was done, the decisions and why, what was
@@ -10,18 +10,18 @@ is [TESTING.md](TESTING.md).
 
 ## 2026-10-18 (Sun), Phase 0: Groundwork (branch `phase-0-groundwork`)
 
-Base: `main` = upstream bbhost v0.2.18 (c421ea0) + the 120 fps option
+Base: `main` = upstream Helia's Dream v0.2.18 (c421ea0) + the 120 fps option
 (e9d124d) + fork docs; tag `v0.2.18-vk.0`. Work done on the build box
 (Debian 13, clang 19.1.7, glibc 2.41), where the game cannot run.
 
 ### Done
 - **Reproducible build** (`packaging/vk/build.sh`). Found how the shipped
   `v0.2.18-vk.0` binary was made: `CI_PORTABLE=1
-  CI_CMAKE_ARGS=-DBBHOST_RELEASE=ON tools/ci_build.sh` on this box
-  (`build-ci/build/CMakeCache.txt`: RelWithDebInfo, BBHOST_RELEASE=ON,
+  CI_CMAKE_ARGS=-DHELIAS_RELEASE=ON tools/ci_build.sh` on this box
+  (`build-ci/build/CMakeCache.txt`: RelWithDebInfo, HELIAS_RELEASE=ON,
   `-static-libstdc++ -static-libgcc -fuse-ld=lld`; prefix with
   Vulkan-Headers 1.4.350, SDL 3.4.16, ffmpeg 7.1.1). The stripped
-  `bbhost.bin` is exactly `objcopy --strip-debug` of it (as
+  `heliasdream.bin` is exactly `objcopy --strip-debug` of it (as
   `tools/package_linux.sh` does): byte-identical SHA-256. build.sh wraps
   that, inits the submodules, strips, writes the SHA-256 and a BUILDINFO.txt,
   and says when the host is not the reference Debian 13 / clang 19.
@@ -34,7 +34,7 @@ Base: `main` = upstream bbhost v0.2.18 (c421ea0) + the 120 fps option
   MIT notices; CI checks out submodules.
 - **Settings**, stored and logged only: `upscaler`, `upscale_quality`,
   `upscale_sharpness`, `debug_motion_vectors`, `debug_upscaler_time` in
-  `bbhost-options.toml` (src/host/options.cpp, settings.h); F10 screen
+  `heliasdream-options.toml` (src/host/options.cpp, settings.h); F10 screen
   (new UPSCALING header after Resolution); in-game System menu (two new
   sections); setup window (two combos, a slider, two checkboxes).
   `src/host/upscaler_presets.h` is the one place the ratios and the render
@@ -48,7 +48,7 @@ Base: `main` = upstream bbhost v0.2.18 (c421ea0) + the 120 fps option
 
 ### Decisions and why
 1. **Upscaler "Off" draws as FSR 1 in Phase 0.** The brief says Off/FSR 1
-   must be exactly stock, and stock bbhost always uses FSR 1 when it renders
+   must be exactly stock, and stock Helia's Dream always uses FSR 1 when it renders
    smaller than the window. Making Off mean bilinear or native now would
    change the picture. Later phases can give Off its own meaning (the plan
    for that: Off = render at the window size, no upscale); the line help
@@ -74,13 +74,13 @@ Base: `main` = upstream bbhost v0.2.18 (c421ea0) + the 120 fps option
    are also left out when the player's own optionsetting.gfx (paths.mods)
    overrides the generated one. So the worst case is "two System rows
    missing", not a crash.
-5. **Frame capture is opt-in** (`BBHOST_VK_CAPTURE=1`). It needs
-   TRANSFER_SRC on the swapchain images; stock bbhost does not ask for it,
+5. **Frame capture is opt-in** (`HELIAS_VK_CAPTURE=1`). It needs
+   TRANSFER_SRC on the swapchain images; stock Helia's Dream does not ask for it,
    so it is only added when the variable is set. Triggers: Shift+F12 (only
    with the variable; otherwise Shift+F12 stays F12), a `capture.request`
    file in the capture folder, or a timer. A file trigger was chosen over a
    signal (SIGUSR2) because a signal lands on any thread, including the
-   game's, and bbhost runs guest code natively; polling one stat() every
+   game's, and Helia's Dream runs guest code natively; polling one stat() every
    100 ms from the window pump is harmless. The copy is recorded after the
    image is in PRESENT_SRC and read after the next fence wait, then written
    by a thread of its own (8-bit BGRA/RGBA and 10-bit formats).
@@ -89,7 +89,7 @@ Base: `main` = upstream bbhost v0.2.18 (c421ea0) + the 120 fps option
    theirs).
 7. **Not labelling FSR-Vulkan's "source-v07 FSR4" provider as FSR 4.1.1**,
    and not building it. FSR 4.1.1 comes in Phase 4 from the player's own DLL.
-8. **Windows**: `BBHOST_FSR_VULKAN` defaults OFF on WIN32 until it is tried there.
+8. **Windows**: `HELIAS_FSR_VULKAN` defaults OFF on WIN32 until it is tried there.
 9. **bbtest**: screenshots prefer `gpu-screen-recorder -w <monitor> -o x.png`
    (that monitor's own pixels), falling back to `spectacle -b -n -f` cropped
    with ImageMagick to the monitor's rectangle from `kscreen-doctor -j`
@@ -126,13 +126,13 @@ Base: `main` = upstream bbhost v0.2.18 (c421ea0) + the 120 fps option
   failures (20 skip without game files, as upstream). `upscaler_test`:
   presets (3840x2160 Performance -> 1920x1080, Balanced -> 2259x1271, ...)
   and "FSR 3.1.5 embedded SPIR-V modules: 11 of 11".
-- `bbtest` dry run with a stand-in `./bbhost`: start (foreground and
+- `bbtest` dry run with a stand-in `./heliasdream`: start (foreground and
   `--detach`), status, mark (log line, `capture.request`), clip without
   `--record` (says so), stop, bundle with session.txt / marks.log.
 - Phase 0 binary: built by `packaging/vk/build.sh` from ba5082a
   (`v0.2.18-vk.0-9-gba5082a`), stripped, needs GLIBC_2.38, SHA-256
   `571c7ebcc82271cc04b47676e40db6800f0b17db9fc405711bc03cf22e1dc5b8`
-  (on the build box at /workspace/bbhost-vk-builds/phase0/; not released).
+  (on the build box at /workspace/heliasdream-vk-builds/phase0/; not released).
 - Player's PC test: pending (checklist in TESTING.md, "Phase 0 test").
 
 ---
@@ -153,7 +153,7 @@ ran against the game yet.
   (IFreemz's `HdrSceneCopy`): it copies the HDR scene (image slot 0) into the
   target the game's post-processing runs on. With the scene and the output at
   one size it is a 1:1 copy; with the decoupled-UI patches it is the
-  game's own upscale. In bbhost it is a pipeline `VS+ccbf44a6` in
+  game's own upscale. In Helia's Dream it is a pipeline `VS+ccbf44a6` in
   host/render.cpp.
 - **What sizes the scene** is Kyo's "Decoupled UI" patch set for 1.09
   (shadps4-emu/ps4_cheats `PATCHES/Bloodborne.xml`, 640x360 to 2560x1440).
@@ -184,9 +184,9 @@ ran against the game yet.
   output; the bilinear S# rewrite.
 - `src/engine/scene_split.cpp`: keeps the load-time bytes of every site, logs
   them, checks the branch sites are short Jccs and 0x26c3af3 is the game's
-  `74 36` or bbhost's `75 11`, refuses otherwise; the two cave targets are
+  `74 36` or heliasdream's `75 11`, refuses otherwise; the two cave targets are
   host stubs within rel32 reach (`engine_alloc_exec_near`), not eboot data.
-  `BBHOST_SCENE_SPLIT=0` never splits.
+  `HELIAS_SCENE_SPLIT=0` never splits.
 - `live_resolution` sizes two things at its quiet point: the output (as
   before) and the scene. A scene change writes the sites before the GX
   resize broadcast; the on-demand contexts move from the old scene size to
@@ -215,9 +215,9 @@ ran against the game yet.
    Native 100% are bit-identical to stock by construction (nothing is
    written, `code_write` skips equal bytes).
 3. **Host stubs instead of Kyo's caves.** His caves overwrite eboot rodata
-   at 0x4d3bad4/0x4d3baf0; bbhost's code pages are its own, and a stub near
+   at 0x4d3bad4/0x4d3baf0; heliasdream's code pages are its own, and a stub near
    the code avoids guessing whether that rodata is unused.
-4. **0x26c3af3 gets `EB 36`, not only `EB`.** bbhost's both-sides patch
+4. **0x26c3af3 gets `EB 36`, not only `EB`.** heliasdream's both-sides patch
    rewrites the same branch to `75 11`, so the displacement has to go back
    to the game's too.
 5. **Bilinear by S# rewrite, not a new shader.** The game's own pass stays;
@@ -232,7 +232,7 @@ ran against the game yet.
   the scale pass (`HdrSceneCopy`, `ccbf44a6`) and the idea that the game's
   own decoupled-UI path is the place to hook an upscaler.
 - **Kyo** (patches in shadps4-emu/ps4_cheats): the site list itself;
-  bbhost-vk re-encodes it from the render size (facts about the 1.09 eboot,
+  heliasdream-vk re-encodes it from the render size (facts about the 1.09 eboot,
   not code).
 - **bbport** (deadinside28/bloodborne_pc, GPL-2.0): a host-side approach -
   keep guest allocations at 1920x1080, render the scene into host proxies at
@@ -240,7 +240,7 @@ ran against the game yet.
   back for guest compute, align sizes (it hit a 1916x1080 alignment bug).
   We took the alignment lesson (render sizes are multiples of 8) and the
   "resolve/settle at a display-pass boundary" idea; we chose the game's own
-  decoupled path over proxies because bbhost runs the game's code natively
+  decoupled path over proxies because Helia's Dream runs the game's code natively
   and already resizes the real targets.
 - **Supermedo** (Supermedo/bloodborne_pc, GPL-2.0): the Windows build of
   bbport; same scene handling (identical `ui_composition.h` /
@@ -278,7 +278,7 @@ ran against the game yet.
 - Phase 1 binary: built by `packaging/vk/build.sh` from d38480b
   (`v0.2.18-vk.0-19-gd38480b`), stripped, needs GLIBC_2.38, SHA-256
   `96bfcf84d6ef42f2fa77f9c6e7335aa49ee6e77309c97ac86a507b8275f60f2c`
-  (on the build box at /workspace/bbhost-vk-builds/phase1/; not released).
+  (on the build box at /workspace/heliasdream-vk-builds/phase1/; not released).
 - Player's PC test: pending (TESTING.md, "Pending combined test session").
 
 ---
@@ -294,14 +294,14 @@ FSR DLLs were used (FSR 3.1 comes from the FSR-Vulkan submodule, as in
 Phase 0).
 
 ### Findings
-- **Pipeline names are hashes the other projects use.** bbhost names a
+- **Pipeline names are hashes the other projects use.** Helia's Dream names a
   pipeline `VSHASH+PSHASH` from the OrbShdr footer, which is shadPS4's
   `pgm_hash`, so IFreemz's shader hashes apply unchanged.
 - **The scene constants** are an 864-byte (216-float) constant buffer
   (bbport): [0] far (3000), [1] 1/far, [4..5] the render size, [6..7] its
   reciprocals, the view as 3x4 rows at [8..19], the projection at
   [52, 57, 62, 63], the inverse view at [180..191]. The previous frame's
-  matrices are not in it, so bbhost keeps its own history.
+  matrices are not in it, so Helia's Dream keeps its own history.
 - **Two cameras a frame**: two map sections can bind different scene
   constants in one frame (IFreemz); the camera used by most draws is the
   scene's.
@@ -363,9 +363,9 @@ Phase 0).
   and its kind, repeats compressed), `motion:` (scene constants found, the
   scene depth, the first motion pass, a summary every 3000 frames:
   cameras, cuts, velocity draws, opaque snapshots, palettes moving/static).
-- Switches for A/B on the test PC: `BBHOST_JITTER=0`,
-  `BBHOST_MOTION_VECTORS=0`, `BBHOST_OBJECT_MOTION=0`,
-  `BBHOST_OPAQUE_SNAPSHOT=0`.
+- Switches for A/B on the test PC: `HELIAS_JITTER=0`,
+  `HELIAS_MOTION_VECTORS=0`, `HELIAS_OBJECT_MOTION=0`,
+  `HELIAS_OPAQUE_SNAPSHOT=0`.
 - `tests/motion_shader_test.cpp`: runs the compiled `motion.comp` on any
   Vulkan device (lavapipe here) over a synthetic floor/wall/sky scene 1800
   units from the origin with a turning, moving camera and a jitter, and
@@ -375,7 +375,7 @@ Phase 0).
 1. **Jitter only with the split active and FSR 3.1 or FSR 4.1.1 selected**
    (as the plan asks). Nothing resolves the jitter before Phase 3, so a
    Phase 2 build with FSR 3.1 selected shows a sub-pixel shimmer of the 3D
-   scene. That is expected; `BBHOST_JITTER=0` removes it for comparison.
+   scene. That is expected; `HELIAS_JITTER=0` removes it for comparison.
 2. **Off, FSR 1 and Native AA are untouched by construction**: the runtime
    decides once per flip whether it watches (split, and a temporal upscaler
    or Show Motion Vectors); when not, every hook is a single branch and no
@@ -411,7 +411,7 @@ Phase 0).
   direction. `motion.comp` adapts that math (credited in the shader and in
   THIRD_PARTY_NOTICES.md; GPL-2.0-or-later is GPL-3.0-compatible).
   IFreemz replays the velocity draws at render size into an RGBA16F mirror;
-  bbhost samples the game's 160x90 target for now (see the risks).
+  Helia's Dream samples the game's 160x90 target for now (see the risks).
 - **bbport** (deadinside28/bloodborne_pc, GPL-2.0): the layout of the
   864-byte scene block, the buffer classes, the viewport-offset jitter,
   the moving gate and previous-frame positions for object motion. Facts and
@@ -452,7 +452,7 @@ Phase 0).
 - Phase 2 binary: built by `packaging/vk/build.sh` from 4341e1a
   (`v0.2.18-vk.0-31-g4341e1a`), stripped, needs GLIBC_2.38, SHA-256
   `fd56aa030e6ddbbafdac70647d4e3dd3fa1e445880c5904415fffd4832846728`
-  (on the build box at /workspace/bbhost-vk-builds/phase2/; not released).
+  (on the build box at /workspace/heliasdream-vk-builds/phase2/; not released).
 - Player's PC test: pending (TESTING.md, "Pending combined test session",
   part C).
 
@@ -471,7 +471,7 @@ FSR-Vulkan submodule linked in Phase 0).
   context for exact render/output sizes with HDR input and FSR's auto
   exposure; its three shared resources (dilated depth R32F, dilated motion
   RG16F, reconstructed previous depth R32UI, all at the render size) and an
-  RGBA16F output, allocated by bbhost and imported; per-frame imports of
+  RGBA16F output, allocated by Helia's Dream and imported; per-frame imports of
   the inputs, released only once their submission has retired (the bridge
   destroys the views at release).
 - `src/host/fsr3_pass.{h,cpp}`: the renderer's side. At the scale pass
@@ -510,7 +510,7 @@ FSR-Vulkan submodule linked in Phase 0).
   sizes and logged once, not retried every frame.
 - **Fallback = Phase 1's bilinear copy.** Any frame FSR cannot do (no
   context, no inputs - menus, loads -, a ratio over 3x, a target it cannot
-  copy to, `BBHOST_FSR3=0`) runs the game's draw with the bilinear samplers,
+  copy to, `HELIAS_FSR3=0`) runs the game's draw with the bilinear samplers,
   and the reason is logged when it changes.
 - **Native AA stays stock.** At Native AA the split is off, so FSR 3.1 is
   not used (no native-resolution AA mode in this phase); it keeps "Native
@@ -519,17 +519,17 @@ FSR-Vulkan submodule linked in Phase 0).
 - **Resets**: a camera cut (Phase 2's history), a new context, or a gap of
   more than 3 flips without FSR (its history is of another picture).
 - **Conventions, checked in the FidelityFX 2.3 source**: FSR samples
-  `pixel + 0.5 - jitter`, so its jitter offset is bbhost's viewport shift
+  `pixel + 0.5 - jitter`, so its jitter offset is heliasdream's viewport shift
   in render pixels as is; motion vectors are scaled by `scale / renderSize`
-  and added to the UV, so bbhost's pixel vectors (current to previous) go
-  in with scale 1. Depth is not reversed. `BBHOST_FSR_JITTER_SIGN` flips an
+  and added to the UV, so heliasdream's pixel vectors (current to previous) go
+  in with scale 1. Depth is not reversed. `HELIAS_FSR_JITTER_SIGN` flips an
   axis should the hardware test show a wobble.
 - **Exposure**: FSR's auto exposure, pre-exposure 1 (Phase 2 found no
   exposure value worth trusting).
 - **Sharpening**: FSR's RCAS from **Upscaler sharpness**, 0 = off.
 - **Reactive mask**: AMD's GenerateReactiveMask rule (tonemap, max
   component of the change, scale 1, threshold 0.2, binary 0.9; tunable with
-  `BBHOST_REACTIVE_SCALE/_THRESHOLD/_VALUE`). The opaque snapshot is taken
+  `HELIAS_REACTIVE_SCALE/_THRESHOLD/_VALUE`). The opaque snapshot is taken
   before the first blended draw, so everything blended after it -
   particles, fog, transparents, Blood Echoes, the lantern's glow - is in
   the mask.
@@ -551,7 +551,7 @@ FSR-Vulkan submodule linked in Phase 0).
 - **IFreemz** (shadPS4-Bloodborne-DLSS-FSR): run the upscaler at
   `HdrSceneCopy` into its own image and copy it over the target instead of
   the game's draw ("CopyInsteadOfDraw"), RGBA16F scene and target. No code
-  copied; bbhost's copy has its own fallback for other formats.
+  copied; heliasdream's copy has its own fallback for other formats.
 - **AMD FidelityFX** (MIT): the reactive-mask rule and the conventions
   above. Credited in `reactive.comp` and THIRD_PARTY_NOTICES.md.
 - **bbport / Supermedo / Awakenchan**: nothing new this phase beyond
@@ -563,18 +563,18 @@ FSR-Vulkan submodule linked in Phase 0).
   agent): **no changes**.
 - `src/hle/`: only `modules.h` and `video.cpp`, the 120 fps pacing (commit
   e9d124d) - no network, HTTP or NP code.
-- `src/core/` (config, server defaults): no changes; `bbhost.example.toml`
+- `src/core/` (config, server defaults): no changes; `heliasdream.example.toml`
   only an upscaler comment; `online.host`, `auth_server` and the STUN server
   defaults are upstream's.
-- The user agent is `bbhost/` + `BBHOST_VERSION` (`src/net/http.cpp`,
+- The user agent is `heliasdream/` + `HELIAS_VERSION` (`src/net/http.cpp`,
   `updater.cpp`, unchanged), and the version is `git describe`, e.g.
-  `bbhost/v0.2.18-vk.0-37-g...`: upstream's base version first.
+  `heliasdream/v0.2.18-vk.0-37-g...`: upstream's base version first.
 TESTING.md's combined session now has an online check (part E: sign-in,
 messages and bloodstains, a summon sign or bell).
 
 ### Open risks (only the hardware test can answer)
 - **Jitter and motion conventions on real frames**: a wobble when still
-  means the jitter sign (`BBHOST_FSR_JITTER_SIGN`); smearing when moving
+  means the jitter sign (`HELIAS_FSR_JITTER_SIGN`); smearing when moving
   means the motion vectors' scale or direction.
 - **Ghosting** on enemies, cloth, weapons and particles: depends on the
   velocity target's coarse edges (Phase 2), the reactive mask's threshold,
@@ -606,7 +606,7 @@ messages and bloodstains, a summon sign or bell).
   `packaging/vk/build.sh` from 008165c (`v0.2.18-vk.0-39-g008165c`),
   stripped, needs GLIBC_2.38, SHA-256
   `d50f617592061a63f8137e4a3a2dcac88606acc6fe372d96c8e66d7ade46f511`
-  (on the build box at /workspace/bbhost-vk-builds/phase3/; not released).
+  (on the build box at /workspace/heliasdream-vk-builds/phase3/; not released).
 - Player's PC test: pending (TESTING.md, "Pending combined test session",
   parts D and E).
 
@@ -615,10 +615,10 @@ messages and bloodstains, a summon sign or bell).
 Base: `phase-3-fsr31`. Part 1 only: HTML mockups (1280x800, rendered with
 headless Chrome) for all ten tabs in docs/vk/mock/, in the Paleblood style
 of launcher-play.html / launcher-upscaling.html, waiting for the user's
-approval per tab. Each lists only what bbhost has today: the setup window
+approval per tab. Each lists only what Helia's Dream has today: the setup window
 (launcher.cpp), the F10 rows (options.cpp), the plugin settings the four
 bundled plugins declare, the patch manifests in patches/, and a few
-bbhost.toml keys ([video] width/height, [player] ime/name). Online &
+heliasdream.toml keys ([video] width/height, [player] ime/name). Online &
 account shows exactly upstream's options (Live / Playtest / Custom, scheme,
 verify TLS, require account, Discord login, create, recover, website code,
 sign out) with placeholders; no real code is shown. The Upscaling mockup
@@ -629,10 +629,10 @@ the only one.
 
 **FaceGen check added (TESTING.md part F).** shadPS4's exploded or
 stretched face vertices came from FaceGen's GPU writes that the CPU never
-read back. bbhost imports the game's GPU-visible memory into Vulkan, so
+read back. Helia's Dream imports the game's GPU-visible memory into Vulkan, so
 GPU writes are what the CPU reads, and that does not happen. Phases 0-3
 leave that memory model alone: FSR 3.1, the motion, depth-copy and
-reactive passes read and write only bbhost's own images and the game's
+reactive passes read and write only heliasdream's own images and the game's
 render targets. They do not touch guest buffers, the buffer shadow or
 the readback paths. Part F checks it on the PC: the mirror's appearance
 editor, a death and a lamp rest.
@@ -653,7 +653,7 @@ Base: `phase-L-launcher`. The user moved every effort to a first test release.
   - `src/host/fsr411/` replays the DLL's 29 passes on plain Vulkan: INT8
     dot products, or FP8 cooperative matrices on RDNA4.
   - `tools/fsr4cap/` builds the asset set once from the user's own DLL under
-    Proton, into ~/.local/share/bbhost/fsr4_411 (`BBHOST_FSR411_DIR`).
+    Proton, into ~/.local/share/heliasdream/fsr4_411 (`HELIAS_FSR411_DIR`).
 - **`src/host/fsr4_pass.cpp`:**
   - The device gets FSR 4.1.1's extensions (compute derivatives, VALVE mixed
     float dot product, cooperative matrices, FP8) only when the assets exist,
@@ -668,7 +668,7 @@ Base: `phase-L-launcher`. The user moved every effort to a first test release.
   and the user's GPU.
 
 ### Test-build launcher
-- Every bbhost-vk switch testers need is in the current setup window and
+- Every heliasdream-vk switch testers need is in the current setup window and
   F10, with no redesign: the upscaler, quality, sharpness, reactive mask, a
   new **Upscaler jitter** toggle, the debug toggles, 120 fps, and the
   FSR 4.1.1 DLL path ([upscaler] fsr4_dll) with the asset status and a
@@ -677,7 +677,7 @@ Base: `phase-L-launcher`. The user moved every effort to a first test release.
   until after the test release; the mockups wait for approval.
 
 ### Updater
-The update check reads Heliasyu/bbhost-vk's latest release (a public repo,
+The update check reads Heliasyu/heliasdream-vk's latest release (a public repo,
 read anonymously like upstream's; corrected 2026-10-18), and `-vk.N` versions are compared. The official
 plugins still come from upstream's release, signed with its key. Nothing is
 published.
@@ -710,7 +710,7 @@ while the pick list is still up.
   - The log says "waiting for the menu's pick list to close before the
     change" when the gate holds a change back.
 - **Suspected, not changed:** in KNOWN_ISSUES.md with file:line.
-- **Updater:** Heliasyu/bbhost-vk is public, so the update check needs no
+- **Updater:** Heliasyu/heliasdream-vk is public, so the update check needs no
   token. The private-repo hints are gone (the optional token_file still
   works, as upstream's).
 
@@ -726,7 +726,7 @@ own (about a dozen dispatches a frame). All of it was destroyed again at the ret
 - The patch is applied at configure time to copies of the three files in the build tree. The
   submodule stays at its pinned commit, unmodified.
 - If it stops applying (a new pin), the build warns and uses the files as they ship.
-  `-DBBHOST_FSR_VULKAN_PATCHES=OFF` skips it.
+  `-DHELIAS_FSR_VULKAN_PATCHES=OFF` skips it.
 - fsr3_upscaler_test (real dispatches on lavapipe over several frames, with retires) passes
   with the same error figures.
 
@@ -768,13 +768,13 @@ errors + warnings + perf) was run over everything that runs without the game, on
 | Run | What it covers | Result |
 |---|---|---|
 | fsr3_upscaler_test, recycle patch ON | FSR 3.1 contexts at every preset (720p, 4K), frames, a reset | 4 SYNC-HAZARD-WRITE-AFTER-WRITE, FSR-Vulkan's (below) |
-| fsr3_upscaler_test, `-DBBHOST_FSR_VULKAN_PATCHES=OFF` | the same, unpatched | the same 4: not the patch's |
+| fsr3_upscaler_test, `-DHELIAS_FSR_VULKAN_PATCHES=OFF` | the same, unpatched | the same 4: not the patch's |
 | motion_shader_test | the MV shader | was 20 VUID-vkDestroyDevice-device-05137 (the test leaked); fixed, clean |
 | fsr411_fallback_test (new) | FSR 4.1.1 init failures: no assets, not SPIR-V, no initializer.bin, an unknown resource, a bad size; each retried, then destroyed | clean |
 | gcn_sampling_test | sampling | clean |
-| `bbhost --stream-selftest` | device creation with our feature chain, the recorder, deferred destroys, and now the kept pass views on 16/32 px images | 10 SYNC-HAZARD-WRITE-AFTER-WRITE on the selftest's own back-to-back fills (upstream test code); pass |
-| `BBHOST_FSR4_FEATURES=1 bbhost --stream-selftest=2` | the FSR 4.1.1 feature check on a device without them | clean; "the GPU lacks VK_VALVE_shader_mixed_float_dot_product: FSR 4.1.1 is FSR 3.1" |
-| `bbhost --setup` under Xvfb, closed with WM_DELETE_WINDOW, SDL's default renderer and `SDL_RENDER_DRIVER=vulkan` | the setup window open/close | clean ("setup: closed") |
+| `heliasdream --stream-selftest` | device creation with our feature chain, the recorder, deferred destroys, and now the kept pass views on 16/32 px images | 10 SYNC-HAZARD-WRITE-AFTER-WRITE on the selftest's own back-to-back fills (upstream test code); pass |
+| `HELIAS_FSR4_FEATURES=1 Helia's Dream --stream-selftest=2` | the FSR 4.1.1 feature check on a device without them | clean; "the GPU lacks VK_VALVE_shader_mixed_float_dot_product: FSR 4.1.1 is FSR 3.1" |
+| `heliasdream --setup` under Xvfb, closed with WM_DELETE_WINDOW, SDL's default renderer and `SDL_RENDER_DRIVER=vulkan` | the setup window open/close | clean ("setup: closed") |
 | all 48 ctest tests with the layer on | | pass |
 
 **Fixed (ours):**
@@ -782,7 +782,7 @@ errors + warnings + perf) was run over everything that runs without the game, on
   views, pipeline and pools still alive. It now tears down in order.
 
 **Added (tests only, no feature):**
-- `tests/fsr411_fallback_test.cpp`: each failure Record() can take before bbhost falls back
+- `tests/fsr411_fallback_test.cpp`: each failure Record() can take before Helia's Dream falls back
   to FSR 3.1, on a plain device, each one twice (as a resize asks again), then destroyed.
   Its stand-in pass is a 4-line compute shader; no FSR 4.1.1 assets are used or shipped.
 - The stream selftest's temporary images now take a kept view (`pass_view_locked`): the same
@@ -809,29 +809,29 @@ errors + warnings + perf) was run over everything that runs without the game, on
 - The scene split, opaque snapshot, reactive mask pass and the in-renderer use of the kept
   views run only inside the game's frame (smoke.sh needs the eboot). On the user's hardware
   the same layer can be turned on with `VK_INSTANCE_LAYERS=VK_LAYER_KHRONOS_validation`
-  (or bbhost's own validation option) for one session.
+  (or heliasdream's own validation option) for one session.
 
 **Rebuilt test tarball** (the selftest is in the binary). The first one, -56-ge8a71d4, is kept beside it:
-`/workspace/bbhost-vk-builds/test1/bbhost-vk-linux-v0.2.18-vk.0-60-g3f98fb0.tar.gz`, sha256
+`/workspace/heliasdream-vk-builds/test1/heliasdream-vk-linux-v0.2.18-vk.0-60-g3f98fb0.tar.gz`, sha256
 `8b523a95a41ade1b9e868bba77c78e39ea491e79e1470d556d47569274fd0b0d`. It has no proprietary files and
-no missing libraries, and it reports `bbhost v0.2.18-vk.0-60-g3f98fb0`. Only this DEVLOG note
+no missing libraries, and it reports `heliasdream v0.2.18-vk.0-60-g3f98fb0`. Only this DEVLOG note
 comes after it.
 
 ## 2026-10-18 (Sun), package-all CI fix (branch `phase-5-test-release`)
 
 PR #6's `package-all` check failed (run 39109940887): `tools/package_steamdeck.sh` looked for a
-`bbhost-linux-*` folder in the Linux tarball, found none (it is `bbhost-vk-linux-*` since
+`heliasdream-linux-*` folder in the Linux tarball, found none (it is `heliasdream-vk-linux-*` since
 e8a71d4), and copied the Deck files to `/`. The publish step and `check_release_bundle.sh` had
 the same old name, so the bundle check would have skipped the Linux and Steam Deck bundles
 (the live-server and https defaults that online play relies on).
 
 **Fixed:** the Steam Deck kit, the playtest kit, the bundle check, the publish step (it now
 reads the Linux tarball's own name instead of rebuilding it from the Windows zip's revision)
-and `announce_release.py` take either prefix. The kit is named `bbhost-vk-steamdeck-<rev>`.
+and `announce_release.py` take either prefix. The kit is named `heliasdream-vk-steamdeck-<rev>`.
 An empty match now stops with a message instead of copying to `/`.
 
 **Checked here:** the publish step's Linux half, run on the test tarball
-(-60-g3f98fb0): the Deck kit builds, the bare `bbhost` and the plugins extract, and the
+(-60-g3f98fb0): the Deck kit builds, the bare `heliasdream` and the plugins extract, and the
 bundle check passes on 2 bundles (live server over https, no playtest kit). The Windows half
 runs in CI only.
 
@@ -914,7 +914,7 @@ pass was drawn bilinear, and there are no `fsr3:` lines.
     the output size until the next start.
   - So a Resolution change while the game runs to a size below the buffers still works,
     without the upscaler. A larger one already applied only at the next start.
-  - `BBHOST_SPLIT_DISPLAY=max` keeps the old sizing.
+  - `HELIAS_SPLIT_DISPLAY=max` keeps the old sizing.
   - Tests are in scene_split_test.
 
 **2. The scene camera (broadened, needs hardware).**
@@ -928,14 +928,14 @@ pass was drawn bilinear, and there are no `fsr3:` lines.
   - Cameras of another size are only taken from G-buffer draws.
 - Rejections are logged. The 600-frame line now counts the buffers looked at, the G-buffer
   draws, and the most colour targets seen with a depth.
-- `BBHOST_MOTION_PROBE=1` logs each G-buffer draw's buffers once, with their first floats.
+- `HELIAS_MOTION_PROBE=1` logs each G-buffer draw's buffers once, with their first floats.
 - Tests are in temporal_test (`test_signature`).
 
 **3. Jitter.** It never depended on the camera. test2's "jitter 1 phases" came from the first
 frame, which was drawn before the phases were set (later lines say 18 phases), and the line
 now says so. But with no camera, FSR resets every frame and the jitter is on screen as
 flicker. So it pauses after 60 frames without a camera (`jitter: paused ...`).
-`BBHOST_JITTER_NO_CAMERA=1` keeps it on.
+`HELIAS_JITTER_NO_CAMERA=1` keeps it on.
 
 **4. gpu-wait.**
 - The `sceGnmSubmitAndFlip` line's `gpu-wait` is the time the host blocked on submission
@@ -950,7 +950,7 @@ flicker. So it pauses after 60 frames without a camera (`jitter: paused ...`).
 - test2 also ran YEBIS at 5120x2160 for a 3840x2160 picture, 78% more post-processing pixels
   than needed. Fix 1 removes that.
 
-**5. The FSR stage dump.** `BBHOST_FSR_DUMP=1` (or `[debug] fsr_dump = true`) writes these
+**5. The FSR stage dump.** `HELIAS_FSR_DUMP=1` (or `[debug] fsr_dump = true`) writes these
 PNGs into the capture folder's `fsr-<date>-<time>-flip<n>/`:
 - scene colour, depth copy, motion, reactive, opaque colour;
 - the upscaler's output;
@@ -958,7 +958,7 @@ PNGs into the capture folder's `fsr-<date>-<time>-flip<n>/`:
 
 It also writes `info.txt`: sizes, rect, jitter, reset, and per image the min/mean/max
 luminance with separate means left and right of x = 3/4. It runs when `fsr-dump.request` or
-`capture.request` (`bbtest mark`) appears, on Shift+F12 with `BBHOST_VK_CAPTURE=1`, and once
+`capture.request` (`bbtest mark`) appears, on Shift+F12 with `HELIAS_VK_CAPTURE=1`, and once
 at the 600th upscaled frame. The pixel code is `temporal/dump_pixels.h`, tested in
 `test_dump_pixels`.
 
@@ -994,7 +994,7 @@ camera that holds.
   scratch copies: 940k in the session, 62 MiB, about 70 small copies a frame, which is
   negligible. What the GPU runs for the translation layer is inside the busy time: per
   recorder window ~27k barriers, ~57-66k copies and ~100-114k fills (about 90, 200 and 350
-  a frame). BBHOST_GPU_PROFILE=2 (test4 run E) charges that to recording sites.
+  a frame). HELIAS_GPU_PROFILE=2 (test4 run E) charges that to recording sites.
 ### Camera (intermittent in test3)
 - `motion: scene constants found at 0x14364e8c0+0 (PS 8a6c7657, binding 1, V# of 864 bytes)`
   first at flip ~2499. Then gaps of 2-433 frames, 1582 resets in the first 3000 dispatches
@@ -1016,13 +1016,13 @@ scene is split and FSR 3.1/4.1.1 is chosen (`fsr3_target_storage_wanted`, policy
 copy is skipped (`direct_output_ok`: from 0,0, the FSR output's size, and no stage dump that
 frame). A second scale pass in a frame copies from that target. RGBA16F's view list is
 itself alone, so no view in another format gets STORAGE. FSR 4.1.1 and FSR 1 still copy.
-`BBHOST_FSR_DIRECT_TARGET=0` restores the copy.
+`HELIAS_FSR_DIRECT_TARGET=0` restores the copy.
 
 ### What can still be cut (needs test4's A/B runs)
-- Submissions: `BBHOST_SUBMIT_EVERY_JOB=0` merges a job's submit with the next one when more
+- Submissions: `HELIAS_SUBMIT_EVERY_JOB=0` merges a job's submit with the next one when more
   are queued (upstream's switch). This could recover part of the ~0.8 ms of gaps.
 - Reactive mask 0.21 ms and sharpening (RCAS, inside FSR's 1.23 ms): settings, run D.
-- Barriers, copies and fills between the game's draws: measure with BBHOST_GPU_PROFILE=2
+- Barriers, copies and fills between the game's draws: measure with HELIAS_GPU_PROFILE=2
   first. Any change there is correctness-sensitive (upstream renderer).
 - FSR 3.1's own 1.23 ms at 2560x1440 -> 3840x2160 is AMD's cost on this GPU.
 
@@ -1031,7 +1031,7 @@ itself alone, so no view in another format gets STORAGE. FSR 4.1.1 and FSR 1 sti
 - **Run A (FSR 3.1 Quality, 3840x2160):** the camera fix works: 3000 dispatches with 0-2
   resets, 3000 written directly. MangoHud 117.7 fps (from ~113), gpu busy ~91%. The user
   saw "strange shimmering on character", with FSR 3.1 only.
-- **Run C (`BBHOST_SUBMIT_EVERY_JOB=0`):** 64 fps, 1% low 14.5, flashing effects.
+- **Run C (`HELIAS_SUBMIT_EVERY_JOB=0`):** 64 fps, 1% low 14.5, flashing effects.
   Rejected. The default stays a submit per job.
 - **FSR 4.1.1 (Quality, FP8 t2160_m0):** works. The user says it looks cleaner. 101.6 fps,
   FSR 4.1.1 2.11 ms plus a 0.26 ms copy (`pass-timer:`).
@@ -1055,7 +1055,7 @@ itself alone, so no view in another format gets STORAGE. FSR 4.1.1 and FSR 1 sti
     Otherwise the last good scale is kept, the read is counted and logged.
   - `motion.comp`: object motion only where the 2x2 texel neighbourhood is all object
     (FSR's depth dilation carries it onto the edges), and only where it differs from the
-    camera's by more than `BBHOST_OBJECT_MOTION_MIN` (1.5 px).
+    camera's by more than `HELIAS_OBJECT_MOTION_MIN` (1.5 px).
   - The view's dim blue marks the rest.
 - IFreemz replays the velocity draws at render size into RGBA16F, the exact fix (Phase 2's
   deferred item). Worth doing if test5 still shows object-motion errors.
@@ -1132,8 +1132,8 @@ Ranked by measured ms (looking forward):
 2. **Sharpening 0 for FSR 4.1.1:** 0.315 ms (RCAS plus the 4K image it reads). A setting:
    test6 run B. A cheaper RCAS cannot go much below ~0.2 ms (it reads and writes a 4K
    RGBA16F image), so this is the setting's cost rather than an inefficiency.
-3. **Idle gaps:** 0.59 ms; needs `BBHOST_GPU_PROFILE=2` for where.
-   `BBHOST_SUBMIT_EVERY_JOB=0` stays rejected.
+3. **Idle gaps:** 0.59 ms; needs `HELIAS_GPU_PROFILE=2` for where.
+   `HELIAS_SUBMIT_EVERY_JOB=0` stays rejected.
 4. **No reactive mask or opaque snapshot for FSR 4.1.1:** 0.09-0.11 ms. In test6.
 5. **The game's anti-aliasing:** not measured yet (t6's run had it on); test6 run C.
 
@@ -1153,7 +1153,7 @@ What test7 changes, and what each is worth:
 |---|---|---|
 | Our tiled RCAS instead of the replay's | -0.1 to -0.15 ms (0.32-0.35 -> ~0.2; a 4K RGBA16F read+write is ~133 MB, a ~0.2 ms floor) | pass timer `sharpen`, FSR 4.1.1 total |
 | AA Auto (off with FSR 4.1.1) | -0.35 to -0.45 ms against AA on (t7: 112.5 -> 118.5 fps) | already measured; now the default |
-| Idle gaps (~0.59 ms/frame) | none until the data says which kind; BBHOST_SUBMIT_SPLIT targets "late" gaps | `gpu idle:` line |
+| Idle gaps (~0.59 ms/frame) | none until the data says which kind; HELIAS_SUBMIT_SPLIT targets "late" gaps | `gpu idle:` line |
 | Lamp flicker at sharpness 0.5 | RCAS on `c/(1+max c)` limits HDR highlights instead of ringing | eyes, B in the test7 checks |
 
 That is not the 7.5 ms target yet. The next step depends on the t8-lamp-p3 profile, which
@@ -1199,7 +1199,7 @@ faster. Holding 120 there still needs about 0.4 ms.
 - The gaps over 250 us between jobs that were already queued are not that. They are more
   likely the semaphore waits of the jobs that carry one.
 
-**BBHOST_SUBMIT_BATCH=1 (bb-submit):**
+**HELIAS_SUBMIT_BATCH=1 (bb-submit):**
 - **Policy:** take a game job (no foreign id, no semaphore to signal). If the GPU still has
   two of our submissions unfinished (one running and one queued behind it), hold the job,
   waiting 0.1 ms at a time on the oldest, for at most 2 ms. Then take the game jobs queued
@@ -1253,7 +1253,7 @@ faster. Holding 120 there still needs about 0.4 ms.
 - Copying instead saves almost nothing at 4K RGBA16F: ~133 MB, about the cost of the draw.
 - The log did not say which images the draws use (the YEBIS texture log stopped at 24
   lines). test7c logs its targets and textures: `render: motion blur ... draws into`.
-- The skip (`BBHOST_MOTION_BLUR_SKIP`, test8) will be written against that data. It will be
+- The skip (`HELIAS_MOTION_BLUR_SKIP`, test8) will be written against that data. It will be
   verified by bit-comparing presented-frame captures with the skip on and off before it
   becomes the default.
 
@@ -1286,7 +1286,7 @@ About 1.9-2.1 ms in all, against the 7.5 ms target.
 3. FSR 4.1.1 to 4K.
 4. At 4K: the sharpening, anything grain- or aberration-like the chain has, and the UI.
 
-**Mechanism (host side, `BBHOST_POST_AT_RENDER=1`, off by default):**
+**Mechanism (host side, `HELIAS_POST_AT_RENDER=1`, off by default):**
 1. At ccbf44a6, do not upscale. Hand the YEBIS chain the 1080p scene colour under the 4K
    target's address: a render-size alias of the output RtImage.
 2. While the chain runs, its 4K targets are made at render size. Their viewports and scissors
@@ -1348,7 +1348,7 @@ remaining gap to 7.5 ms on its own.
   waiting on fences for half of each second. Jobs the presenter's frame depended on queued
   behind the hold, so frame pacing broke. The queued gaps are mostly not a per-submission
   cost, which is what the plan assumed.
-- `BBHOST_SUBMIT_BATCH` stays in the code, off. No more time is going into it.
+- `HELIAS_SUBMIT_BATCH` stays in the code, off. No more time is going into it.
 
 ## test8: the motion blur skip, and the data for post-processing at render size
 
@@ -1373,8 +1373,8 @@ policy (`temporal/mblur_skip.h`, `tests/mblur_skip_test.cpp`) proves it at run t
 - **Expected saving:** ~0.29-0.33 ms a frame.
 - **Not covered:** a CPU read of B's memory. There is no such path for render targets in
   YEBIS's chain, and the off/on capture comparison in TESTING checks it.
-- **Default on,** with `BBHOST_MOTION_BLUR_SKIP=0` as the fallback, and
-  `BBHOST_AB_SECONDS=30` for the A/B in one run.
+- **Default on,** with `HELIAS_MOTION_BLUR_SKIP=0` as the fallback, and
+  `HELIAS_AB_SECONDS=30` for the A/B in one run.
 
 **Post-processing at render size: not in test8, and why.**
 - **What the design needs** (test7c section), one pass at a time:
@@ -1387,10 +1387,10 @@ policy (`temporal/mblur_skip.h`, `tests/mblur_skip_test.cpp`) proves it at run t
 - **The risk of building it blind:** half-size or offset effects, or a broken frame, in the
   user's only run. Defaulting it on that way is not something the box can verify, because
   the box cannot run the game.
-- **So test8 collects that data in the same run:** `BBHOST_POST_CHAIN_LOG` (on, one frame
+- **So test8 collects that data in the same run:** `HELIAS_POST_CHAIN_LOG` (on, one frame
   every 3600 flips) logs each draw from the scale pass to the first UI draw, with its
   target, size, format, viewport, blending and the images it samples.
-- **Next build:** with those lines, test9 can implement `BBHOST_POST_AT_RENDER` (DoF, then
+- **Next build:** with those lines, test9 can implement `HELIAS_POST_AT_RENDER` (DoF, then
   glare/bloom, then the colour/LUT pass, each with its own switch), with no extra trip to
   the hardware for data.
 
@@ -1424,7 +1424,7 @@ policy (`temporal/mblur_skip.h`, `tests/mblur_skip_test.cpp`) proves it at run t
 | 43-53 | 0b0acf50 chain | a 16x16 noise texture into the final image (grain/dither), and a 1080p/4K blur chain blended into it |
 | 54 | | the first UI draw |
 
-**Design for `BBHOST_POST_AT_RENDER` (test10):**
+**Design for `HELIAS_POST_AT_RENDER` (test10):**
 - Run #1-#9 at render size, then FSR 4.1.1 just before #42, on A' (still linear HDR).
 - Bloom (#9 on) then starts from a 1080p A. The tonemap (#42), the grain (#43) and the blur
   chain stay at 4K after FSR. FSR's input stays HDR, so no HDR or exposure mode changes.
@@ -1455,7 +1455,7 @@ policy (`temporal/mblur_skip.h`, `tests/mblur_skip_test.cpp`) proves it at run t
   the 7.5 ms target, not certainly under it.
 
 **What makes the next build safe:** one in-game step that dumps those passes' constants and
-shader size queries (`BBHOST_POST_CHAIN_LOG` extended to their C# and the translator's
+shader size queries (`HELIAS_POST_CHAIN_LOG` extended to their C# and the translator's
 `image_get_resinfo` use). That is cheap to add, and it can ride along with any run.
 
 ## test10: the post chain before the tonemap at render size (2026-10-18)
@@ -1512,7 +1512,7 @@ shader size queries (`BBHOST_POST_CHAIN_LOG` extended to their C# and the transl
 
 ## test11: even present pacing; t12 read (2026-10-18)
 
-**t12 (test10, `BBHOST_AB_SECONDS=30` flipping post at render), from bbhost.log:**
+**t12 (test10, `HELIAS_AB_SECONDS=30` flipping post at render), from heliasdream.log:**
 
 | | post on | post off |
 |---|---|---|
@@ -1569,7 +1569,7 @@ shader size queries (`BBHOST_POST_CHAIN_LOG` extended to their C# and the transl
 
 ## t13 (test11) and v0.2.18-vk.1 (2026-10-18)
 
-**t13-pace-ab** (`BBHOST_AB_SECONDS=30` flipping the present pacing; post at render and the
+**t13-pace-ab** (`HELIAS_AB_SECONDS=30` flipping the present pacing; post at render and the
 blur skip on throughout):
 
 | Half | on, 1st (load) | on, steady (5 halves) | off (6 halves) |
@@ -1643,7 +1643,7 @@ for optimizations, and compile tracking in the snapshots.
     snapshots with the fallback reasons.
 - **Sharpening in the present pass:** an RCAS 5-tap variant of the present shader, used
   only at 1:1 texel mapping. The present pass draws the HUD, so it would sharpen the HUD
-  and halo it. It stays behind `BBHOST_SHARPEN_AT_PRESENT=1`, and FSR's own sharpening of
+  and halo it. It stays behind `HELIAS_SHARPEN_AT_PRESENT=1`, and FSR's own sharpening of
   the scene stays the default.
 - **Overlay:**
   - The 256 KiB vertex buffer overflowed on the reorganized menu with long notes, and
@@ -1665,8 +1665,8 @@ for optimizations, and compile tracking in the snapshots.
     250 ms and writes the file via `.part` and rename.
   - The renderer publishes its post-at-render text at its next draw when asked.
 - **GPU sampler (gpu.cpp):**
-  - It reuses BBHOST_GPU_PROFILE=3's pass timestamps, with pools always made unless
-    `BBHOST_GPU_SAMPLE=0`. It is switched only in `begin_recording_locked`, so no pair
+  - It reuses HELIAS_GPU_PROFILE=3's pass timestamps, with pools always made unless
+    `HELIAS_GPU_SAMPLE=0`. It is switched only in `begin_recording_locked`, so no pair
     spans a switch.
   - It arms once 10 s have passed and the last present interval was within 1.06× the
     frame period. It runs for one flip, then collects the slots it marked (`sampled`).
@@ -1689,13 +1689,13 @@ for optimizations, and compile tracking in the snapshots.
   - The file is written by ac_rgp.c to a fixed path,
     `/tmp/<process>_<Y.m.d_H.M.S>[_frameN].rgp`, and "RGP capture saved to" goes to
     stderr.
-  - bbhost creates the trigger after a snapshot (10 s debounce). A helper thread waits up
+  - Helia's Dream creates the trigger after a snapshot (10 s debounce). A helper thread waits up
     to 5 s for the driver to take it, then up to 45 s for a new /tmp/*.rgp to hold its
     size for 1 s. It moves the file next to the snapshot's name in `rgp/`, falling back to
     copy and remove across file systems.
-  - `BBHOST_SHADER_STATS` enables VK_KHR_pipeline_executable_properties. Every
+  - `HELIAS_SHADER_STATS` enables VK_KHR_pipeline_executable_properties. Every
     library/link/LTO-relink/whole graphics pipeline and every compute pipeline then gets
-    `CAPTURE_STATISTICS`, built with `VK_NULL_HANDLE` instead of bbhost's cache (the flag
+    `CAPTURE_STATISTICS`, built with `VK_NULL_HANDLE` instead of heliasdream's cache (the flag
     is in RADV's cache key; Mesa's disk cache still applies). One TSV line goes out per
     executable.
   - Host passes (present, overlay, FSR) are not covered.
@@ -1708,7 +1708,7 @@ for optimizations, and compile tracking in the snapshots.
     timing, open it in the RGP GUI, on the PC or in the box's desktop.
 - **Verified here:**
   - 51/51 ctest (19 skipped as before: they need the game's files).
-  - `--stream-selftest`, `=2` with BBHOST_FSR4_FEATURES=1 (FSR 3.1 fallback) and `=20`:
+  - `--stream-selftest`, `=2` with HELIAS_FSR4_FEATURES=1 (FSR 3.1 fallback) and `=20`:
     pass, with the same 10 upstream SYNC-HAZARD lines as vk.1.
   - bbtest snap and --show on synthetic files.
   - lavapipe lacks VK_KHR_pipeline_executable_properties, so the shader-stats path logs
@@ -1720,7 +1720,7 @@ for optimizations, and compile tracking in the snapshots.
 ## 2026-10-19 (Mon), vk.1-rc3: pacing, presenter submit, occlusion resolve, walks
 
 The second build of the night. Rule: optimizations are permanent (no new switches);
-`BBHOST_*` variables only for debugging.
+`HELIAS_*` variables only for debugging.
 
 ### Done
 - **Latency limit, uncapped path:** `PresentFlip::from_cp` (video.cpp) marks flips the
@@ -1752,7 +1752,7 @@ The second build of the night. Rule: optimizations are permanent (no new switche
     ready and the earlier write must stay.
   - Abandoned: skipping a repeated block's earlier write. It is wrong when the later dump
     is not ready.
-  - Pair stats run only with flags bit 1 (`BBHOST_OCCLUSION_STATS=1`).
+  - Pair stats run only with flags bit 1 (`HELIAS_OCCLUSION_STATS=1`).
   - The barrier after it covers transfer, compute, host and conditional rendering.
   - Timestamps around the end-of-submission resolve are read back at the slot's next
     recording.
@@ -1792,7 +1792,7 @@ The second build of the night. Rule: optimizations are permanent (no new switche
 
 ### Verified here
 - 52/52 ctest (19 skipped as before: they need the game's files).
-- `--stream-selftest`, `=2` with BBHOST_FSR4_FEATURES=1 and `=20`: pass, with the same 10
+- `--stream-selftest`, `=2` with HELIAS_FSR4_FEATURES=1 and `=20`: pass, with the same 10
   upstream SYNC-HAZARD lines.
 - None of it ran on the hardware here.
 
@@ -1801,7 +1801,7 @@ The second build of the night. Rule: optimizations are permanent (no new switche
 ## 2026-10-20 (Tue), async-fsr: FSR 4.1.1 on an async compute queue, not built
 
 This was asked for (rc2 ANALYSIS item 8, deferred in rc3). The design review found it
-cannot give overlap in bbhost-vk's frame, and would add two cross-queue hand-offs to the
+cannot give overlap in heliasdream-vk's frame, and would add two cross-queue hand-offs to the
 frame's critical path. So no code was written. Nothing on this branch changes behaviour.
 
 ### Where FSR runs
@@ -1858,7 +1858,7 @@ frame's critical path. So no code was written. Nothing on this branch changes be
 
 The third build of the night, from the rc3 session (`20261020-000251-vk1-rc3`; Old
 Yharnam GPU-bound: span 7.82 ms, `idle_with_queued` 7.6 s over 150,789 gaps, 1.83 s of it
-after the present). Same rule as before: permanent, `BBHOST_*=0` only for debugging.
+after the present). Same rule as before: permanent, `HELIAS_*=0` only for debugging.
 
 ### 1. GPU idle with work queued
 What it is, from the driver sources (Mesa 26.2 `radv_query.c`, `radv_cmd_buffer.c`,
@@ -1871,7 +1871,7 @@ inferred:
   the busy meter's reset+TOP timestamp, then the coverage, occlusion and profiler resets.
   So each began with a full drain and an L2 write-back/invalidate.
   **Fix:** every reset before the first timestamp (`begin_recording`).
-  `BBHOST_RESET_ORDER=0` restores the old order. One L2 flush fewer per command buffer
+  `HELIAS_RESET_ORDER=0` restores the old order. One L2 flush fewer per command buffer
   (~9-11 a frame). The end-of-command-buffer flush stays: it is the last timestamp's,
   and the HOST barrier needs it anyway.
 - **Proven (source):** a `vkQueueSubmit` with no command buffers on RADV is CPU-only
@@ -1893,7 +1893,7 @@ inferred:
   - If the rider is not taken by the time the job has gone in, it is revoked and the
     blit goes alone, as in rc3.
   - Counters `rode`, `alone` and `missed` are in [present] `blit_ride:`.
-  - `BBHOST_BLIT_RIDE=0` turns it off.
+  - `HELIAS_BLIT_RIDE=0` turns it off.
 - **Attribution for the rest (63%, ~9 boundaries):**
   - The meter now keys each queued gap by the site that ended the command buffer before
     it (as the late gaps already were): the `gpu idle queued after:` line, top 10.
@@ -1904,7 +1904,7 @@ inferred:
     scheduler round trip above. The answer then is fewer short jobs: what ends them is
     named by site.
   - An optional A/B on the PC (TESTING, rc4) confirms it: the kernel parameter
-    `amdgpu.sched_hw_submission=4`. Nothing in bbhost sets it.
+    `amdgpu.sched_hw_submission=4`. Nothing in Helia's Dream sets it.
 - **Expected:** −0.1-0.2 ms per GPU-bound frame from the blit (most of the 0.17 ms
   after-present share) and a few µs per command buffer from the reset order. The rest
   depends on what the attribution shows.
@@ -1932,7 +1932,7 @@ inferred:
   dispatcher.
 - Log `fetch inline:` (the first 8 pipelines). [walks] `fetch_inline:` counts
   `fetch_inlined` and `fetch_inlined_walking`; `vs_walking` should drop.
-  `BBHOST_FETCH_INLINE=0` uses the dispatcher.
+  `HELIAS_FETCH_INLINE=0` uses the dispatcher.
 - `TranslateResult::fetch_inlined` and `soffset_bound` are stored in the translation
   cache (`write_result`/`read_result`, size assert 424 → 432). The translator fingerprint
   changes, so the first start rebuilds the caches.
@@ -1942,7 +1942,7 @@ inferred:
   to the dword index. `read_bound` reads the binding only where the offset is a whole
   number of dwords and the element's last dword is inside the binding (`OpArrayLength`).
   Otherwise it takes the walk. It is rejected under `cb_no_fallback`, which has no walk.
-  `BBHOST_SOFFSET_BOUND=0` restores rc3.
+  `HELIAS_SOFFSET_BOUND=0` restores rc3.
 - **Stores: not done, on purpose.** There is no bound store path, and adding one is not
   safe. A binding can be the draw's copy (YEBIS windows) or a device-local mirror
   (buffer_shadow), so a store into it would never reach guest memory.
@@ -1970,7 +1970,7 @@ inferred:
 - No behaviour change in normal frames. The GPU sampler's frame (one every 10 s or more,
   already timed pass by pass) now also takes pipeline statistics per pass:
   - `pipelineStatisticsQuery` is enabled when the device has it;
-  - `BBHOST_GPU_SAMPLE_STATS=0` turns it off.
+  - `HELIAS_GPU_SAMPLE_STATS=0` turns it off.
 - New snapshot section [pass_stats] for the sample's top 8 passes: `ms`, `verts_k`,
   `vs_k`, `prims_k`, `clip_in_k`, `clip_out_k`, `fs_k`, `vs_per_us`, `fs_per_us`,
   `fs_per_prim`. Log line: `gpu sample stats:`.
@@ -1978,19 +1978,19 @@ inferred:
   - pixel-bound: `fs_per_us` stays high and steady (thousands of fragments per µs) while
     the pass time follows `fs_k`;
   - vertex-bound: the time follows `vs_k`/`prims_k`, and `fs_per_prim` is low.
-- `BBHOST_RGP_LABELS=1`: a `vkCmdInsertDebugUtilsLabelEXT` at each render pass, named by
+- `HELIAS_RGP_LABELS=1`: a `vkCmdInsertDebugUtilsLabelEXT` at each render pass, named by
   its first pipeline, so RGP shows the passes by name. It enables VK_EXT_debug_utils on
   the instance only then. In place, as the profiler's pairs are, so for profiling only.
 - Fixed on the way:
   - `begin_recording` reset the timestamp pool and set `qreset`, so
     `profile_begin_locked` never reset the statistics pool. Its queries began unreset
-    under `BBHOST_GPU_PROFILE=3`. It is reset there now.
+    under `HELIAS_GPU_PROFILE=3`. It is reset there now.
   - A nested pair no longer ends the outer pair's query (`stat_index`).
   - Results are read with availability rather than `WAIT_BIT`.
 
 ### 7. Robustness
 - **Priority wait:**
-  - capped at 100 ms, not 2 s (`BBHOST_PRESENT_PRIORITY_WAIT_MS`, 5-2000);
+  - capped at 100 ms, not 2 s (`HELIAS_PRESENT_PRIORITY_WAIT_MS`, 5-2000);
   - past the cap, if the device is not lost, the blit goes into the stream behind its
     frame (`host_gpu_submit_presenter` under `g.mu`). The function now returns that
     ticket and window.cpp waits on it as on any stream blit;
@@ -2008,12 +2008,12 @@ inferred:
 ### Verified here (box, lavapipe)
 - 53/53 ctest (19 skipped as before: they need the game's files), also with
   `VK_INSTANCE_LAYERS=VK_LAYER_KHRONOS_validation`. New: `gcn_fetch_inline_test`.
-- `--stream-selftest`, `=2` with BBHOST_FSR4_FEATURES=1, and `=20`, run with
+- `--stream-selftest`, `=2` with HELIAS_FSR4_FEATURES=1, and `=20`, run with
   `VK_INSTANCE_LAYERS=VK_LAYER_KHRONOS_validation` and synchronization validation: pass,
   with the same 10 upstream SYNC-HAZARD lines as rc3.
   - Pre-existing, not new: the threading checker's `UNASSIGNED-Threading-MultipleThreads`
     message on a VkFence (vkGetFenceStatus on bb-submit). It shows with the rc3 binary
-    too. With `BBHOST_VK_VALIDATE=1` it fails `=20` in about 2 runs of 5, for rc3 and
+    too. With `HELIAS_VK_VALIDATE=1` it fails `=20` in about 2 runs of 5, for rc3 and
     rc4 alike.
 - None of it ran on the hardware. The blit ride, the reset order and the inline fetch
   shader can only be judged there.
@@ -2024,7 +2024,7 @@ Built overnight, pre-authorised; the plan with every item's saving, risk, effort
 evidence is docs/vk/RC5_PLAN.md (also the session's `rc5/PLAN.md`), summarised here.
 
 ### What rc4's data says (heavy Old Yharnam, `snap-20261020-010838`)
-- 114.4 fps avg, 1% low 81.9; bb-cp0 880-970 ms/s, bb-record 830-940, bbhost.bin ~650,
+- 114.4 fps avg, 1% low 81.9; bb-cp0 880-970 ms/s, bb-record 830-940, heliasdream.bin ~650,
   bb-submit ~420. cp-backlog at its cap (10).
 - The CP: `exec=2279 draw=1809 bind=1252 prefetch=228 pipeline=24` ms per 2.6 s with
   438k draws: ~5.2 us exec and ~2.9 us bind per draw. That is the CPU limit.
@@ -2056,7 +2056,7 @@ evidence is docs/vk/RC5_PLAN.md (also the session's `rc5/PLAN.md`), summarised h
 3. **Timer slack** (M2): `prctl(PR_SET_TIMERSLACK, 1)` on the same timing threads; with it,
    the limiter's margin `clamp(second + 100, 150, 2000)` (was +200, 300) and the presenter's
    spin 150 us (was 300). Expected ~0.3 ms/frame less spinning on two threads.
-4. **ThinLTO** (CMakeLists.txt, `BBHOST_THINLTO`, ON with clang): `-flto=thin` for the bbhost
+4. **ThinLTO** (CMakeLists.txt, `HELIAS_THINLTO`, ON with clang): `-flto=thin` for the Helia's Dream
    target, `--thinlto-jobs=all`, `-fno-lto` on the decomp sources. The 15 decomp objects
    built with and without the LTO flags have identical code (objdump). Binary 93.7 MB
    (rc4 96.3). Expected 2-8% CPU in the CP and recorder.
@@ -2082,12 +2082,12 @@ PS wave32 and params WC stay env A/Bs.
 5. PGO. 6. Tess walks (with other translator work). 7. Merging small post passes.
 
 ### Verified here (box, lavapipe; no MONITORX on this Xeon, one L3 domain)
-- Clean CI build (CI_PORTABLE=1, BBHOST_RELEASE=ON, ThinLTO on): 53/53 ctest (19 skipped as
+- Clean CI build (CI_PORTABLE=1, HELIAS_RELEASE=ON, ThinLTO on): 53/53 ctest (19 skipped as
   before), also with `VK_INSTANCE_LAYERS=VK_LAYER_KHRONOS_validation`.
-- `--stream-selftest`, `=2` with BBHOST_FSR4_FEATURES=1, and `=20`, with the validation
+- `--stream-selftest`, `=2` with HELIAS_FSR4_FEATURES=1, and `=20`, with the validation
   layer and synchronization validation: pass, 0 differences, the same 10 upstream
   SYNC-HAZARD lines; the known `UNASSIGNED-Threading-MultipleThreads` fence message as
-  before. `=2` again with `BBHOST_TABLES_VRAM=0 BBHOST_TIMER_SLACK=0 BBHOST_AFFINITY=0`:
+  before. `=2` again with `HELIAS_TABLES_VRAM=0 HELIAS_TIMER_SLACK=0 HELIAS_AFFINITY=0`:
   pass.
 - The page tables went into lavapipe's device-local host-visible heap (`page tables: in
   video memory`), so that path ran; the MWAITX path and the placement could not run here
@@ -2112,11 +2112,11 @@ branch. What remained:
 - No profile yet says which section of the 2.9 us dominates, and caching resolution
   across draws needs that (a wrong key is a wrong pipeline or binding). So the main
   deliverable is the measurement: **`cp_split`**. RenderCostStamp's 20 sections (split by
-  BBHOST_GX_COST before, with steady_clock on every draw) now also book TSC ticks on the
+  HELIAS_GX_COST before, with steady_clock on every draw) now also book TSC ticks on the
   draws the phase timers sample (1 in 16): ~23 rdtsc and plain adds per sampled draw,
   ~10-20 ns a draw on average. [cpu] `cp_split:` (since the previous snapshot) and
   `cp_split_total:`; log `cp split:` every 100,000 sampled draws. The TSC is converted with
-  its ratio to steady_clock over the run. `BBHOST_CP_SPLIT=0`.
+  its ratio to steady_clock over the run. `HELIAS_CP_SPLIT=0`.
 - Output identity: neither change touches what is recorded. The selftests (0 differences)
   and ctest cover the recording paths; draw_impl itself does not run on the box (no
   game), so the new fields are first seen on the PC.
@@ -2150,8 +2150,8 @@ the moment the CP reaches the draw. The design, for a later build:
 `compute_options` never set `cb_ssbo`: 41 of 42 cached CS walked every constant ("s_buffer_load
 with constant buffers off"), the top kernels with 1-1.5k dependent 64-bit loads; game
 compute is ~0.48 ms of RGP trace in heavy Old Yharnam. Now:
-- `compute_options` sets `cb_ssbo` (`compute_cb_on()`: BBHOST_CB_SSBO not 0 and
-  BBHOST_CS_CB not 0). The translator puts the bindings in the stage's set (0) from 112
+- `compute_options` sets `cb_ssbo` (`compute_cb_on()`: HELIAS_CB_SSBO not 0 and
+  HELIAS_CS_CB not 0). The translator puts the bindings in the stage's set (0) from 112
   and keeps the walk as each buffer's fallback (no lean variant). The cache keys include
   the options (hash_options), so compute stages translate again once; the fingerprint is
   unchanged.
@@ -2193,7 +2193,7 @@ with cb_ssbo off. Locally only (nothing committed): the user's stage manifest's 
 programs translate with and without cb_ssbo (no regressions), all valid SPIR-V, 13
 buffers (3 indexed, 4 pointers), every binding in 112-127. The dispatch path itself does
 not run on the box (no game): the layouts are created on lavapipe (`gpu: compute cb: …
-bound as storage buffers`), the selftests pass with it on and with BBHOST_CS_CB=0.
+bound as storage buffers`), the selftests pass with it on and with HELIAS_CS_CB=0.
 
 ---
 
@@ -2205,16 +2205,16 @@ items by measurement (rc5plain ANALYSIS §6): the GPU idle with work queued (A/B
 off unless its variable is set; no default, picture or snapshot-format change.
 
 ### Checked first (at 7b65cd0)
-`BBHOST_TABLES_VRAM`, `BBHOST_PARAMS_WC`, `BBHOST_PS_WAVE32` (=32 requires wave32),
-`BBHOST_FRAME_STATS`, `BBHOST_FRAME_DETAIL`, `BBHOST_WAIT_LOG`, `BBHOST_WAIT_LOG_MS`,
-`BBHOST_HLE_COUNT`, `BBHOST_SNAP_DIR` (+ `snap.request`), `BBHOST_VK_CAPTURE(_DIR)`
+`HELIAS_TABLES_VRAM`, `HELIAS_PARAMS_WC`, `HELIAS_PS_WAVE32` (=32 requires wave32),
+`HELIAS_FRAME_STATS`, `HELIAS_FRAME_DETAIL`, `HELIAS_WAIT_LOG`, `HELIAS_WAIT_LOG_MS`,
+`HELIAS_HLE_COUNT`, `HELIAS_SNAP_DIR` (+ `snap.request`), `HELIAS_VK_CAPTURE(_DIR)`
 (+ `capture.request`) all exist. Missing: a params ring in VRAM, per-flip timestamps, a
 dump on frames over 11 ms (main_wait logged only frames over 33 ms), and any PGO build.
-bbhost leaves through `_exit` on the window close, SIGTERM and the exit flip, so the profile
+Helia's Dream leaves through `_exit` on the window close, SIGTERM and the exit flip, so the profile
 runtime's atexit write would never run.
 
 ### Added
-- `src/host/flip_trace.{h,cpp}` (`BBHOST_FLIP_TRACE=1`, `BBHOST_FLIP_TRACE_MS`): hooks in
+- `src/host/flip_trace.{h,cpp}` (`HELIAS_FLIP_TRACE=1`, `HELIAS_FLIP_TRACE_MS`): hooks in
   `hle_gnm_submit_flip` (game thread: submit, back-pressure; the flip's done callback on the
   CP: before/after `hle_video_finish_flip`), `cp_thread` (queue 0: job taken / walked and
   submitted, so CP busy vs idle between flips), `note_main_frame_work` (the main loop's frame)
@@ -2223,14 +2223,14 @@ runtime's atexit write would never run.
   run-queue time per interval. A ring of 8192 flips under one mutex; ~4 short critical
   sections a flip on the game/CP threads when on, one constant load and branch when off.
   Snapshot `[flip_trace]` only when on.
-- `main_wait.cpp`: `BBHOST_FRAME_SLOW_MS` (default 33 = the old constant).
-- `gpu.cpp`: `BBHOST_PARAMS_VRAM=1` picks a DEVICE_LOCAL|HOST_VISIBLE|HOST_COHERENT type on a
+- `main_wait.cpp`: `HELIAS_FRAME_SLOW_MS` (default 33 = the old constant).
+- `gpu.cpp`: `HELIAS_PARAMS_VRAM=1` picks a DEVICE_LOCAL|HOST_VISIBLE|HOST_COHERENT type on a
   heap over 1 GiB for the params ring (the CPU only memcpys into it: alloc/rewrite_params_slot).
-  The default and `BBHOST_PARAMS_WC=1` paths choose exactly as before.
-- PGO: `-DBBHOST_PGO_GENERATE=ON` (IR PGO, `-fprofile-generate`, compatible with the ThinLTO
+  The default and `HELIAS_PARAMS_WC=1` paths choose exactly as before.
+- PGO: `-DHELIAS_PGO_GENERATE=ON` (IR PGO, `-fprofile-generate`, compatible with the ThinLTO
   build) compiles `src/host/pgo_dump.cpp`: a `bb-pgo` thread writes the counters every 30 s
   through `.tmp` + rename and once more from `exit_reports()` / the window-close path
-  (`pgo_dump_final`, signal-safe: a flag and nanosleep, ≤5 s). `-DBBHOST_PGO_USE=<profdata>`
+  (`pgo_dump_final`, signal-safe: a flag and nanosleep, ≤5 s). `-DHELIAS_PGO_USE=<profdata>`
   for the optimised build. The decomp sources get `-fno-profile-generate` /
   `-fno-profile-instr-use` (as they get `-fno-lto`). Not CS-IRPGO: that needs a second
   instrumented session on top of the first profile; possible later with `-fcs-profile-generate`.
@@ -2239,19 +2239,19 @@ runtime's atexit write would never run.
 
 ### Verified here
 ctest 55/55 (19 skipped as before, no game files); `--stream-selftest` passes with and
-without `BBHOST_PARAMS_VRAM=1` (lavapipe: `params ring: … in video memory the CPU maps`,
+without `HELIAS_PARAMS_VRAM=1` (lavapipe: `params ring: … in video memory the CPU maps`,
 0 differences). Build warnings: none new.
 
 ### The kit itself (tools/bbprofile/)
 - `bbprofile.sh`: the guided driver (steps sys, a1 plain + CPU profile, a2 TABLES_VRAM=0,
   a3 PARAMS_WC=1, a4 PARAMS_VRAM=1, m4, pgo, a5 PS_WAVE32=32, a6 plain again; ~28-30 min).
-  It swaps the kit binary in as the game folder's `bbhost.bin` (copy + rename; the original
-  kept as `bbhost.bin.bbprofile-orig`, restored and checked on exit, Ctrl-C included, and by
-  the next run after a crash), launches `./bbhost` with the folder's `bbhost.toml` as
-  run-bbhost.sh does but logs into the session folder (run-bbhost.sh prunes `logs/`), and
+  It swaps the kit binary in as the game folder's `heliasdream.bin` (copy + rename; the original
+  kept as `heliasdream.bin.bbprofile-orig`, restored and checked on exit, Ctrl-C included, and by
+  the next run after a crash), launches `./heliasdream` with the folder's `heliasdream.toml` as
+  run-heliasdream.sh does but logs into the session folder (run-heliasdream.sh prunes `logs/`), and
   takes the A/B windows by itself: F11 at the spot marks t=0, `snap.request` at +35 s and
   +65 s gives two back-to-back 30 s windows. perf runs during the stand; `perf sched record
-  -k CLOCK_MONOTONIC` lines up with bbhost's steady clock (`fliptrace: … at <s> monotonic`,
+  -k CLOCK_MONOTONIC` lines up with heliasdream's steady clock (`fliptrace: … at <s> monotonic`,
   `[flip_trace]` `base_steady_ns`). sysctls saved to `~/bbprofile-work/.sysctl-orig` and
   restored (the file survives a crash, so the next run restores the true originals).
 - `bbprofile_analyze.py`: box side; the A/B table against a1 and the a6 drift, M4's stage
@@ -2263,7 +2263,7 @@ without `BBHOST_PARAMS_VRAM=1` (lavapipe: `params ring: … in video memory the 
   BBPROFILE_AUTO=1 BBPROFILE_QUICK=1`. Verified here: full sessions, Ctrl-C mid-step
   (binary and sysctls restored, exit 130), `--resume`, recovery from a killed session,
   bundle + analysis + pgo-merge; the PGO binary writes its profile periodically and on a
-  normal exit, merges with llvm-profdata 19, and a `-DBBHOST_PGO_USE` build of it passes the
+  normal exit, merges with llvm-profdata 19, and a `-DHELIAS_PGO_USE` build of it passes the
   stream selftest. Not verifiable here: the game itself (no game files, lavapipe).
 
 ## 2026-10-20 (Tue), vk.1-rc6: the 12 ms frame, asynchronous logging, cheaper submissions, PGO
@@ -2280,7 +2280,7 @@ frames of 11 ms or more within -5…+25 ms of one. The block is now `native_peri
 the first report, polls every 100 ms) writes it. The map naming runs at exit only
 (`hle_gx_scaleform_report` calls the report once more with `name_regions`; the stale-calls
 part takes `g_native_mu` with try_lock there, as the exit can run on a thread that holds it)
-or with `BBHOST_GX_REPORT_MAPS=1`. The counters it prints are atomics and the one map it
+or with `HELIAS_GX_REPORT_MAPS=1`. The counters it prints are atomics and the one map it
 reads is under `g_native_mu` as before, so another thread may print them; the numbers are a
 moment later than the CP's, nothing else. `report_native` (shadow mode) goes the same way.
 
@@ -2305,7 +2305,7 @@ large batch write interleave inside a line. Producers use no thread-locals, lock
 errno-setting calls (raw syscalls for the futex wake, yield and sleep; no stack protector),
 as guest threads and the fault handler log. `host_log_sync_mode()` (sink off, then a bounded
 flush: 500 ms for the lock, as long for producers mid-copy) runs at every exit: the window
-closing, `BBHOST_EXIT_FLIP/SECONDS`, the device-lost exit, SIGTERM (`on_term`), the fault
+closing, `HELIAS_EXIT_FLIP/SECONDS`, the device-lost exit, SIGTERM (`on_term`), the fault
 handler after `hle_fs_host()`, a new SIGABRT handler (SA_RESETHAND; re-raises, so the core
 dump is as before), `atexit` (guest `exit()`), the stream selftest. A SIGKILL or the OOM
 killer loses at most what the writer had not written yet (milliseconds). The F11 tap is
@@ -2318,7 +2318,7 @@ arrives once, byte-exact, each thread's lines in order, the lines logged after t
 and after sync mode last; also clean under ThreadSanitizer (built by hand).
 
 ### Submissions
-The one userptr left on AMD/Linux was bbhost's own GX table ring (`hle_kernel_map_host`,
+The one userptr left on AMD/Linux was heliasdream's own GX table ring (`hle_kernel_map_host`,
 0xf000000000, 128 MiB; the game's flexible mappings in the session had no GPU bits and
 were not imported). amdgpu revalidates a userptr at every CS (`hmm_range_fault`, 22.6% of
 bb-submit). Where direct memory goes in as dma-bufs, `choose_dmem_import` now probes a
@@ -2330,13 +2330,13 @@ pointer. Not testable on the box (lavapipe takes host pointers; no /dev/udmabuf)
 user's log lines in TESTING.md's rc6 checks say whether it took.
 dma-buf pieces: `size_limit_mb` of the udmabuf module (read at start; default 64) decides
 the piece size, up to 1 GiB; each piece was one more BO in every submission's list (RADV's
-global BO list: every allocation is in every CS). `BBHOST_SUBMIT_EVERY_JOB=0` exists and
+global BO list: every allocation is in every CS). `HELIAS_SUBMIT_EVERY_JOB=0` exists and
 was rejected in test4 (flashing effects): no new A/B.
 
 ### Small items
 - Recorder wait: RDTSC for its own timing where CPUID 0x80000007 EDX[8] (invariant TSC)
   and the kernel's clocksource is `tsc`; ticks become ns at the reports from the TSC rate
-  measured against CLOCK_MONOTONIC since the thread started. `BBHOST_RECORDER_TSC=2`
+  measured against CLOCK_MONOTONIC since the thread started. `HELIAS_RECORDER_TSC=2`
   forces it (a test: the box's clocksource is not the TSC); the selftest passes either way.
 - `host_memmem`: AVX2 (runtime check) or SSE2 first/last-byte filter, then memcmp; the
   byte loop for the tail. `memmem_test`: 197,765 cases against the byte loop (alphabets of
@@ -2350,10 +2350,10 @@ was rejected in test4 (flashing effects): no new A/B.
   and a6, Ctrl-C, the tarball.
 
 ### PGO
-`packaging/vk/build.sh` with `PGO_PROFILE=bbhost.profdata` builds bbhost.bin with
-`-fprofile-use` (ThinLTO stays on) and `bbhost.bin.nopgo` in build-ci/build-nopgo, both
-through ci_build.sh's ctest. CMake: `-DBBHOST_PGO=OFF` ignores the profile;
-`-DBBHOST_PGO_WARN=ON` reports mismatches. The profile came from the ea885ba-era kit binary;
+`packaging/vk/build.sh` with `PGO_PROFILE=heliasdream.profdata` builds heliasdream.bin with
+`-fprofile-use` (ThinLTO stays on) and `heliasdream.bin.nopgo` in build-ci/build-nopgo, both
+through ci_build.sh's ctest. CMake: `-DHELIAS_PGO=OFF` ignores the profile;
+`-DHELIAS_PGO_WARN=ON` reports mismatches. The profile came from the ea885ba-era kit binary;
 against this commit 10 of its 6,696 functions no longer match (their counts are discarded,
 they are built as without PGO): `host_memmem`, `hle_gx_trace_draw`, `hle_gx_native_token`,
 `hle_kernel_map_host`, `hle_gx_scaleform_report`, `gpu::cpu_section`, `recorder_thread`,
@@ -2409,11 +2409,11 @@ a sampler, 32 otherwise). Then the resolution would copy the same bytes, and `di
 are functions of the words and the bindings (`image_dim_of`, bit 15), so the lists are left
 as they are. The `g_gx_resolves`/`g_gx_token_resolves` record counters are bumped as the
 resolution would have. Anything else - a fallback binding, a missing object, different
-bytes, another plan, `BBHOST_BINDING_PLANS` 0 or 2 - resolves in full, as rc6.
+bytes, another plan, `HELIAS_BINDING_PLANS` 0 or 2 - resolves in full, as rc6.
 `draw_impl` skips rebuilding the key's shape list when both stages kept theirs (it is built
 from those lists only; the fnv1a over it still runs, seeded by the new pipeline key).
 A stage without a program counts as kept when the last call was also programless.
-`BBHOST_CP_STAGE_CACHE=0` turns it off (`BBHOST_STAGE_CACHE` was already taken by the
+`HELIAS_CP_STAGE_CACHE=0` turns it off (`HELIAS_STAGE_CACHE` was already taken by the
 translation cache, which must stay on); `=2` resolves again on every hit into a scratch
 `KeyStage`, compares words, resolved flags, dims and modes, logs the first 8
 disagreements and uses the fresh resolution. Exit line in `render_report`.

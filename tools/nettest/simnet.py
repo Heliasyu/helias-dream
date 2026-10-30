@@ -142,7 +142,7 @@ class Nat:
 
 # ---- the P2P wire ----------------------------------------------------------
 # [0xff][0x80 valid | 0x40 byte vports | type 3][src vport][dst vport] payload,
-# as bbhost's hle/net.cpp writes it.
+# as heliasdream's hle/net.cpp writes it.
 
 P2P_MAGIC = 0xFF
 P2P_FLAGS_BYTE_VPORTS = 0x80 | 0x40 | 0x03
@@ -167,30 +167,30 @@ def p2p_unpack(data: bytes):
     return (data[at] << 8) | data[at + 1], (data[at + 2] << 8) | data[at + 3], data[at + 4:]
 
 
-# A bbhost hole-punch probe (hle/net.cpp kProbe): no P2P header.
+# A heliasdream hole-punch probe (hle/net.cpp kProbe): no P2P header.
 PROBE = bytes([0xFE]) + b"bbhp" + b"\0\0\0"
 
 
 # ---- STUN --------------------------------------------------------------------
-# The request bbhost sends (net/stun.cpp): a 20-byte header, 16-byte
+# The request heliasdream sends (net/stun.cpp): a 20-byte header, 16-byte
 # transaction id (the RFC 3489 shape the server parses), optional attributes.
 
 STUN_BINDING_REQUEST = 0x0001
 STUN_BINDING_RESPONSE = 0x0101
 ATTR_MAPPED_ADDRESS = 0x0001
 ATTR_XOR_MAPPED_ADDRESS = 0x8020
-# bbhost's relay attributes (server stun_server.py, client net/stun.cpp):
+# heliasdream's relay attributes (server stun_server.py, client net/stun.cpp):
 # request: BBHOST-HELLO = b"bbr1" + token(8, zero when none); response:
 # BBHOST-RELAY = b"bbr1" + token(8) + vport(u16) + observed ip(4) + port(u16).
-ATTR_BBHOST_HELLO = 0x8100
-ATTR_BBHOST_RELAY = 0x8101
+ATTR_HELIAS_HELLO = 0x8100
+ATTR_HELIAS_RELAY = 0x8101
 
 
 def stun_request(txid: bytes, token: bytes | None = None, hello: bool = False) -> bytes:
     attrs = b""
     if hello:
         val = b"bbr1" + (token or b"\0" * 8)
-        attrs += struct.pack("!HH", ATTR_BBHOST_HELLO, len(val)) + val
+        attrs += struct.pack("!HH", ATTR_HELIAS_HELLO, len(val)) + val
     return struct.pack("!HH", STUN_BINDING_REQUEST, len(attrs)) + txid + attrs
 
 
@@ -215,7 +215,7 @@ def stun_parse(data: bytes):
         if at == ATTR_MAPPED_ADDRESS and len(val) >= 8:
             port = struct.unpack_from("!H", val, 2)[0]
             mapped = (socket.inet_ntoa(val[4:8]), port)
-        elif at == ATTR_BBHOST_RELAY and len(val) >= 20 and val[:4] == b"bbr1":
+        elif at == ATTR_HELIAS_RELAY and len(val) >= 20 and val[:4] == b"bbr1":
             relay = {
                 "token": val[4:12],
                 "vport": struct.unpack_from("!H", val, 12)[0],
@@ -228,7 +228,7 @@ def new_txid() -> bytes:
     return os.urandom(16)
 
 
-# ---- bbhost's relay frames (server stun_server.py "bbrelay") -------------------
+# ---- heliasdream's relay frames (server stun_server.py "bbrelay") -------------------
 # client -> server, to the STUN port:  [0xfb]['R'][token 8][dst vport u16] P2P datagram
 # server -> client, from the STUN port: [0xfb]['r'][src vport u16] P2P datagram
 # client keepalive is the STUN binding with BBHOST-HELLO and the token.

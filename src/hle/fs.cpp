@@ -82,14 +82,14 @@ std::string g_mods;
 // three PC enhancements on there are four such layers (the menus' and one
 // each), ~0.4 ms on every file the game asked for, its main loop's included,
 // for a handful of files in three maps. A path the index has is resolved on
-// disk exactly as before. BBHOST_FS_OVERLAY_INDEX=0: every layer probed on
+// disk exactly as before. HELIAS_FS_OVERLAY_INDEX=0: every layer probed on
 // disk for every path, as before.
 struct OverlayIndex {
     bool valid = false;                     // listed; false: probe the disk
     std::unordered_set<std::string> paths;  // files and directories: lowercase, '/'-separated, from the layer
 };
 const bool g_overlay_index_on = [] {
-    const char* e = std::getenv("BBHOST_FS_OVERLAY_INDEX");
+    const char* e = std::getenv("HELIAS_FS_OVERLAY_INDEX");
     return !(e && e[0] == '0');
 }();
 std::atomic<std::uint64_t> g_app0_lookups{0}, g_overlay_probes{0}, g_overlay_skips{0};
@@ -627,18 +627,18 @@ std::string guest_to_host(const char* guest) {
         }
         if (!over.empty() && path_exists(over.c_str())) {
             const int n = g_mod_hits.fetch_add(1);
-            static const char* traced = std::getenv("BBHOST_FS_TRACE");
+            static const char* traced = std::getenv("HELIAS_FS_TRACE");
             if (n < 32 || (traced && *traced && g.find(traced) != std::string::npos)) {
                 host_log("FS overlay: %s -> %s", g.c_str(), over.c_str());
             }
             return over;
         }
     }
-    // BBHOST_FS_TRACE=<substring>: every guest path containing it, whether or
+    // HELIAS_FS_TRACE=<substring>: every guest path containing it, whether or
     // not the overlay had a file. Without this, a path the overlay *misses* is
     // invisible - and "the overlay served nothing" and "the game never asked"
     // look identical in the log, which cost a run.
-    static const char* trace = std::getenv("BBHOST_FS_TRACE");
+    static const char* trace = std::getenv("HELIAS_FS_TRACE");
     if (trace && *trace && g.find(trace) != std::string::npos) {
         static int logs = 0;
         if (logs < 40) {
@@ -885,7 +885,7 @@ void snapshot_dir(HostFile& hf) {
 
 bool fs_trace() {
     static const bool on = [] {
-        const char* e = std::getenv("BBHOST_TRACE_FS");
+        const char* e = std::getenv("HELIAS_TRACE_FS");
         return e && e[0] == '1';
     }();
     return on;

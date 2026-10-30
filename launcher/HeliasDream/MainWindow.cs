@@ -68,7 +68,7 @@ public sealed class MainWindow : Window
         _ctx = new Ctx
         {
             Options = _options, Settings = _settings,
-            Config = () => new BbhostToml(Paths.BbhostToml, Profiles.ConfigFile(_settings.Profile)),
+            Config = () => new HeliasToml(Paths.HeliasToml, Profiles.ConfigFile(_settings.Profile)),
             PickFile = PickFile,
             SwitchProfile = p =>
             {
@@ -101,7 +101,7 @@ public sealed class MainWindow : Window
             },
         };
 
-        var cfg = new BbhostToml(Paths.BbhostToml);
+        var cfg = new HeliasToml(Paths.HeliasToml);
         _scene = new Scene(_settings.GameArtBackground ? KeyArt(cfg.App0) : null) { ReduceMotion = _settings.ReduceMotion };
         _glide.Reduced = _settings.ReduceMotion;
 

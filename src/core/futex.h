@@ -22,9 +22,9 @@
 // microseconds with `pause` - so a guest's 200 us timed wait neither returns
 // at once and spins nor sleeps a whole tick.
 //
-// BBHOST_FUTEX=0 puts the same words on parked std::condition_variables
+// HELIAS_FUTEX=0 puts the same words on parked std::condition_variables
 // (winpthreads on Windows), the primitives the sync layer used before, for
-// an A/B. BBHOST_FUTEX_SPIN=<n> spins up to n `pause`s before a contended
+// an A/B. HELIAS_FUTEX_SPIN=<n> spins up to n `pause`s before a contended
 // guest lock sleeps (0, the default, per Kyo's measurement).
 #pragma once
 
@@ -42,7 +42,7 @@ using HostDeadline = std::chrono::steady_clock::time_point;
 bool host_futex_wait(std::atomic<std::uint32_t>* word, std::uint32_t expected, const HostDeadline* deadline);
 void host_futex_wake_one(std::atomic<std::uint32_t>* word);
 void host_futex_wake_all(std::atomic<std::uint32_t>* word);
-// The spin budget (BBHOST_FUTEX_SPIN), and whether the native sleep is in use.
+// The spin budget (HELIAS_FUTEX_SPIN), and whether the native sleep is in use.
 unsigned host_futex_spin();
 bool host_futex_native();
 

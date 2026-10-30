@@ -1,13 +1,13 @@
 #pragma once
 
-// bbhost-vk Phase 2: the sub-pixel jitter a temporal upscaler needs.
+// heliasdream-vk Phase 2: the sub-pixel jitter a temporal upscaler needs.
 // Halton(2,3), the sequence FSR 3.1 / FSR 4 / DLSS / XeSS all take, with the
 // FidelityFX SDK's phase count (ffxFsr3GetJitterPhaseCount: 8 x the
 // upscale ratio squared, truncated) and offsets (ffxFsr3GetJitterOffset:
 // halton(index % phases + 1) - 0.5 on each axis). Pure; no dependencies -
 // tests/temporal_test.cpp takes it as it is.
 //
-// The offset is in render pixels, +x right, +y down: the shift bbhost
+// The offset is in render pixels, +x right, +y down: the shift heliasdream
 // applies to the viewport of the scene's geometry draws (host/render.cpp).
 // Each backend maps it to its own convention when it is handed over
 // (host/upscaler_inputs.h).

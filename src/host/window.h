@@ -58,7 +58,7 @@ bool host_window_pump();
 // Ends the run as closing the window does (the title menu's Quit Game). Any thread.
 void host_window_request_quit();
 void host_window_stop();
-// An error the player has to read before bbhost ends, in a box of its own (not
+// An error the player has to read before heliasdream ends, in a box of its own (not
 // modal to the game's window, whose thread may have stopped pumping). Returns
 // when it is closed; at once without SDL.
 void host_window_error_box(const char* title, const char* text);
@@ -163,7 +163,7 @@ void host_mouse_describe(char* out, std::size_t n);
 void host_window_set_fullscreen(bool on);
 void host_window_set_vsync(bool on);
 // HDR output: the swapchain is made again in HDR10 (where the display offers
-// it) or SDR on the next present. BBHOST_HDR=0/1 wins over it.
+// it) or SDR on the next present. HELIAS_HDR=0/1 wins over it.
 void host_window_set_hdr(bool on);
 // The presented image's size in pixels (the swapchain: the window, or the
 // display in fullscreen); false before there is one (headless). Any thread.
@@ -182,7 +182,7 @@ std::uint64_t host_present_last_ns(std::uint64_t* serial);
 struct PresentFlip {
     std::uint64_t submit_need = ~0ull;  // host_gpu_work_needs() when the flip arrived; ~0: not known, submit
     std::uint64_t arrived_ns = 0;       // steady clock when the flip was queued (for the flip-to-present time); 0: not known
-    bool on_arrival = false;            // shown when it arrived, before its vblank completes it (BBHOST_PRESENT_ON_ARRIVAL)
+    bool on_arrival = false;            // shown when it arrived, before its vblank completes it (HELIAS_PRESENT_ON_ARRIVAL)
     // rc3: handed in by the command processor's thread after the frame's
     // commands (hle_video_finish_flip recorded=true), capped or uncapped: the
     // frame-latency limit's wait applies (host_present). The vblank thread's

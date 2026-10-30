@@ -325,7 +325,7 @@ struct TranslateOptions {
     // (tess_window), or against StageParams::lds_bytes without one, and the
     // window's patch is held inside lds_bytes: past the end a read is 0 and
     // a write is dropped, as on the hardware. The host turns it off with
-    // BBHOST_TESS_LDS_BOUND=0.
+    // HELIAS_TESS_LDS_BOUND=0.
     bool tess_lds_bound = true;
     bool tess_quads = true;            // VGT_TF_PARAM type 2; triangles otherwise
     int tess_spacing = 0;              // 0 integer, 1 fractional-odd, 2 fractional-even
@@ -379,7 +379,7 @@ struct TranslateResult {
     // operation at all: the renderer clears it for one.
     std::uint32_t wave64_needs = kWave64NotPixel;
     // rc4: the fetch shader ran inline, straight-line, in place of
-    // s_swappc_b64 (both programs branch-free; BBHOST_FETCH_INLINE=0 keeps
+    // s_swappc_b64 (both programs branch-free; HELIAS_FETCH_INLINE=0 keeps
     // the dispatcher). Counted in the [walks] snapshot as fetch_inlined.
     bool fetch_inlined = false;
     // rc4: bound loads at an SGPR offset (indexed_buffer_load), each with the
@@ -474,7 +474,7 @@ void set_runtime_sample_offsets(bool on);
 bool runtime_sample_offsets();
 
 // Every process-wide switch a translation reads besides its TranslateOptions -
-// the device features the host sets above (half.h's too) and the BBHOST_*
+// the device features the host sets above (half.h's too) and the HELIAS_*
 // variables the translator looks at - as one string. The host's translation
 // cache (host/translation_cache.cpp) keys each entry on it, so a run with
 // another setting never takes a translation made under this one: a switch

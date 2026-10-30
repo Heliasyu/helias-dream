@@ -16,10 +16,10 @@ compile_commands.json
 /core
 /core.*
 *.core
-/bbhost.toml
+/heliasdream.toml
 /build2/
 __pycache__/
-/bbhost-options.toml
+/heliasdream-options.toml
 build-win/
 build-linux-portable/
 /build-ci/
@@ -27,7 +27,7 @@ build-linux-portable/
 /notes/
 /symbols/
 
-# bbhost-vk: never commit game data, saves, user-built FSR 4.1.1 assets, logs or account files
+# heliasdream-vk: never commit game data, saves, user-built FSR 4.1.1 assets, logs or account files
 CUSA*/
 dvdroot_ps4/
 *.pkg
@@ -41,7 +41,7 @@ user/
 build-ci/
 dist/
 
-# bbhost-vk Phase 4: FSR 4.1.1 assets built from the user's DLL, and their work folder (never committed)
+# heliasdream-vk Phase 4: FSR 4.1.1 assets built from the user's DLL, and their work folder (never committed)
 fsr4_411/
 out/fsr4cap/
 *.dll

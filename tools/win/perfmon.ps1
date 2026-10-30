@@ -1,4 +1,4 @@
-# perfmon.ps1 -Name bbhost -Seconds 60 [-Out file]: a process's GPU use as
+# perfmon.ps1 -Name heliasdream -Seconds 60 [-Out file]: a process's GPU use as
 # Windows Task Manager counts it, once a second - the 3D, compute and copy
 # engines' utilisation (summed over the process's engines of each type), its
 # dedicated (VRAM) and shared (system RAM the GPU maps) memory, working set and
@@ -8,7 +8,7 @@
 # process started). Waits up to -WaitStart seconds for the process to appear;
 # follows the one of that name with the largest working set. Used by
 # tools/perf_pass_win.sh; works for any process (shadps4 too).
-param([string]$Name = "bbhost", [int]$Seconds = 60, [int]$WaitStart = 600, [string]$Out = "")
+param([string]$Name = "heliasdream", [int]$Seconds = 60, [int]$WaitStart = 600, [string]$Out = "")
 $ErrorActionPreference = "SilentlyContinue"
 function Pick { Get-Process -Name $Name | Sort-Object WorkingSet64 -Descending | Select-Object -First 1 }
 $p = $null

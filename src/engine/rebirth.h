@@ -5,9 +5,9 @@
 // With the Yharnam Stone, the altar returns the hunter to their origin's level
 // and attributes, gives back the blood echoes those levels cost, and opens the
 // doll's level-up menu to spend them again; leaving it asks to accept or undo
-// (closing that choice goes back to the menu). world.rebirth (BBHOST_REBIRTH=0|1,
+// (closing that choice goes back to the menu). world.rebirth (HELIAS_REBIRTH=0|1,
 // on by default): the altar's talk script is rewritten from the dump into
-// <data>/bbhost/rebirth-assets at start (engine/rebirth_script.h) and served
+// <data>/heliasdream/rebirth-assets at start (engine/rebirth_script.h) and served
 // behind the player's own overlay; the host's half of its handshake runs once a
 // frame. Off, the altar is the game's.
 

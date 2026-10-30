@@ -8,7 +8,7 @@ namespace HeliasDream.Core;
 /// <summary>
 /// The controllers plugged in (Linux: /proc/bus/input/devices, the joysticks among them), for the
 /// Controls page's status and its controller choice. The game itself opens them through SDL;
-/// the choice reaches it as BBHOST_GAMEPAD (part of the name), src/host/window.cpp.
+/// the choice reaches it as HELIAS_GAMEPAD (part of the name), src/host/window.cpp.
 /// </summary>
 public static class Controllers
 {

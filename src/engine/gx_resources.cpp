@@ -129,9 +129,9 @@ thread_local std::vector<Pending> t_pending;
 // The T# the builder produced on this thread, for the creator's return.
 thread_local std::uint32_t t_tsharp[8];
 thread_local bool t_tsharp_valid = false;
-// BBHOST_GX_TEX_AHEAD=0: do not create textures ahead of their first bind.
+// HELIAS_GX_TEX_AHEAD=0: do not create textures ahead of their first bind.
 const bool g_tex_ahead = [] {
-    const char* e = std::getenv("BBHOST_GX_TEX_AHEAD");
+    const char* e = std::getenv("HELIAS_GX_TEX_AHEAD");
     return !e || e[0] != '0';
 }();
 std::atomic<std::uint64_t> g_ahead_created{0}, g_ahead_bytes{0}, g_ahead_refused{0}, g_ahead_no_tsharp{0}, g_ahead_dropped{0},
@@ -209,7 +209,7 @@ void register_object(std::uint64_t object, std::uint32_t extent = 0, std::uint64
     g_obj_full.fetch_add(1, std::memory_order_relaxed);  // its draws find no id and take the address path
 }
 
-bool g_trace = false;  // BBHOST_GX_MAP_TRACE
+bool g_trace = false;  // HELIAS_GX_MAP_TRACE
 std::map<std::uint64_t, std::uint64_t> g_trace_callers;  // return address (Binary Ninja) -> calls, under g_mu
 std::atomic<int> g_trace_logged{0};
 
@@ -225,10 +225,10 @@ bool old_holder_alive(std::uint64_t holder) { return g_by_holder.count(holder) !
 // `key` names the entry (the holder, or kMemoryKey | memory for a 1D
 // resource registered from its struct); `holder` is where the fields are
 // read from as a holder lays them out (the struct at +0x18).
-// BBHOST_GX_RATE=1: a line for each wall-clock second resources were made
+// HELIAS_GX_RATE=1: a line for each wall-clock second resources were made
 // in, with how many and how many bytes - when a warp's or a walk's
 // streaming settles. The second is the epoch's (the map probe's clock).
-const bool g_rate_log = std::getenv("BBHOST_GX_RATE") != nullptr;
+const bool g_rate_log = std::getenv("HELIAS_GX_RATE") != nullptr;
 std::mutex g_rate_mu;
 std::int64_t g_rate_sec = 0;
 std::uint64_t g_rate_n = 0, g_rate_bytes = 0;
@@ -545,9 +545,9 @@ void trace_map(const Pending& p) {
         if (p.out) rd(p.out, &ptr);
         // The 128-byte constant-buffer allocations are thousands a frame, and
         // the menus' quads come before the world: the log starts at
-        // BBHOST_GX_MAP_FROM_FLIP (default 3000) and takes 600 of the rest.
+        // HELIAS_GX_MAP_FROM_FLIP (default 3000) and takes 600 of the rest.
         static const std::uint64_t from_flip = [] {
-            const char* e = std::getenv("BBHOST_GX_MAP_FROM_FLIP");
+            const char* e = std::getenv("HELIAS_GX_MAP_FROM_FLIP");
             return e && e[0] ? std::strtoull(e, nullptr, 10) : 3000ull;
         }();
         if (p.ring_bytes != 128 && hle_video_flip_count() >= from_flip) {
@@ -598,7 +598,7 @@ void trace_map(const Pending& p) {
                         return 0;
                     },
                     &f);
-                if (f.hit) std::snprintf(who, sizeof(who), " (host %s+0x%llx)", f.name && f.name[0] ? f.name : "bbhost",
+                if (f.hit) std::snprintf(who, sizeof(who), " (host %s+0x%llx)", f.name && f.name[0] ? f.name : "heliasdream",
                                          static_cast<unsigned long long>(p.ret - f.base));
                 else std::snprintf(who, sizeof(who), " (host, generated code)");
             }
@@ -701,11 +701,11 @@ std::uint64_t gx_resources_create_failures() { return g_create_failures.load(std
 void gx_resources_install(ElfImage* image) {
     g_slide = image->mem.slide;
     g_trace = [] {
-        const char* e = std::getenv("BBHOST_GX_MAP_TRACE");
+        const char* e = std::getenv("HELIAS_GX_MAP_TRACE");
         return e && e[0] == '1';
     }();
-    if (const char* e = std::getenv("BBHOST_GX_RESOURCES"); e && e[0] == '0') {
-        host_log("gx-resources: off (BBHOST_GX_RESOURCES=0)");
+    if (const char* e = std::getenv("HELIAS_GX_RESOURCES"); e && e[0] == '0') {
+        host_log("gx-resources: off (HELIAS_GX_RESOURCES=0)");
         return;
     }
     g_gx_res_after_thunk = hle_wrap_fn(reinterpret_cast<void*>(&gx_res_after));
@@ -963,7 +963,7 @@ void gx_resources_report() {
              "destroyed before their turn %llu, queue full %llu; retirements queued %llu%s",
              static_cast<ull>(g_ahead_created.load()), static_cast<ull>(g_ahead_bytes.load() >> 20), static_cast<ull>(g_ahead_refused.load()),
              static_cast<ull>(g_ahead_no_tsharp.load()), static_cast<ull>(g_ahead_gone.load()), static_cast<ull>(g_ahead_dropped.load()),
-             static_cast<ull>(g_retire_queued.load()), g_tex_ahead ? "" : " (BBHOST_GX_TEX_AHEAD=0)");
+             static_cast<ull>(g_retire_queued.load()), g_tex_ahead ? "" : " (HELIAS_GX_TEX_AHEAD=0)");
     if (g_trace) {
         std::lock_guard<std::mutex> lk(g_mu);
         host_log("gx-map: %zu distinct callers", g_trace_callers.size());

@@ -150,12 +150,12 @@ public sealed class OptionsFile
 }
 
 /// <summary>HeliasDream.toml, read only: the game's paths and the online server.</summary>
-public sealed class BbhostToml
+public sealed class HeliasToml
 {
     readonly Dictionary<string, string> _kv = new();
 
     /// The files layered as the engine does: later ones (a profile's --config) win.
-    public BbhostToml(params string?[] paths)
+    public HeliasToml(params string?[] paths)
     {
         foreach (var path in paths)
             if (path != null && File.Exists(path)) Layer(path);
@@ -181,7 +181,7 @@ public sealed class BbhostToml
     public string? this[string key] => _kv.TryGetValue(key, out var v) ? v : null;
     public string? App0 => this["paths.app0"]?.TrimEnd('/', '\\');
     public string? Eboot => this["paths.eboot"];
-    public string DataDir => this["paths.data"] ?? Path.Combine(Paths.BbhostDataDir, "data");
+    public string DataDir => this["paths.data"] ?? Path.Combine(Paths.HeliasDataDir, "data");
     public string OnlineHost => this["online.host"] ?? "thehuntersdream.com";
     /// The account server (the website), as the engine's [online] auth_server.
     public string AuthServer => this["online.auth_server"] ?? $"https://{OnlineHost}";

@@ -1,5 +1,5 @@
 #!/bin/bash
-# tools/win_deps.sh for a Windows machine: what bbhost.exe links against,
+# tools/win_deps.sh for a Windows machine: what heliasdream.exe links against,
 # built natively in MSYS2's UCRT64 environment with cmake/msys2-ucrt64.cmake -
 # zlib, SDL3 and libcurl (schannel) static, a minimal static ffmpeg for the
 # movies, and the Vulkan headers and loader import library from MSYS2. Same

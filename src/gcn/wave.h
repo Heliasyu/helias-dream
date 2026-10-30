@@ -70,7 +70,7 @@ struct SpillCells {
     std::set<std::pair<int, int>> cells;
 };
 SpillCells spill_cells(const Program& program);
-// BBHOST_SPILL_CELLS=0: no cells; every v_readlane_b32 is a subgroup shuffle.
+// HELIAS_SPILL_CELLS=0: no cells; every v_readlane_b32 is a subgroup shuffle.
 bool spill_cells_on();
 
 // Why a program keeps the 64-lane subgroup GCN wrote it for

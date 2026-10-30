@@ -12,7 +12,7 @@
 // Both are edits of the dump's files - nothing in them is authored here but the
 // strings (tools/pc_option_messages.tsv, built in) - so no package can carry
 // them, and every install has to make its own. This does, at start: into
-// <data>/bbhost/menu-assets, again only when the generator, the strings or the
+// <data>/heliasdream/menu-assets, again only when the generator, the strings or the
 // dump's files change (a stamp beside them says which they were made from).
 // The FS serves that directory behind the player's own overlay (paths.mods),
 // so a hand-made file there still wins.
@@ -27,7 +27,7 @@
 // with the FS. False, with the reason logged, when the dump lacks a source.
 bool menu_assets_ensure();
 
-// bbhost-vk: whether the movie the game is served has the PC Upscaling and
+// heliasdream-vk: whether the movie the game is served has the PC Upscaling and
 // Upscaling Quality sections (they are made after the stock eight, and left
 // out when the dump's movie does not take them; a player's own movie has
 // none). After menu_assets_ensure.

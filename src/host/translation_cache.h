@@ -1,7 +1,7 @@
 #pragma once
 
-// The translation cache (<data root>/bbhost/translation-cache.bin, beside the
-// pipeline cache and off with it; BBHOST_TRANSLATION_CACHE=0 turns it off
+// The translation cache (<data root>/heliasdream/translation-cache.bin, beside the
+// pipeline cache and off with it; HELIAS_TRANSLATION_CACHE=0 turns it off
 // alone): what gcn::translate made of a program, kept between runs.
 //
 // Every start used to translate every shader GX creates again - ~1,350 pixel

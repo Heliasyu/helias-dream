@@ -1,6 +1,6 @@
 #pragma once
 
-// bbhost-vk Phase 1: where the scene's size is split from the UI's, as data.
+// heliasdream-vk Phase 1: where the scene's size is split from the UI's, as data.
 //
 // The sites are Kyo's "Decoupled 1080p UI (<w>x<h> render res)" patches for
 // Bloodborne 1.09 (the shadPS4 community patch list, shadps4-emu/ps4_cheats
@@ -9,10 +9,10 @@
 // Each of those patches is the same list of writes with the size as
 // immediates; here the list is a table and the size a parameter, so a live
 // change can rewrite it (engine/scene_split.cpp). Addresses are Binary
-// Ninja's (0x400000 base), as everywhere in bbhost; they are the same as the
+// Ninja's (0x400000 base), as everywhere in heliasdream; they are the same as the
 // community list's.
 //
-// What each write does, as far as the addresses and bbhost's own notes on the
+// What each write does, as far as the addresses and heliasdream's own notes on the
 // functions around them say (engine/live_resolution.cpp names them):
 //
 //   0x2697aea/af0   sub_26979b0, the graphics manager's construction: the
@@ -200,7 +200,7 @@ inline bool display_fits_split(std::uint32_t dw, std::uint32_t dh, std::uint32_t
 // scene is split at the start, when they are the starting (output) size so
 // the split's DefRenderTarget is the output's (display_fits_split). Then a
 // larger Resolution applies at the next start, and another one live runs
-// unsplit until the next start. `keep_max`: BBHOST_SPLIT_DISPLAY=max, as
+// unsplit until the next start. `keep_max`: HELIAS_SPLIT_DISPLAY=max, as
 // before.
 inline void display_size_at_start(bool split_at_start, bool keep_max, std::uint32_t max_w, std::uint32_t max_h, std::uint32_t w,
                                   std::uint32_t h, std::uint32_t* dw, std::uint32_t* dh) {

@@ -503,7 +503,7 @@ DECOMP_LEAF Value* evaluate(Value* out, std::uint8_t* machine, Context* ctx, con
 
 }  // namespace talk_script
 
-// ---- Compare runs (BBHOST_DECOMP_COMPARE=1) ----
+// ---- Compare runs (HELIAS_DECOMP_COMPARE=1) ----
 //
 // The game's evaluator runs on the machine's context as ever, its
 // environment's answers recorded on the way (a proxy in the machine's

@@ -170,10 +170,10 @@ GUEST_ABI int hle_sysparam_int(int id, int* value) {
     int v = 0;
     if (id == 1) {
         // SCE_SYSTEM_SERVICE_PARAM_ID_LANG: the Game language setting (English
-        // US unless changed); BBHOST_SYSTEM_LANG=N wins (2 French, 4 German,
+        // US unless changed); HELIAS_SYSTEM_LANG=N wins (2 French, 4 German,
         // 18 English UK, ...) - for testing the other message bundles.
         static const int lang = [] {
-            const char* e = std::getenv("BBHOST_SYSTEM_LANG");
+            const char* e = std::getenv("HELIAS_SYSTEM_LANG");
             return e && *e ? std::atoi(e) : host_settings().game_language;
         }();
         v = lang;
@@ -440,11 +440,11 @@ GUEST_ABI int hle_np_get_state(int, int* state) {
     if (!state) {
         return static_cast<int>(0x80550003);
     }
-    // BBHOST_NP_SIGNED_OUT=1 reports SCE_NP_STATE_SIGNED_OUT (1) instead of
+    // HELIAS_NP_SIGNED_OUT=1 reports SCE_NP_STATE_SIGNED_OUT (1) instead of
     // SIGNED_IN (2), to test whether the online boot path derails the menu
     // preload (shadPS4 runs Np-stubbed = signed out and loads the full title).
     static const int forced = [] {
-        const char* e = std::getenv("BBHOST_NP_SIGNED_OUT");
+        const char* e = std::getenv("HELIAS_NP_SIGNED_OUT");
         return (e && e[0] == '1') ? 1 : 2;
     }();
     // online.require_account: signed out until the F10 screen has logged an
@@ -595,7 +595,7 @@ bool valid_dir_name(const char* n) {
 // Save backups, a port's safety net (docs/running.md): when a mount opened to
 // write is unmounted - the game has finished writing it - the directory is
 // copied to <data>/save-backups/<dir>/<time>/, at most every
-// BBHOST_SAVE_BACKUP_MINUTES (5) per save, the newest BBHOST_SAVE_BACKUPS (8)
+// HELIAS_SAVE_BACKUP_MINUTES (5) per save, the newest HELIAS_SAVE_BACKUPS (8)
 // kept (0 turns it off). Outside saves/ so the game's own search never sees
 // them; a backup is restored by copying its files back into saves/<dir>.
 // Synchronous, so a copy is never half of a save: the game unmounts ~20
@@ -605,11 +605,11 @@ std::map<std::string, std::chrono::steady_clock::time_point> g_last_backup;
 
 void back_up_save(const std::string& dir) {
     static const int keep = [] {
-        const char* e = std::getenv("BBHOST_SAVE_BACKUPS");
+        const char* e = std::getenv("HELIAS_SAVE_BACKUPS");
         return e && *e ? std::atoi(e) : 8;
     }();
     static const int minutes = [] {
-        const char* e = std::getenv("BBHOST_SAVE_BACKUP_MINUTES");
+        const char* e = std::getenv("HELIAS_SAVE_BACKUP_MINUTES");
         return e && *e ? std::max(0, std::atoi(e)) : 5;
     }();
     if (keep <= 0) return;
@@ -663,7 +663,7 @@ GUEST_ABI int hle_save_mount(const SaveMountReq* req, SaveMountResult* result) {
     std::memset(result, 0, sizeof(*result));
     const std::string dir = req->dir_name;
 #if defined(_WIN32)
-    if (const char* e = std::getenv("BBHOST_SAVE_DUMP"); e && e[0] == '1') win_vm_dump_views();
+    if (const char* e = std::getenv("HELIAS_SAVE_DUMP"); e && e[0] == '1') win_vm_dump_views();
 #endif
     const bool exists = save_dir_exists(dir);
     const bool create = (req->mount_mode & (kMountCreate | kMountCreate2)) != 0;
@@ -1558,7 +1558,7 @@ GUEST_ABI int hle_pad_read(int handle, std::uint8_t* st) {
     std::memset(st, 0, 120);
     PadState p = host_pad_state();
     const std::uint32_t device_buttons = p.buttons;  // pad and keyboard, before the mouse
-    // BBHOST_MOUSE_MENU=1: the pointer drives the menus through the pad, which
+    // HELIAS_MOUSE_MENU=1: the pointer drives the menus through the pad, which
     // is the only channel the game reads - a click is Cross, right-click is
     // Circle, the wheel is Up and Down. This is navigation, not a cursor:
     // driving the *selection* from a position needs the menu's item rectangles,
@@ -1567,7 +1567,7 @@ GUEST_ABI int hle_pad_read(int handle, std::uint8_t* st) {
     // On by default (since 2026-10-02): the press below only goes out while a
     // menu is open (menu_pointer_in_menu), so a click in the world swings the
     // weapon, never a menu. The options screen owns the setting
-    // (BBHOST_MOUSE_MENU still overrides it), and while that screen is open it
+    // (HELIAS_MOUSE_MENU still overrides it), and while that screen is open it
     // is the pointer's only consumer - two readers would eat each other's edges.
     // The mouse turns the camera. DS3 does this with CSMouseMan: it reads the
     // OS cursor, feeds the movement to the camera and SetCursorPos-es back to
@@ -1754,9 +1754,9 @@ GUEST_ABI int hle_pad_read(int handle, std::uint8_t* st) {
     } else if (typing && !host_options_open()) {
         host_mouse_state();  // the box's, outside a menu as well
     }
-    // BBHOST_AUTOPRESS=1: headless test aid; after 25 s tap Cross, Circle,
+    // HELIAS_AUTOPRESS=1: headless test aid; after 25 s tap Cross, Circle,
     // Options and Down in turn every 1.5 s so title/menu screens advance.
-    // BBHOST_AUTOPRESS="25:circle,29:down,30.5:circle,...": scripted taps
+    // HELIAS_AUTOPRESS="25:circle,29:down,30.5:circle,...": scripted taps
     // (seconds since start; names cross circle square triangle options up
     // down left right l1 r1 l2 r2 l3 r3 touch, and the sticks lup ldown
     // lleft lright, rup rdown rleft rright). Each is held for 500 ms so a load
@@ -1772,7 +1772,7 @@ GUEST_ABI int hle_pad_read(int handle, std::uint8_t* st) {
     };
     static const std::vector<Tap> script = [] {
         std::vector<Tap> v;
-        const char* e = std::getenv("BBHOST_AUTOPRESS");
+        const char* e = std::getenv("HELIAS_AUTOPRESS");
         if (!e || !std::strchr(e, ':')) {
             return v;
         }
@@ -1816,17 +1816,17 @@ GUEST_ABI int hle_pad_read(int handle, std::uint8_t* st) {
         return v;
     }();
     static const bool autopress = [] {
-        const char* e = std::getenv("BBHOST_AUTOPRESS");
+        const char* e = std::getenv("HELIAS_AUTOPRESS");
         return e && e[0] != 0;
     }();
     // How long a tap is held. 500 ms is right for gameplay, where a load hitch
     // can skip several pad polls and a short press would be dropped. It is
     // wrong for menus: a cursor auto-repeats while held, so one tap moves an
     // unpredictable number of rows and a scripted walk lands somewhere
-    // different every run. BBHOST_AUTOPRESS_HOLD_MS=120 makes menu navigation
+    // different every run. HELIAS_AUTOPRESS_HOLD_MS=120 makes menu navigation
     // deterministic; the flip form scales with it.
     static const long hold_ms = [] {
-        const char* e = std::getenv("BBHOST_AUTOPRESS_HOLD_MS");
+        const char* e = std::getenv("HELIAS_AUTOPRESS_HOLD_MS");
         const long v = e ? std::strtol(e, nullptr, 10) : 0;
         return v > 0 ? v : 500;
     }();
@@ -1901,10 +1901,10 @@ GUEST_ABI int hle_pad_read(int handle, std::uint8_t* st) {
         }
         p.timestamp = static_cast<std::uint64_t>(ms) * 1000;
     }
-    // BBHOST_TRACE_PAD=1: every read that sees a button change, with the
+    // HELIAS_TRACE_PAD=1: every read that sees a button change, with the
     // flip count and the reads-per-flip rate (double-press investigations).
     static const bool trace_pad = [] {
-        const char* e = std::getenv("BBHOST_TRACE_PAD");
+        const char* e = std::getenv("HELIAS_TRACE_PAD");
         return e && e[0] == '1';
     }();
     if (trace_pad) {
@@ -1933,11 +1933,11 @@ GUEST_ABI int hle_pad_read(int handle, std::uint8_t* st) {
             last_buttons = p.buttons;
         }
     }
-    // BBHOST_PAD_LOG=1: every change in the buttons the game receives, with a
+    // HELIAS_PAD_LOG=1: every change in the buttons the game receives, with a
     // millisecond clock - for finding which press closed or opened something.
     {
         static const bool pad_log = [] {
-            const char* e = std::getenv("BBHOST_PAD_LOG");
+            const char* e = std::getenv("HELIAS_PAD_LOG");
             return e && e[0] == '1';
         }();
         static std::uint32_t last = 0;
@@ -1963,10 +1963,10 @@ GUEST_ABI int hle_pad_read(int handle, std::uint8_t* st) {
     }
     g_pad_delivered.store(p.buttons, std::memory_order_relaxed);
     // The Debug Menu key, on the thread that reads the pad (engine/debug_menu.h).
-    // BBHOST_DEBUG_MENU_AT=N (a test aid) presses it once at flip N; the pad
-    // then works the open menu, so BBHOST_AUTOPRESS can walk its pages.
+    // HELIAS_DEBUG_MENU_AT=N (a test aid) presses it once at flip N; the pad
+    // then works the open menu, so HELIAS_AUTOPRESS can walk its pages.
     static const std::uint64_t debug_at = [] {
-        const char* e = std::getenv("BBHOST_DEBUG_MENU_AT");
+        const char* e = std::getenv("HELIAS_DEBUG_MENU_AT");
         return e && e[0] ? std::strtoull(e, nullptr, 0) : 0ull;
     }();
     static bool debug_pressed = false;
@@ -2001,10 +2001,10 @@ GUEST_ABI int hle_pad_read(int handle, std::uint8_t* st) {
     st[76] = p.connected ? 1 : 0;
     std::memcpy(st + 80, &p.timestamp, 8);
     st[100] = p.connected ? 1 : 0;
-    // BBHOST_PAD_DUMP=1: the whole record but its timestamp, on every change.
+    // HELIAS_PAD_DUMP=1: the whole record but its timestamp, on every change.
     {
         static const bool dump = [] {
-            const char* e = std::getenv("BBHOST_PAD_DUMP");
+            const char* e = std::getenv("HELIAS_PAD_DUMP");
             return e && e[0] == '1';
         }();
         static std::uint8_t last[120];

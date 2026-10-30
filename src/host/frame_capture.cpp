@@ -1,4 +1,4 @@
-// bbhost-vk's presented-frame capture (host/frame_capture.h).
+// heliasdream-vk's presented-frame capture (host/frame_capture.h).
 #include "host/frame_capture.h"
 
 #include "core/image_file.h"
@@ -38,14 +38,14 @@ VkExtent2D g_extent{};
 std::string g_label;  // the upscaler setting when it was taken
 
 std::string capture_dir() {
-    if (const char* e = std::getenv("BBHOST_VK_CAPTURE_DIR"); e && e[0]) return e;
+    if (const char* e = std::getenv("HELIAS_VK_CAPTURE_DIR"); e && e[0]) return e;
     std::error_code ec;
     return std::filesystem::is_directory("logs", ec) ? "logs/captures" : "captures";
 }
 
 double every_seconds() {
     static const double s = [] {
-        const char* e = std::getenv("BBHOST_VK_CAPTURE_EVERY");
+        const char* e = std::getenv("HELIAS_VK_CAPTURE_EVERY");
         return e && e[0] ? std::atof(e) : 0.0;
     }();
     return s;
@@ -173,7 +173,7 @@ void write_png(std::vector<std::uint8_t> px, VkFormat format, VkExtent2D extent,
 
 bool enabled() {
     static const bool on = [] {
-        const char* e = std::getenv("BBHOST_VK_CAPTURE");
+        const char* e = std::getenv("HELIAS_VK_CAPTURE");
         return e && e[0] == '1';
     }();
     return on;
@@ -185,7 +185,7 @@ VkImageUsageFlags swapchain_usage(VkImageUsageFlags supported) {
     static bool said = false;
     if (!said) {
         said = true;
-        host_log("capture: BBHOST_VK_CAPTURE=1: %s; folder %s", ok ? "Shift+F12 or capture.request captures the presented frame"
+        host_log("capture: HELIAS_VK_CAPTURE=1: %s; folder %s", ok ? "Shift+F12 or capture.request captures the presented frame"
                                                                    : "the surface takes no transfer reads, so frames cannot be captured",
                  capture_dir().c_str());
     }
@@ -220,7 +220,7 @@ void poll() {
     const double every = every_seconds();
     if (every > 0.0 && std::chrono::duration<double>(now - last_shot).count() >= every) {
         last_shot = now;
-        request("BBHOST_VK_CAPTURE_EVERY");
+        request("HELIAS_VK_CAPTURE_EVERY");
     }
 }
 

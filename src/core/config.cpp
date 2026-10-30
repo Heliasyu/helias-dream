@@ -1,7 +1,7 @@
 #include "core/config.h"
 #include "core/sfo.h"
 #include "log.h"
-#include "bbhost_version.h"
+#include "heliasdream_version.h"
 
 #include <cctype>
 #include <cstdio>
@@ -22,7 +22,7 @@
 #include <unistd.h>
 #endif
 
-#define BBHOST_CONFIG_VERSION BBHOST_VERSION
+#define HELIAS_CONFIG_VERSION HELIAS_VERSION
 
 namespace {
 
@@ -88,7 +88,7 @@ bool parse_file(const std::string& path, std::map<std::string, std::string>* kv,
             }
         } else if (!val.empty()) {
             // After a quoted value too: upgrade_user_config's notes
-            // (host = "x"  # added by bbhost ...) are not part of it. A
+            // (host = "x"  # added by heliasdream ...) are not part of it. A
             // backslash is no escape here, so the next quote closes it.
             const std::size_t close = val.find(val[0], 1);
             if (close != std::string::npos) {
@@ -169,14 +169,14 @@ void apply_values(const std::map<std::string, std::string>& kv, HostConfig* c) {
         }
     }
     {
-        // bbhost-vk test3: [debug] fsr_dump = true is BBHOST_FSR_DUMP=1 (host/fsr_dump.h),
+        // heliasdream-vk test3: [debug] fsr_dump = true is HELIAS_FSR_DUMP=1 (host/fsr_dump.h),
         // unless the environment says otherwise.
         auto it = kv.find("debug.fsr_dump");
-        if (it != kv.end() && (it->second == "true" || it->second == "1") && !std::getenv("BBHOST_FSR_DUMP")) {
+        if (it != kv.end() && (it->second == "true" || it->second == "1") && !std::getenv("HELIAS_FSR_DUMP")) {
 #if defined(_WIN32)
-            _putenv_s("BBHOST_FSR_DUMP", "1");
+            _putenv_s("HELIAS_FSR_DUMP", "1");
 #else
-            setenv("BBHOST_FSR_DUMP", "1", 0);
+            setenv("HELIAS_FSR_DUMP", "1", 0);
 #endif
         }
     }
@@ -274,13 +274,13 @@ std::string env_dir(const char* name) {
 }
 
 // The per-user folders (config_user_dir): what a player sets once and every
-// download or update of bbhost then finds - the game's paths, the F10
-// settings, the account. BBHOST_CONFIG_DIR replaces the config one (tests,
+// download or update of heliasdream then finds - the game's paths, the F10
+// settings, the account. HELIAS_CONFIG_DIR replaces the config one (tests,
 // a portable setup).
 //
-// Helia's Dream: they are named HeliasDream (they were bbhost). A setup from
+// Helia's Dream: they are named HeliasDream (they were heliasdream). A setup from
 // before is copied over once - the config folder with its files renamed
-// (bbhost.toml -> HeliasDream.toml, bbhost-options*.toml ->
+// (HeliasDream.toml -> HeliasDream.toml, heliasdream-options*.toml ->
 // HeliasDream-options*.toml), the data folder as it is - and the old folders
 // stay as they were, as a backup.
 namespace {
@@ -325,7 +325,7 @@ void migrate_from_bbhost() {
 }  // namespace
 
 std::string user_config_dir() {
-    if (std::string d = env_dir("BBHOST_CONFIG_DIR"); !d.empty()) return d;
+    if (std::string d = env_dir("HELIAS_CONFIG_DIR"); !d.empty()) return d;
     migrate_from_bbhost();
     if (std::string b = config_base(); !b.empty()) return b + "/HeliasDream";
     return exe_dir();
@@ -388,8 +388,8 @@ void normalize_layer(const std::string& file, std::map<std::string, std::string>
     }
 }
 
-// The keys every user config should carry, with the value bbhost uses when
-// one is missing: a key added to bbhost later is written into the player's
+// The keys every user config should carry, with the value heliasdream uses when
+// one is missing: a key added to heliasdream later is written into the player's
 // file at their next start (with a note), so the file always shows what is
 // in effect. Required keys with no sensible default (paths.app0,
 // paths.eboot) are not here: config_setup_help stops the run and names them.
@@ -427,7 +427,7 @@ void upgrade_user_config(const std::string& path) {
         const char* value = k.value;
         if (full == "online.scheme" && kv.count("online.host") && unquote(kv["online.host"]) != "thehuntersdream.com")
             value = "\"http\"";
-        const std::string entry = std::string(k.key) + " = " + value + "  # added by bbhost " BBHOST_CONFIG_VERSION ": " + k.note;
+        const std::string entry = std::string(k.key) + " = " + value + "  # added by heliasdream " HELIAS_CONFIG_VERSION ": " + k.note;
         // The end of the section's block: before the next [header], else the file's end.
         std::size_t at = lines.size();
         bool found = false;
@@ -469,7 +469,8 @@ void move_live_server_to_https(const std::string& path) {
         auto it = kv.find(k);
         return it == kv.end() ? std::string() : unquote(it->second);
     };
-    const std::string ver = get("bbhost.config_version");
+    std::string ver = get("heliasdream.config_version");
+    if (ver.empty()) ver = get("bbhost.config_version");  // before the rename
     if ((ver.empty() ? 1 : std::atoi(ver.c_str())) >= 3 || get("online.host") != "thehuntersdream.com") return;
     struct Want {
         const char* key;
@@ -511,7 +512,8 @@ void move_ime_to_type(const std::string& path) {
         auto it = kv.find(k);
         return it == kv.end() ? std::string() : unquote(it->second);
     };
-    const std::string ver = get("bbhost.config_version");
+    std::string ver = get("heliasdream.config_version");
+    if (ver.empty()) ver = get("bbhost.config_version");  // before the rename
     if ((ver.empty() ? 1 : std::atoi(ver.c_str())) >= 4 || get("player.ime") != "auto") return;
     if (!config_set_values(path, {{"player", "ime", "\"type\""}})) {
         host_log("config: could not set player.ime to \"type\" in %s", path.c_str());
@@ -537,8 +539,8 @@ bool import_legacy(const std::string& from, const std::string& to, bool paths_on
     if (!real("paths.app0") || !real("paths.eboot")) return false;
     std::ifstream in(from);
     std::ostringstream out;
-    out << "# Imported by bbhost " BBHOST_CONFIG_VERSION " from " << from << ": bbhost reads this one now,\n"
-        << "# from any copy of bbhost, so a new download or an update needs nothing set again.\n";
+    out << "# Imported by heliasdream " HELIAS_CONFIG_VERSION " from " << from << ": heliasdream reads this one now,\n"
+        << "# from any copy of heliasdream, so a new download or an update needs nothing set again.\n";
     const std::string dir = dir_of(from);
     std::string section;
     for (std::string l; std::getline(in, l);) {
@@ -562,7 +564,7 @@ bool import_legacy(const std::string& from, const std::string& to, bool paths_on
     std::ofstream o(to);
     o << out.str();
     if (!o) return false;
-    host_log("config: imported %s into %s (the per-user config every copy of bbhost reads)", from.c_str(), to.c_str());
+    host_log("config: imported %s into %s (the per-user config every copy of heliasdream reads)", from.c_str(), to.c_str());
     return true;
 }
 
@@ -617,12 +619,12 @@ bool config_load(int argc, char** argv, HostConfig* out, std::string* error) {
         host_log("wrote config template %s", write_template.c_str());
     }
     // The configuration in layers, each overriding only what it sets:
-    //   the per-user bbhost.toml (config_user_dir: what a player sets once),
-    //   a bbhost.toml in the working directory or beside the exe (a
+    //   the per-user HeliasDream.toml (config_user_dir: what a player sets once),
+    //   a HeliasDream.toml in the working directory or beside the exe (a
     //   developer's tree, an older package), then --config (a package's own
     //   settings, as the playtest kit's dev server). A user config that does
     //   not exist yet is imported from the second when that names the game,
-    //   and one that does is given the keys bbhost has since come to expect.
+    //   and one that does is given the keys heliasdream has since come to expect.
     const std::string user_cfg = user_config_dir() + "/HeliasDream.toml";
     make_dirs(user_config_dir());
     // A bbhost.toml left in the per-user folder (an older release's, or one
@@ -678,15 +680,16 @@ bool config_load(int argc, char** argv, HostConfig* out, std::string* error) {
             // A user config from before the setup window wrote its version
             // (kUserConfigVersion): its setup_window is the old default it
             // saved, not a choice, and this build's default stands.
-            auto ver = kv.find("bbhost.config_version");
+            auto ver = kv.find("heliasdream.config_version");
+            if (ver == kv.end()) ver = kv.find("bbhost.config_version");  // before the rename
             const int v = ver == kv.end() ? 1 : std::atoi(unquote(ver->second).c_str());
             if (v < 2 && kv.erase("startup.setup_window"))
-                host_log("config: %s is from an older bbhost: its setup_window is set aside until the setup window saves it", f.c_str());
+                host_log("config: %s is from an older build: its setup_window is set aside until the setup window saves it", f.c_str());
         }
         for (auto& [k, v] : kv) merged[k] = v;
         layers += (layers.empty() ? "" : " <- ") + f;
     }
-#if defined(BBHOST_RELEASE_BUILD)
+#if defined(HELIAS_RELEASE_BUILD)
     c.setup_always = true;  // a player's build opens the setup window at every start unless told not to
 #endif
     apply_values(merged, &c);
@@ -740,7 +743,7 @@ bool config_load(int argc, char** argv, HostConfig* out, std::string* error) {
     if (c.data.empty()) {
         // Saves and caches: where they were (a data folder beside the eboot,
         // the old default) if that exists, else the per-user data folder,
-        // which outlives any copy of bbhost.
+        // which outlives any copy of heliasdream.
         // A package ships a data folder of its own (data/mods), so only one
         // with saves in it is the old one.
         const std::string beside = (c.eboot.empty() ? exe_dir() : (dir_of(c.eboot).empty() ? "." : dir_of(c.eboot))) + "/data";
@@ -757,40 +760,40 @@ bool config_load(int argc, char** argv, HostConfig* out, std::string* error) {
     // The file system layer makes the last level only; the per-user data
     // folder is several levels deep on a first run.
     if (!c.data.empty()) make_dirs(c.data);
-    if (const char* e = std::getenv("BBHOST_HEADLESS")) {
+    if (const char* e = std::getenv("HELIAS_HEADLESS")) {
         if (e[0] == '1') {
             c.headless = true;
         }
     }
-    if (const char* e = std::getenv("BBHOST_SKIP_INTRO")) {
+    if (const char* e = std::getenv("HELIAS_SKIP_INTRO")) {
         if (std::strcmp(e, "1") == 0) c.skip_intro = true;
         else if (std::strcmp(e, "0") == 0) c.skip_intro = false;
     }
-    if (const char* e = std::getenv("BBHOST_QUICK_REENTRY")) {
+    if (const char* e = std::getenv("HELIAS_QUICK_REENTRY")) {
         if (std::strcmp(e, "1") == 0) c.quick_reentry = true;
         else if (std::strcmp(e, "0") == 0) c.quick_reentry = false;
     }
-    if (const char* e = std::getenv("BBHOST_ALL_POST_PROCESSORS")) {
+    if (const char* e = std::getenv("HELIAS_ALL_POST_PROCESSORS")) {
         if (std::strcmp(e, "1") == 0) c.all_post_processors = true;
         else if (std::strcmp(e, "0") == 0) c.all_post_processors = false;
     }
-    if (const char* e = std::getenv("BBHOST_CHANGE_APPEARANCE")) {
+    if (const char* e = std::getenv("HELIAS_CHANGE_APPEARANCE")) {
         if (std::strcmp(e, "1") == 0) c.change_appearance = true;
         else if (std::strcmp(e, "0") == 0) c.change_appearance = false;
     }
-    if (const char* e = std::getenv("BBHOST_REBIRTH")) {
+    if (const char* e = std::getenv("HELIAS_REBIRTH")) {
         if (std::strcmp(e, "1") == 0) c.rebirth = true;
         else if (std::strcmp(e, "0") == 0) c.rebirth = false;
     }
-    if (const char* e = std::getenv("BBHOST_FIVE_PLAYERS")) {
+    if (const char* e = std::getenv("HELIAS_FIVE_PLAYERS")) {
         if (std::strcmp(e, "1") == 0) c.five_players = true;
         else if (std::strcmp(e, "0") == 0) c.five_players = false;
     }
-    if (const char* e = std::getenv("BBHOST_SETUP_WINDOW")) {
+    if (const char* e = std::getenv("HELIAS_SETUP_WINDOW")) {
         if (std::strcmp(e, "1") == 0) c.setup_always = true;
         else if (std::strcmp(e, "0") == 0) c.setup_always = false;
     }
-    if (const char* e = std::getenv("BBHOST_IME")) {
+    if (const char* e = std::getenv("HELIAS_IME")) {
         if (std::strcmp(e, "type") == 0 || std::strcmp(e, "auto") == 0) c.ime_mode = e;
     }
     g_cfg = c;
@@ -805,17 +808,17 @@ std::string config_setup_help(const HostConfig& c) {
     const auto line = [&out](const std::string& s) { out += s + "\n"; };
     const bool have_eboot = !c.eboot.empty(), have_app0 = !c.app0.empty();
     if (!have_eboot || !have_app0) {
-        // The per-user config is the one to fill in: every copy of bbhost,
+        // The per-user config is the one to fill in: every copy of heliasdream,
         // and every update, reads it.
         const std::string path = user_config_dir() + "/HeliasDream.toml";
         if (!file_exists(path)) {
             const bool wrote = make_dirs(user_config_dir()) && config_write_template(path);
-            line("bbhost: there is no configuration yet, so there is nothing to run.");
+            line("Helia's Dream: there is no configuration yet, so there is nothing to run.");
             if (wrote) line("A template has been written to " + path);
-            else line("Create " + path + " (run bbhost --write-config \"" + path + "\").");
-            line("It is read by every copy of bbhost, so this is set once - a new download or an update keeps it.");
+            else line("Create " + path + " (run heliasdream --write-config \"" + path + "\").");
+            line("It is read by every copy of heliasdream, so this is set once - a new download or an update keeps it.");
         } else {
-            line("bbhost: " + path + " does not say where the game is.");
+            line("Helia's Dream: " + path + " does not say where the game is.");
         }
         line("");
         line("Open it and set both paths, for example:");
@@ -825,23 +828,23 @@ std::string config_setup_help(const HostConfig& c) {
         line("");
         line("Either slash works on Windows, and a relative path is taken from the");
         line("folder the configuration file is in. The same two can be given on the");
-        line("command line instead:  bbhost --app0 DIR path\\to\\eboot.bin");
+        line("command line instead:  heliasdream --app0 DIR path\\to\\eboot.bin");
         return out;
     }
     // Both are set: say which one is wrong, and where the value came from.
     const std::string from = c.config_path.empty() ? std::string("the command line") : c.config_path;
     if (!file_exists(c.eboot)) {
-        line("bbhost: the eboot is not there: " + c.eboot);
+        line("Helia's Dream: the eboot is not there: " + c.eboot);
         line("Set paths.eboot in " + from + " to the decrypted eboot ELF.");
         return out;
     }
     if (!dir_exists(c.app0)) {
-        line("bbhost: the game dump is not there: " + c.app0);
+        line("Helia's Dream: the game dump is not there: " + c.app0);
         line("Set paths.app0 in " + from + " to the folder that contains dvdroot_ps4.");
         return out;
     }
     if (!dir_exists(c.app0 + "/dvdroot_ps4")) {
-        line("bbhost: " + c.app0 + " has no dvdroot_ps4 in it.");
+        line("Helia's Dream: " + c.app0 + " has no dvdroot_ps4 in it.");
         line("paths.app0 in " + from + " is the folder that contains dvdroot_ps4,");
         line("not the folder above it and not dvdroot_ps4 itself.");
         return out;
@@ -853,7 +856,7 @@ std::string config_eboot_help(const HostConfig& c, const std::string& sha256, co
     std::string out;
     const auto line = [&out](const std::string& s) { out += s + "\n"; };
     const std::string from = c.config_path.empty() ? std::string("the command line") : c.config_path;
-    line("bbhost: this eboot is not the Bloodborne 1.09 build, the only one bbhost runs.");
+    line("Helia's Dream: this eboot is not the Bloodborne 1.09 build, the only one Helia's Dream runs.");
     line("    eboot   " + c.eboot);
     line("    sha256  " + sha256);
     line("    1.09's  " + std::string(want_sha256));
@@ -873,14 +876,14 @@ std::string config_eboot_help(const HostConfig& c, const std::string& sha256, co
         line("The game in app0 is 1.09, so the eboot is the file that is off: set paths.eboot");
         line("in " + from + " to that game's eboot.bin, decrypted to an ELF.");
     } else {
-        line("bbhost needs the eboot.bin of the game's 1.09 update (CUSA00900, APP_VER 01.09),");
+        line("Helia's Dream needs the eboot.bin of the game's 1.09 update (CUSA00900, APP_VER 01.09),");
         line("decrypted to an ELF. A dump of the game without the update carries the 1.00 eboot.");
         line("Copy the update's files over the game's in the app0 folder, so its");
         line("sce_sys/param.sfo says APP_VER 01.09, and set paths.eboot in " + from);
         line("to the update's decrypted eboot.bin.");
     }
     line("");
-    line("BBHOST_ANY_EBOOT=1 starts this eboot anyway, without any of bbhost's patches;");
+    line("HELIAS_ANY_EBOOT=1 starts this eboot anyway, without any of heliasdream's patches;");
     line("a different version is expected to crash.");
     return out;
 }
@@ -893,9 +896,9 @@ void config_set_enhancements(bool change_appearance, bool rebirth, bool five_pla
         if (e && (std::strcmp(e, "0") == 0 || std::strcmp(e, "1") == 0)) return;  // the environment's, kept
         *field = on;
     };
-    set(&g_cfg.change_appearance, change_appearance, "BBHOST_CHANGE_APPEARANCE");
-    set(&g_cfg.rebirth, rebirth, "BBHOST_REBIRTH");
-    set(&g_cfg.five_players, five_players, "BBHOST_FIVE_PLAYERS");
+    set(&g_cfg.change_appearance, change_appearance, "HELIAS_CHANGE_APPEARANCE");
+    set(&g_cfg.rebirth, rebirth, "HELIAS_REBIRTH");
+    set(&g_cfg.five_players, five_players, "HELIAS_FIVE_PLAYERS");
 }
 
 void config_set_online(const std::string& host, const std::string& scheme, bool verify_tls, bool require_account,
@@ -952,11 +955,11 @@ bool config_write_template(const std::string& path) {
     if (!out) {
         return false;
     }
-    out << "# bbhost configuration. Set the two paths under [paths], then run bbhost.\n"
+    out << "# heliasdream configuration. Set the two paths under [paths], then run heliasdream.\n"
            "# On Windows write them either way: \"C:\\Games\\Bloodborne\" or \"C:/Games/Bloodborne\".\n"
            "# A relative path is taken from the folder this file is in.\n"
            "# This file is the per-user one (%APPDATA%\\HeliasDream on Windows, ~/.config/HeliasDream on\n"
-           "# Linux): every copy of bbhost reads it, so a new download or an update keeps it.\n"
+           "# Linux): every copy of heliasdream reads it, so a new download or an update keeps it.\n"
            "[paths]\n"
            "# The folder that contains dvdroot_ps4 (the decrypted game dump). An update\n"
            "# kept beside it in a folder of its own (CUSA00900-UPDATE or CUSA00900-patch,\n"
@@ -968,8 +971,8 @@ bool config_write_template(const std::string& path) {
            "eboot = \"PATH-TO-THE-EBOOT\"\n"
            "# Writable folder for saves, caches and /data. Default: the per-user data\n"
            "# folder (%LOCALAPPDATA%\\HeliasDream\\data, ~/.local/share/HeliasDream/data), which\n"
-           "# outlives any copy of bbhost.\n"
-           "# data = \"D:/bbhost-data\"\n"
+           "# outlives any copy of heliasdream.\n"
+           "# data = \"D:/heliasdream-data\"\n"
            "# The PC port's asset overlay: files here resolve ahead of the dump, so a\n"
            "# modified asset never has to be written into it. Default: <data>/mods.\n"
            "# Ignored when the directory does not exist.\n"
@@ -1020,7 +1023,7 @@ bool config_write_template(const std::string& path) {
            "# true: no window, no presentation (smoke tests)\n"
            "headless = false\n"
            "\n# Key bindings. The in-game System > Key Bindings screen changes these\n"
-           "# and saves them in bbhost-options.toml, which wins over this file; what\n"
+           "# and saves them in HeliasDream-options.toml, which wins over this file; what\n"
            "# is here are the defaults for a player who never opens it. Each action\n"
            "# has a key and a mouse button, either optional: \"E\", \"Mouse2\",\n"
            "# \"X, Mouse2\", or \"none\". Keys are SDL key names (\"W\", \"Space\",\n"

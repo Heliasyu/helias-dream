@@ -39,8 +39,8 @@
 // read the new contents too - which is also what reading the host memory at
 // execution time gave them.
 //
-// BBHOST_BUFFER_SHADOW=0 binds everything from the imports, as before, and so
-// do an integrated GPU and tight memory unless BBHOST_BUFFER_SHADOW=1
+// HELIAS_BUFFER_SHADOW=0 binds everything from the imports, as before, and so
+// do an integrated GPU and tight memory unless HELIAS_BUFFER_SHADOW=1
 // (buffer_shadow_on).
 
 #include "core/write_watch.h"
@@ -67,12 +67,12 @@ constexpr unsigned kPageShift = 16;  // 64 KiB: validity, write watches and copi
 constexpr std::uint64_t kPageBytes = 1ull << kPageShift;
 constexpr std::uint32_t kPagesPerChunk = static_cast<std::uint32_t>(kChunkBytes >> kPageShift);
 
-// BBHOST_SHADOW_VERIFY=1: every submission re-hashes a batch of valid pages
+// HELIAS_SHADOW_VERIFY=1: every submission re-hashes a batch of valid pages
 // against their contents when copied, and reports (and stops mirroring) any
 // that changed without a write this cache saw - a write it cannot track,
 // such as a compute shader's store through the GPU page table.
 const bool g_verify = [] {
-    const char* e = std::getenv("BBHOST_SHADOW_VERIFY");
+    const char* e = std::getenv("HELIAS_SHADOW_VERIFY");
     return e && e[0] == '1';
 }();
 std::uint64_t g_verify_cursor = 0, g_verify_checked = 0, g_verify_stale = 0;
@@ -81,7 +81,7 @@ std::uint64_t g_verify_cursor = 0, g_verify_checked = 0, g_verify_stale = 0;
 std::unordered_map<std::uint64_t, std::vector<std::uint8_t>> g_verify_copies;
 
 const int g_shadow_env = [] {
-    const char* e = std::getenv("BBHOST_BUFFER_SHADOW");
+    const char* e = std::getenv("HELIAS_BUFFER_SHADOW");
     return !e || !*e ? -1 : e[0] == '0' ? 0 : 1;
 }();
 
@@ -97,7 +97,7 @@ struct Page {
     std::uint64_t window_ms = 0;
     std::uint32_t window_uploads = 0;
     std::uint64_t gpu_written = 0;    // the recording a GPU write over it was recorded in (0: none)
-    std::uint64_t hash = 0;           // BBHOST_SHADOW_VERIFY: its contents when copied
+    std::uint64_t hash = 0;           // HELIAS_SHADOW_VERIFY: its contents when copied
     bool valid = false;               // the mirror holds it (or will, once this submission's copies run)
     bool dynamic = false;             // bound from the import from now on (rewritten, unwatchable)
 };
@@ -156,7 +156,7 @@ Mirror g_mirrors[gcn::kDmemChunks];
 // world at 1080p (5.8 GiB) and some to spare. A full
 // mirror is a whole chunk (sparse ones run only on NVIDIA's driver): on an
 // 8 GB AMD card, about 7 GiB of budget, four of them left the world's targets
-// no memory and the world drew black. BBHOST_SHADOW_VRAM_MB sets the share
+// no memory and the world drew black. HELIAS_SHADOW_VRAM_MB sets the share
 // instead; once the mirrors are given back (shadow_give_back_locked) it is 0.
 constexpr std::uint64_t kImageRoom = 6656ull << 20;
 std::uint64_t g_mirror_cap = 0;    // shadow_budget_locked
@@ -345,7 +345,7 @@ void begin_recording(Mirror& m, std::uint64_t stamp) {
 
 }  // namespace
 
-// Off with BBHOST_BUFFER_SHADOW=0 and, unless it is 1, on an integrated GPU -
+// Off with HELIAS_BUFFER_SHADOW=0 and, unless it is 1, on an integrated GPU -
 // its device-local memory is the RAM the imports already are, so a mirror
 // saves no bus - and with tight memory (gpu.cpp, memory_tight): a mirror is a
 // gigabyte a chunk, and on a Steam Deck (1 GiB of VRAM, 8 GiB of GTT, which
@@ -746,7 +746,7 @@ VkSemaphore shadow_bind_sparse_locked() {
 }
 
 void shadow_budget_locked() {
-    const char* e = std::getenv("BBHOST_SHADOW_VRAM_MB");
+    const char* e = std::getenv("HELIAS_SHADOW_VRAM_MB");
     g_mirror_cap = e && *e ? static_cast<std::uint64_t>(std::strtoull(e, nullptr, 10)) << 20
                            : g.local_budget > kImageRoom ? g.local_budget - kImageRoom : 0;
     if (!buffer_shadow_on()) return;
@@ -754,10 +754,10 @@ void shadow_budget_locked() {
         host_log("buffer shadow: no mirrors - one is a whole %llu MiB chunk here (no sparse binding), and the mirrors' share of video "
                  "memory is %llu MiB (%s); vertex and index data are read from host memory",
                  static_cast<unsigned long long>(kChunkBytes >> 20), static_cast<unsigned long long>(g_mirror_cap >> 20),
-                 e && *e ? "BBHOST_SHADOW_VRAM_MB" : "what is free above the 6656 MiB kept for images and targets");
+                 e && *e ? "HELIAS_SHADOW_VRAM_MB" : "what is free above the 6656 MiB kept for images and targets");
     } else {
         host_log("buffer shadow: its mirrors may hold %llu MiB of video memory (%s)", static_cast<unsigned long long>(g_mirror_cap >> 20),
-                 e && *e ? "BBHOST_SHADOW_VRAM_MB" : "what is free above the 6656 MiB kept for images and targets");
+                 e && *e ? "HELIAS_SHADOW_VRAM_MB" : "what is free above the 6656 MiB kept for images and targets");
     }
 }
 

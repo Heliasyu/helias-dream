@@ -326,11 +326,11 @@ GUEST_ABI void* hle_tls_get_addr(std::uint64_t* idx) {
 std::atomic<std::uint64_t> g_threads_made{0};
 std::atomic<int> g_threads_starting{0};
 
-// BBHOST_TEST_THREAD_START_MS=N: every guest thread waits N ms before its
+// HELIAS_TEST_THREAD_START_MS=N: every guest thread waits N ms before its
 // entry - a loaded machine's slow thread start, on demand.
 int test_thread_start_ms() {
     static const int ms = [] {
-        const char* e = std::getenv("BBHOST_TEST_THREAD_START_MS");
+        const char* e = std::getenv("HELIAS_TEST_THREAD_START_MS");
         return e ? std::atoi(e) : 0;
     }();
     return ms;
@@ -582,7 +582,7 @@ void hle_register_pthread() {
     g_slow_sce_rw_rdlock = reinterpret_cast<RwFn>(thunk_wrap(reinterpret_cast<void*>(&hle_sce_rwlock_rdlock)));
     g_slow_sce_rw_unlock = reinterpret_cast<RwFn>(thunk_wrap(reinterpret_cast<void*>(&hle_sce_rwlock_unlock)));
     g_slow_sce_rw_wake = reinterpret_cast<RwFn>(thunk_wrap(reinterpret_cast<void*>(&hle_sce_rwlock_wake)));
-    if (const char* e = std::getenv("BBHOST_RAW_SYNC"); !e || e[0] != '0') {
+    if (const char* e = std::getenv("HELIAS_RAW_SYNC"); !e || e[0] != '0') {
 #define REG_RAW(name, fn) register_hle_fn_raw(name, reinterpret_cast<void*>(fn))
         REG_RAW("pthread_self", raw_pthread_self);
         REG_RAW("scePthreadSelf", raw_pthread_self);

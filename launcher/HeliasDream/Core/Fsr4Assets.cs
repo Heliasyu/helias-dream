@@ -21,7 +21,7 @@ public static class Fsr4Assets
     const string Base = "https://raw.githubusercontent.com/FireBurn/Q2RTX/" + Commit + "/baseq2/fsr4_shaders/";
     static readonly HttpClient Http = new() { Timeout = TimeSpan.FromSeconds(60) };
 
-    public static string Dir => Path.Combine(Paths.BbhostDataDir, "fsr4_v07");
+    public static string Dir => Path.Combine(Paths.HeliasDataDir, "fsr4_v07");
 
     public static bool Present => File.Exists(Path.Combine(Dir, "rcas.spv")) &&
                                   File.Exists(Path.Combine(Dir, "fsr4_model_v07_i8_balanced_initializers.bin"));

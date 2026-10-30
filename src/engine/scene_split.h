@@ -1,9 +1,9 @@
 #pragma once
 
-// bbhost-vk Phase 1: the scene at the render size, the UI at the output's.
+// heliasdream-vk Phase 1: the scene at the render size, the UI at the output's.
 //
 // The output size is the Resolution setting - the res words, the GX output
-// entry, Scaleform's viewports, the display picture - as in stock bbhost. The
+// entry, Scaleform's viewports, the display picture - as in stock heliasdream. The
 // render size is that divided by the upscaler preset's ratio (Quality 1.5,
 // Balanced 1.7, Performance 2, Ultra Performance 3), when an upscaler is
 // chosen and the preset is not Native AA. Then the scene contexts (G-buffer,
@@ -20,7 +20,7 @@
 // render size. With the render size equal to the output (Upscaler Off, or
 // Native AA) every site holds the bytes it had at load: stock.
 //
-// BBHOST_SCENE_SPLIT=0 never splits.
+// HELIAS_SCENE_SPLIT=0 never splits.
 
 #include <cstdint>
 
@@ -33,7 +33,7 @@ bool scene_split_install(ElfImage* image);
 
 // Before scene_split_install, for live resolution's display-buffer size: whether
 // the settings will split the scene at an output of ow x oh at the start
-// (BBHOST_SCENE_SPLIT and the eboot permitting).
+// (HELIAS_SCENE_SPLIT and the eboot permitting).
 bool scene_split_planned(const ElfImage* image, std::uint32_t ow, std::uint32_t oh);
 
 // Whether the split can be used in this run.

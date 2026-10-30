@@ -392,7 +392,7 @@ struct Cache {
 } g_tc;
 
 const bool g_tc_enabled = [] {
-    const char* e = std::getenv("BBHOST_TRANSLATION_CACHE");
+    const char* e = std::getenv("HELIAS_TRANSLATION_CACHE");
     return !(e && e[0] == '0');
 }();
 std::atomic<bool> g_tc_loaded{false};  // translation_cache_load ran (tests/translation_cache_test.cpp resets it)
@@ -562,7 +562,7 @@ void translation_cache_load(const std::string& path) {
     g_tc.switches = gcn::translation_switches();
     g_tc.on = g_tc_enabled && !path.empty();
     if (!g_tc.on) {
-        host_log("render: translation cache off (%s)", g_tc_enabled ? "no data root, or BBHOST_PIPELINE_CACHE=0" : "BBHOST_TRANSLATION_CACHE=0");
+        host_log("render: translation cache off (%s)", g_tc_enabled ? "no data root, or HELIAS_PIPELINE_CACHE=0" : "HELIAS_TRANSLATION_CACHE=0");
         g_tc.ready.store(true, std::memory_order_release);
         return;
     }
@@ -580,7 +580,7 @@ void translation_cache_load(const std::string& path) {
             g_tc.file.assign(1, 0);
         }
     }
-    const std::string fingerprint = BBHOST_TRANSLATOR_FINGERPRINT;
+    const std::string fingerprint = HELIAS_TRANSLATOR_FINGERPRINT;
     Reader r{g_tc.file.data(), g_tc.file.data() + g_tc.file.size()};
     bool header = g_tc.file.size() >= 16 && r.u32() == kMagic && r.u32() == kVersion;
     const std::string theirs = header ? r.str() : std::string();
@@ -654,7 +654,7 @@ void translation_cache_save(const std::string& path, bool force) {
     Writer head;
     head.u32(kMagic);
     head.u32(kVersion);
-    head.str(BBHOST_TRANSLATOR_FINGERPRINT);
+    head.str(HELIAS_TRANSLATOR_FINGERPRINT);
     head.u32(static_cast<std::uint32_t>(keep));
     std::error_code ec;
     std::filesystem::create_directories(std::filesystem::path(path).parent_path(), ec);
@@ -730,7 +730,7 @@ std::string translation_cache_window() {
     return buf;
 }
 
-const char* translator_fingerprint() { return BBHOST_TRANSLATOR_FINGERPRINT; }
+const char* translator_fingerprint() { return HELIAS_TRANSLATOR_FINGERPRINT; }
 
 bool translation_cache_cold() { return g_tc.ready.load(std::memory_order_acquire) && g_tc.on && g_tc.loaded == 0; }
 

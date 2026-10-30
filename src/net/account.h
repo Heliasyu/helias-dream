@@ -2,7 +2,7 @@
 // passwords: the options screen links this PC to an account the player signs
 // into on the website with Discord (a device code, as TVs do it), or makes an
 // account held by this PC alone, with a one-time recovery code. Either way
-// the server hands back a token, kept in bbhost-options.toml. With a token,
+// the server hands back a token, kept in HeliasDream-options.toml. With a token,
 // net::online_id() is the account's name, and every request to the server
 // carries the token in the X-BB-Token header (net/http.cpp for the host's own
 // calls, hle/http.cpp for the game's), so the server binds the traffic to the
@@ -57,7 +57,7 @@ bool account_web_code(std::string& code, std::string& error);
 // Tells the server to forget the token and clears it here.
 void account_logout();
 
-// "bbhost on <host name>": what the website's /link page shows the player
+// "bbhost on <host name>" (as upstream sends it): what the website's /link page shows the player
 // before they approve, so a code phished from another machine stands out.
 std::string account_device_name();
 

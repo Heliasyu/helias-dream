@@ -24,7 +24,7 @@ def frames_line(fps=60, intervals=None, gpu_busy=420, work=8.1):
     iv = intervals or [1000.0 / fps] * fps
     n = len(iv)
     s = sorted(iv)
-    return ("[bbhost] frames: %.2f s: %d flips (%.1f/s), displayed %.1f/s, interval avg %.1f p95 %.1f max %.1f ms, %d over 16.7, "
+    return ("[heliasdream] frames: %.2f s: %d flips (%.1f/s), displayed %.1f/s, interval avg %.1f p95 %.1f max %.1f ms, %d over 16.7, "
             "%d over 33.3; cpu %.0f%%:%s; main loop waited %.0f ms, slept %.0f ms, file I/O %.0f ms%s%s") % (
         sum(iv) / 1000.0, n, n / (sum(iv) / 1000.0), n / (sum(iv) / 1000.0), sum(iv) / n, s[int(0.95 * n)], s[-1],
         sum(1 for v in iv if v > 17.5), sum(1 for v in iv if v > 34.5), 250, " main:101 90% bb-cp0:102 60%", 100, 500, 0,
@@ -39,10 +39,10 @@ def detail_lines(intervals, draws=(6000, 2500, 400, 100), failures=None):
         why += (" (" if not why else ", ") + "%s %d" % (k, v)
     if why:
         why += ")"
-    out = ["[bbhost] frame detail: draws %d: pixel shader lifted %d, translated %d, fallback %d, none %d; draw failures %d%s" % (
+    out = ["[heliasdream] frame detail: draws %d: pixel shader lifted %d, translated %d, fallback %d, none %d; draw failures %d%s" % (
         sum(draws), draws[0], draws[1], draws[2], draws[3], sum(failures.values()), why)]
     for at in range(0, len(intervals), 100):
-        out.append("[bbhost] frame intervals ms:" + "".join(" %.2f" % v for v in intervals[at:at + 100]))
+        out.append("[heliasdream] frame intervals ms:" + "".join(" %.2f" % v for v in intervals[at:at + 100]))
     return out
 
 
@@ -52,14 +52,14 @@ def second(intervals, **kw):
 
 
 def mapval(fmt, *args):
-    """A probe line as bbhost logs a plugin's."""
-    return "[bbhost] plugin: " + (fmt % args)
+    """A probe line as heliasdream logs a plugin's."""
+    return "[heliasdream] plugin: " + (fmt % args)
 
 
 def area_lines(area, t, block, window_intervals, view=None, settle_events=(), dump_dir="frames", kind="perf", captures=()):
     """A place's lines as the probe and the host print them."""
     out = [mapval("mapval step %d travel %s %.3f return point %d block %s -> %s", 1, area.id, t, area.return_point, block, "queued"),
-           "[bbhost] loading: begins, flip 1000", "[bbhost] loading: %.2f s (flips %d-%d, %d of them not shown)" % (3.25, 1000, 1200, 10),
+           "[heliasdream] loading: begins, flip 1000", "[heliasdream] loading: %.2f s (flips %d-%d, %d of them not shown)" % (3.25, 1000, 1200, 10),
            mapval("mapval travel-done %s %.3f %s %.3f %.3f %.3f after %.1f s", area.id, t + 6, block, 1.0, 2.0, 3.0, 6.0)]
     if view:
         out.append(mapval("mapval step %d warp %s %.3f target %.3f %.3f %.3f yaw %.3f -> %s", 2, area.id + ":view", t + 6, *view[:3], view[3], "queued"))
@@ -76,15 +76,15 @@ def area_lines(area, t, block, window_intervals, view=None, settle_events=(), du
         out.append(mapval("mapval mark %s %.3f %s %.3f %.3f %.3f yaw %.3f", area.id + ":measured", t + 43, block, 1.0, 2.0, 3.0, 0.5))
         for k in "ab":
             out.append(mapval("mapval dump %s %.3f", "%s-%s" % (area.id, k), t + 44))
-            out.append("[bbhost] test: frame dump at flip %d to %s/%s-%s.ppm" % (5000, dump_dir, area.id, k))
+            out.append("[heliasdream] test: frame dump at flip %d to %s/%s-%s.ppm" % (5000, dump_dir, area.id, k))
     else:
         out.append(mapval("mapval capture %d %s %.3f", 6, area.id, t + 18))
-        out.append("[bbhost] test: draw captures armed for %d at flip %d into %s" % (6, 4000, "/c/" + area.id))
+        out.append("[heliasdream] test: draw captures armed for %d at flip %d into %s" % (6, 4000, "/c/" + area.id))
         out.append(mapval("mapval mark %s %.3f %s %.3f %.3f %.3f yaw %.3f", area.id + ":capture", t + 18, block, 1.0, 2.0, 3.0, 0.5))
         for name in captures:
-            out.append("[bbhost] capture: wrote %s/manifest.json (%s, flip %d, draw %d, %d blobs, %d bytes)" % (
+            out.append("[heliasdream] capture: wrote %s/manifest.json (%s, flip %d, draw %d, %d blobs, %d bytes)" % (
                 "/c/%s/%s-f4001-d9" % (area.id, name), name, 4001, 9, 40, 50000000))
-        out.append("[bbhost] capture: %s draw %d (flip %d) not captured: %s" % ("aaaa0000+bbbb0000", 12, 4002, "indirect draw: its arguments are GPU data"))
+        out.append("[heliasdream] capture: %s draw %d (flip %d) not captured: %s" % ("aaaa0000+bbbb0000", 12, 4002, "indirect draw: its arguments are GPU data"))
     out.append(mapval("mapval mark %s %.3f %s %.3f %.3f %.3f yaw %.3f", area.id + ":end", t + 47, block, 1.0, 2.0, 3.0, 0.5))
     return out
 
@@ -173,21 +173,21 @@ class TourTest(unittest.TestCase):
         self.assertIn("capture 0", text)
         self.assertNotIn("dump", text)
         s = ac.pass_settings(Path("/r/capture"), areas, opts, "capture")
-        self.assertEqual(s["BBHOST_CAPTURE_DRAW"], "*ps")
-        self.assertEqual(s["BBHOST_CAPTURE_ARMED"], "1")
-        self.assertEqual((s["BBHOST_FRAME_STATS"], s["BBHOST_FRAME_DETAIL"]), ("1", "1"))
-        self.assertEqual(s["BBHOST_TEST_REQUESTS"], "/r/capture/requests")
-        self.assertEqual(s["BBHOST_SET_CACHE"], "0")  # captures gcnlift can rebuild
+        self.assertEqual(s["HELIAS_CAPTURE_DRAW"], "*ps")
+        self.assertEqual(s["HELIAS_CAPTURE_ARMED"], "1")
+        self.assertEqual((s["HELIAS_FRAME_STATS"], s["HELIAS_FRAME_DETAIL"]), ("1", "1"))
+        self.assertEqual(s["HELIAS_TEST_REQUESTS"], "/r/capture/requests")
+        self.assertEqual(s["HELIAS_SET_CACHE"], "0")  # captures gcnlift can rebuild
         perf = ac.pass_settings(Path("/r/perf"), ac.pick_areas("central-yharnam"), opts, "perf")
-        self.assertNotIn("BBHOST_CAPTURE_DRAW", perf)
-        self.assertNotIn("BBHOST_SET_CACHE", perf)  # measured as players run
+        self.assertNotIn("HELIAS_CAPTURE_DRAW", perf)
+        self.assertNotIn("HELIAS_SET_CACHE", perf)  # measured as players run
         with self.assertRaises(ValueError):
-            ac.pass_settings(Path("/r"), areas, dict(opts, env=["BBHOST_FRAME_STATS=1"]), "perf")
+            ac.pass_settings(Path("/r"), areas, dict(opts, env=["HELIAS_FRAME_STATS=1"]), "perf")
         with self.assertRaises(ValueError):
             ac.pass_settings(Path("/r"), areas, dict(opts, env=["PATH=/x"]), "perf")
-        self.assertEqual(ac.pass_settings(Path("/r"), areas, dict(opts, env=["BBHOST_X=1"]), "perf")["BBHOST_X"], "1")
+        self.assertEqual(ac.pass_settings(Path("/r"), areas, dict(opts, env=["HELIAS_X=1"]), "perf")["HELIAS_X"], "1")
         # No presses at fixed times: the title is passed with menutap requests (launch).
-        self.assertNotIn("BBHOST_AUTOPRESS", perf)
+        self.assertNotIn("HELIAS_AUTOPRESS", perf)
 
     def test_title_taps_until_the_world(self):
         """launch() asks for the menus' confirm button until the world's first
@@ -201,15 +201,15 @@ class TourTest(unittest.TestCase):
             while time.monotonic() - t0 < 20:
                 for name in sorted(os.listdir(req)):
                     path = os.path.join(req, name)
-                    print("[bbhost] test: " + open(path).read().strip() + " from " + name, flush=True)
+                    print("[heliasdream] test: " + open(path).read().strip() + " from " + name, flush=True)
                     os.remove(path)
                     seen += 1
                 if seen >= 2:
-                    print("[bbhost] world: the first in-game frame, flip 1200, 31.0 s after start", flush=True)
+                    print("[heliasdream] world: the first in-game frame, flip 1200, 31.0 s after start", flush=True)
                     time.sleep(0.5)
                     leftover = sorted(os.listdir(req))
-                    print("[bbhost] leftover %d" % len(leftover), flush=True)
-                    print("[bbhost] plugin: mapval tour-done 1.000", flush=True)
+                    print("[heliasdream] leftover %d" % len(leftover), flush=True)
+                    print("[heliasdream] plugin: mapval tour-done 1.000", flush=True)
                     time.sleep(0.2)
                     sys.exit(0)
                 time.sleep(0.02)
@@ -220,7 +220,7 @@ class TourTest(unittest.TestCase):
             (d / "requests").mkdir()
             (d / "game.py").write_text(game)
             plan = {"argv": [sys.executable, str(d / "game.py"), str(d / "requests")], "budget_s": 30,
-                    "settings": {"BBHOST_TEST_REQUESTS": str(d / "requests")}}
+                    "settings": {"HELIAS_TEST_REQUESTS": str(d / "requests")}}
             with mock.patch.object(ac, "TITLE_TAP_FIRST_S", 0.1), mock.patch.object(ac, "TITLE_TAP_EVERY_S", 0.5):
                 out = ac.launch(d, plan, lambda *_: None)
             log = (d / "run.log").read_text()
@@ -244,7 +244,7 @@ class TourTest(unittest.TestCase):
         self.assertNotIn("patches", t)
         dlc = tomllib.loads(ac.run_toml("/g", "/e", Path("/d"), 9446, 1920, 1080, old_hunters=True))
         self.assertIs(dlc["patches"]["old-hunters"], True)
-        # As bbhost reads it: what is between the quotes, as it is.
+        # As heliasdream reads it: what is between the quotes, as it is.
         self.assertEqual(ac.toml_str("/jeux/Bloodborne é"), '"/jeux/Bloodborne é"')
         for bad in ('/a"b', "C:\\game", "/a\nb"):
             with self.assertRaises(ValueError):
@@ -296,37 +296,37 @@ class LogTest(unittest.TestCase):
         rng = random.Random(7)
         window = [[16.67 + rng.uniform(-0.3, 0.3) for _ in range(60)] for _ in range(20)]
         window[5][10] = 40.0  # one hitch
-        lines = ["[bbhost] bbhost v0.2.16-14-g2291ffe+ (2291ffe+, Linux x86-64)",
-                 "[bbhost] world: the first in-game frame, flip %d, %.1f s after start" % (1500, 31.0),
-                 "[bbhost] plugin: mapval tour-start %.3f" % 100.0]
+        lines = ["[heliasdream] heliasdream v0.2.16-14-g2291ffe+ (2291ffe+, Linux x86-64)",
+                 "[heliasdream] world: the first in-game frame, flip %d, %.1f s after start" % (1500, 31.0),
+                 "[heliasdream] plugin: mapval tour-start %.3f" % 100.0]
         lines += area_lines(cy, 100.0, "18010000", window, settle_events=[
-            "[bbhost] render: PS a22c7f71 lifted (%d words; translated %d)" % (900, 2000),
-            "[bbhost] render: PS 6c5edb96 not lifted, translated shader kept: %s" % "0x01c: ds_swizzle_b32 is not lifted",
-            "[bbhost] render: PS 7f03e945 not lifted, translated shader kept: %s" % "0x2a0: ds_swizzle_b32 is not lifted",
-            "[bbhost] render: slow pipeline %s%s on %s: vkCreateGraphicsPipelines %d ms; SPIR-V words VS %d, PS %d%s; VS params %d, "
+            "[heliasdream] render: PS a22c7f71 lifted (%d words; translated %d)" % (900, 2000),
+            "[heliasdream] render: PS 6c5edb96 not lifted, translated shader kept: %s" % "0x01c: ds_swizzle_b32 is not lifted",
+            "[heliasdream] render: PS 7f03e945 not lifted, translated shader kept: %s" % "0x2a0: ds_swizzle_b32 is not lifted",
+            "[heliasdream] render: slow pipeline %s%s on %s: vkCreateGraphicsPipelines %d ms; SPIR-V words VS %d, PS %d%s; VS params %d, "
             "PS images %d, buffers VS %d PS %d" % ("8747a367+a22c7f71", " (no-fallback)", "a worker", 120, 3000, 2000, "", 4, 6, 1, 2),
-            "[bbhost] stall: flip #%d came %d ms after the previous one (cp-backlog %d); in between cp-thread ms: draw=1; graphics "
+            "[heliasdream] stall: flip #%d came %d ms after the previous one (cp-backlog %d); in between cp-thread ms: draw=1; graphics "
             "pipelines 1, draws 1, dispatches 1, texture uploads 1, texture hashes 1 in 1 ms, surfaces replaced 0; texture ms: images 0, "
             "staging 0, untile 0, record 0, views 0; pipeline ms: translate %d, modules %d, create %d; stage translations 1, stages reused 1"
             % (1234, 85, 2, 10, 5, 50),
-            "[bbhost] main loop: a %.1f ms frame before flip %d, %.1f ms of it waiting" % (52.0, 1300, 40.0),
-            "[bbhost] render: pipeline %s failed to build; its draws are skipped (first at flip %d)" % ("1111+2222", 1300)])
+            "[heliasdream] main loop: a %.1f ms frame before flip %d, %.1f ms of it waiting" % (52.0, 1300, 40.0),
+            "[heliasdream] render: pipeline %s failed to build; its draws are skipped (first at flip %d)" % ("1111+2222", 1300)])
         view = rom.view()
         lines += area_lines(rom, 160.0, "20000000", [[16.7] * 60 for _ in range(20)], view=view)
-        lines.append("[bbhost] plugin: mapval tour-done %.3f" % 220.0)
+        lines.append("[heliasdream] plugin: mapval tour-done %.3f" % 220.0)
         return lines, window
 
     def test_probe_lines_with_and_without_the_plugin_prefix(self):
         line = "mapval mark central-yharnam:arrived 108.000 18010000 1.000 2.000 3.000 yaw 0.500"
-        for prefix in ("[bbhost] plugin: ", "[bbhost] "):
+        for prefix in ("[heliasdream] plugin: ", "[heliasdream] "):
             m = ac.MARK.search(prefix + line)
             self.assertIsNotNone(m, prefix)
             self.assertEqual((m.group(1), m.group(2)), ("central-yharnam", "arrived"))
-        self.assertTrue(ac.TOUR_DONE.search("[bbhost] plugin: mapval tour-done 1.000"))
+        self.assertTrue(ac.TOUR_DONE.search("[heliasdream] plugin: mapval tour-done 1.000"))
 
     def test_render_size_is_checked(self):
-        lines = ["[bbhost] resolution: display buffers 5120x2160, rendering 1920x1080",
-                 "[bbhost] world: the first in-game frame, flip 1500, 31.0 s after start"]
+        lines = ["[heliasdream] resolution: display buffers 5120x2160, rendering 1920x1080",
+                 "[heliasdream] world: the first in-game frame, flip 1500, 31.0 s after start"]
         rep = ac.pass_report(lines, ac.pick_areas("hunters-dream"), "perf")
         self.assertEqual(rep["rendering"], [1920, 1080])
         report = {"run": {"size": [3840, 2160]}, "passes": {"perf": dict(rep, tour_done=True)}, "areas": {}}
@@ -566,13 +566,13 @@ class CompareTest(unittest.TestCase):
 GAME = r"""
 import json, os, sys, time
 from pathlib import Path
-tour = Path(os.environ["BBHOST_MAPVAL_TOUR"]).read_text().splitlines()
-dumps, captures = Path(os.environ["BBHOST_MAPVAL_DUMPS"]), Path(os.environ["BBHOST_MAPVAL_CAPTURES"])
-assert os.environ["BBHOST_FRAME_STATS"] == "1" and os.environ["BBHOST_FRAME_DETAIL"] == "1" and os.environ["BBHOST_TEST_WARP"] == "1"
+tour = Path(os.environ["HELIAS_MAPVAL_TOUR"]).read_text().splitlines()
+dumps, captures = Path(os.environ["HELIAS_MAPVAL_DUMPS"]), Path(os.environ["HELIAS_MAPVAL_CAPTURES"])
+assert os.environ["HELIAS_FRAME_STATS"] == "1" and os.environ["HELIAS_FRAME_DETAIL"] == "1" and os.environ["HELIAS_TEST_WARP"] == "1"
 out = sys.stdout
 def log(s):
-    out.write("[bbhost] " + s + "\n")
-log("bbhost v9.9.9-test (abc, Linux x86-64)")
+    out.write("[heliasdream] " + s + "\n")
+log("heliasdream v9.9.9-test (abc, Linux x86-64)")
 log("world: the first in-game frame, flip 900, 30.0 s after start")
 t, flip, block, step = 1000.0, 1000, "15000000", 0
 def second(fps=60):
@@ -636,7 +636,7 @@ class EndToEndTest(unittest.TestCase):
         build.mkdir()
         sys.path.insert(0, str(Path(__file__).resolve().parent))
         import lift_verify_test as lv
-        lv.script(build / "bbhost", GAME)
+        lv.script(build / "heliasdream", GAME)
         lv.script(build / "gcnlift", lv.GCNLIFT)
         lv.script(build / "drawreplay", lv.DRAWREPLAY)
         (d / "app0" / "dvdroot_ps4").mkdir(parents=True)
@@ -653,7 +653,7 @@ class EndToEndTest(unittest.TestCase):
 
     def run_once(self, name):
         d = self.d
-        args = ["run", "--bbhost", str(d / "build" / "bbhost"), "--app0", str(d / "app0"), "--eboot", str(d / "eboot.bin"),
+        args = ["run", "--heliasdream", str(d / "build" / "heliasdream"), "--app0", str(d / "app0"), "--eboot", str(d / "eboot.bin"),
                 "--seed", str(d / "seed"), "--out", str(d / name), "--areas", "central-yharnam,moonside-lake", "--numa-node", "none",
                 "--captures", "2", "--capture-window", "3", "--settle", "3", "--measure", "6"]
         import contextlib

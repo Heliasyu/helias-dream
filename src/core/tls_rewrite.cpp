@@ -28,12 +28,12 @@ constexpr std::uint32_t kSlot = 60;  // the Linux stand-in's slot
 // the thunk no longer switches FS twice a call (four alternating soaks:
 // main-loop work 11.34/11.62 ms against 11.63/11.73, p95 lower), and host
 // code that touches thread-local state - libm's errno - can run raw.
-// BBHOST_TLS_GS=0 goes back to switching FS.
+// HELIAS_TLS_GS=0 goes back to switching FS.
 const bool g_gs_mode = [] {
 #if defined(_WIN32)
     return true;
 #else
-    const char* e = std::getenv("BBHOST_TLS_GS");
+    const char* e = std::getenv("HELIAS_TLS_GS");
     return !(e && e[0] == '0');
 #endif
 }();

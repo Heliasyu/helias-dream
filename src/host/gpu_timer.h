@@ -1,6 +1,6 @@
 #pragma once
 
-// bbhost-vk's per-pass GPU timer (docs/vk/PLAN.md, Phase 0 debug tooling):
+// heliasdream-vk's per-pass GPU timer (docs/vk/PLAN.md, Phase 0 debug tooling):
 // Vulkan timestamp queries around named passes of one command buffer that is
 // recorded again only after its fence (the presenter's), read back a frame
 // later without waiting, averaged, and logged every `log_every` frames.

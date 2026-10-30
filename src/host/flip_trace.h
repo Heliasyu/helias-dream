@@ -1,6 +1,6 @@
 #pragma once
 
-// bbhost-vk profiling kit (after rc5b): BBHOST_FLIP_TRACE=1, a debug trace of
+// heliasdream-vk profiling kit (after rc5b): HELIAS_FLIP_TRACE=1, a debug trace of
 // every flip the game submits, for the periodic ~12 ms frame whose flip comes
 // ~4 ms late from the game / command-processor side (rc5 ANALYSIS, M4). Off
 // unless the variable is set: then every hook below is one load of a constant
@@ -17,7 +17,7 @@
 // Linux, each hot thread's run and run-queue wait time between two presents
 // (/proc/self/task/<tid>/schedstat, read on bb-present).
 //
-// A present interval of BBHOST_FLIP_TRACE_MS (11) or more, under 250 ms (not a
+// A present interval of HELIAS_FLIP_TRACE_MS (11) or more, under 250 ms (not a
 // load), logs one `fliptrace: slow frame` line with this flip and the one
 // before it broken down, and the threads' run/wait in that interval. Every
 // F11 snapshot gets a [flip_trace] section with one CSV line per flip of the

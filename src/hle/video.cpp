@@ -52,10 +52,10 @@ struct VideoPort {
     int pending = 0;                 // queued flips (for GetFlipStatus.flip_pending_num)
     // `mark`: the draw count when the flip was queued (host_gpu_draw_mark), the
     // frame's last draw for the glitch hunt. `gpu_need`: the submissions that
-    // must have finished before it may complete (BBHOST_FLIP_AFTER_GPU).
+    // must have finished before it may complete (HELIAS_FLIP_AFTER_GPU).
     // `present`: what the presenter is told of it (when it arrived, the
     // submissions its frame is in); `shown`: already presented when it
-    // arrived (BBHOST_PRESENT_ON_ARRIVAL), so its vblank only completes it.
+    // arrived (HELIAS_PRESENT_ON_ARRIVAL), so its vblank only completes it.
     struct FlipReq {
         int buffer;
         std::int64_t arg;
@@ -92,7 +92,7 @@ std::atomic<int> g_fps_cap{30};  // video.fps_cap: upper bound on presented fram
 // presenter's blit is submitted after the frame's own work on the one queue,
 // earlier than before, so it cannot meet a later frame's writes to that
 // buffer either (the game draws into a buffer only after the flip that
-// showed it is complete). BBHOST_PRESENT_ON_ARRIVAL=0: shown at completion.
+// showed it is complete). HELIAS_PRESENT_ON_ARRIVAL=0: shown at completion.
 // (g_present_on_arrival is defined with the presenter's flip, below.)
 
 // The pacing line of the 300-flip report (hle_video_pacing_window): how late
@@ -156,7 +156,7 @@ void finish_flip_locked(VideoPort& p, int buffer, std::int64_t arg) {
 // GPU finished each frame and menus/animations ran at the display rate.
 std::atomic<bool> g_flip_uncapped{false};
 // While a loading screen is up (engine/loading.cpp): flips complete at once,
-// as under BBHOST_UNCAP, so the game's loaders - stepped once a frame - are
+// as under HELIAS_UNCAP, so the game's loaders - stepped once a frame - are
 // not held to the frame cap.
 std::atomic<bool> g_flip_loading{false};
 std::atomic<std::uint64_t> g_picture{0};  // hle_video_set_picture: w << 32 | h, 0 for the whole buffer
@@ -171,7 +171,7 @@ void show_frame(int buffer, std::uint64_t display_va, unsigned dw, unsigned dh, 
     host_present(buffer, display_va, dw, dh, flip);
 }
 
-// BBHOST_PRESENT_ON_ARRIVAL (on unless 0): a flip the command processor queues
+// HELIAS_PRESENT_ON_ARRIVAL (on unless 0): a flip the command processor queues
 // is shown at once, and its vblank only completes it. Bloodborne keeps two
 // flips pending, and the vblank both showed and completed one a tick, oldest
 // first, so every frame waited behind the two before it: two flip periods
@@ -187,22 +187,22 @@ void show_frame(int buffer, std::uint64_t display_va, unsigned dw, unsigned dh, 
 // Only flips the command processor queued after recording their frame
 // (sceGnmSubmitAndFlipCommandBuffers) are shown early; a flip requested from a
 // game thread (sceGnmRequestFlipAndSubmitDone) may be ahead of its frame's
-// commands, and waits for its vblank as before. BBHOST_PRESENT_LEGACY=1 (the
+// commands, and waits for its vblank as before. HELIAS_PRESENT_LEGACY=1 (the
 // presenter's switch back, host/window.cpp) turns it off with the rest.
 const bool g_present_on_arrival = [] {
-    if (const char* e = std::getenv("BBHOST_PRESENT_ON_ARRIVAL")) return e[0] != '0';
-    const char* legacy = std::getenv("BBHOST_PRESENT_LEGACY");
+    if (const char* e = std::getenv("HELIAS_PRESENT_ON_ARRIVAL")) return e[0] != '0';
+    const char* legacy = std::getenv("HELIAS_PRESENT_LEGACY");
     return !(legacy && legacy[0] == '1');
 }();
 
-// BBHOST_TEST_REQUESTS=<dir>: a test harness's requests to the running game
+// HELIAS_TEST_REQUESTS=<dir>: a test harness's requests to the running game
 // (tools/area_check.py, through its probe plugin, at moments the game's own
 // clock picks). Each <dir>/*.req file holds one line, carried out in name
 // order and then deleted:
-//   dump <path>           this displayed frame to <path>, as BBHOST_DUMP_FRAME writes one
-//   capture <n> [<dir>]   with BBHOST_CAPTURE_ARMED=1, BBHOST_CAPTURE_DRAW may take up to n
+//   dump <path>           this displayed frame to <path>, as HELIAS_DUMP_FRAME writes one
+//   capture <n> [<dir>]   with HELIAS_CAPTURE_ARMED=1, HELIAS_CAPTURE_DRAW may take up to n
 //                         more draws, into <dir> (draw_capture.h); 0 stops it
-//   tap <button> [<ms>]   press a pad button for <ms> (200), named as BBHOST_AUTOPRESS
+//   tap <button> [<ms>]   press a pad button for <ms> (200), named as HELIAS_AUTOPRESS
 //                         names them, or `confirm`: the button this region's menus
 //                         confirm with (Cross; Circle on a Japanese build)
 //   menutap <button> [<ms>]  the same, only while one of the game's menus has the
@@ -211,7 +211,7 @@ const bool g_present_on_arrival = [] {
 // The folder is read ten times a second, on the flips.
 void test_requests(std::uint64_t display_va, std::uint64_t count) {
     static const std::string dir = [] {
-        const char* e = std::getenv("BBHOST_TEST_REQUESTS");
+        const char* e = std::getenv("HELIAS_TEST_REQUESTS");
         return std::string(e && *e ? e : "");
     }();
     if (dir.empty()) return;
@@ -264,14 +264,14 @@ void test_requests(std::uint64_t display_va, std::uint64_t count) {
     }
 }
 
-// `shown`: the presenter already has the frame (BBHOST_PRESENT_ON_ARRIVAL);
+// `shown`: the presenter already has the frame (HELIAS_PRESENT_ON_ARRIVAL);
 // everything else a completed flip does still happens here.
 void present_flip(int buffer, std::uint64_t display_va, unsigned dw, unsigned dh, std::uint64_t count, std::uint64_t mark, bool shown,
                   const PresentFlip& flip) {
-    // BBHOST_DUMP_FRAME=N[,M,...]: write the displayed frame at those flips.
+    // HELIAS_DUMP_FRAME=N[,M,...]: write the displayed frame at those flips.
     static std::vector<long> dump_at = [] {
         std::vector<long> out;
-        const char* e = std::getenv("BBHOST_DUMP_FRAME");
+        const char* e = std::getenv("HELIAS_DUMP_FRAME");
         while (e && *e) {
             char* end = nullptr;
             const long v = std::strtol(e, &end, 10);
@@ -289,9 +289,9 @@ void present_flip(int buffer, std::uint64_t display_va, unsigned dw, unsigned dh
         host_gpu_dump_display(display_va, path);
     }
     test_requests(display_va, count);
-    // BBHOST_STALL_TEST=<flip>:<ms>
+    // HELIAS_STALL_TEST=<flip>:<ms>
     static const std::pair<long, long> stall_test = [] {
-        const char* e = std::getenv("BBHOST_STALL_TEST");
+        const char* e = std::getenv("HELIAS_STALL_TEST");
         if (!e || !e[0]) return std::pair<long, long>{-1, 0};
         char* end = nullptr;
         const long at = std::strtol(e, &end, 10);
@@ -302,10 +302,10 @@ void present_flip(int buffer, std::uint64_t display_va, unsigned dw, unsigned dh
     }
     host_gpu_watch_display(display_va);
     host_gpu_glitch_watch(display_va, mark);
-    // BBHOST_F12_AT=N[,M,...]: the F12 dump at those flips, for scripted runs.
+    // HELIAS_F12_AT=N[,M,...]: the F12 dump at those flips, for scripted runs.
     static std::vector<long> f12_at = [] {
         std::vector<long> out;
-        const char* e = std::getenv("BBHOST_F12_AT");
+        const char* e = std::getenv("HELIAS_F12_AT");
         while (e && *e) {
             char* end = nullptr;
             const long v = std::strtol(e, &end, 10);
@@ -320,9 +320,9 @@ void present_flip(int buffer, std::uint64_t display_va, unsigned dw, unsigned dh
         ++next_f12;
         host_gpu_request_dump();
     }
-    // BBHOST_RT_REFILL_TEST=1: the re-created-target check, once the device is busy.
+    // HELIAS_RT_REFILL_TEST=1: the re-created-target check, once the device is busy.
     static bool refill_test = [] {
-        const char* e = std::getenv("BBHOST_RT_REFILL_TEST");
+        const char* e = std::getenv("HELIAS_RT_REFILL_TEST");
         return e && e[0] == '1';
     }();
     if (refill_test && count >= 120) {
@@ -339,14 +339,14 @@ void present_flip(int buffer, std::uint64_t display_va, unsigned dw, unsigned dh
 }
 
 // Completes at most one queued flip per open port, gated by the flip rate.
-// BBHOST_FLIP_AFTER_GPU=1: a flip completes only once the GPU has run its
+// HELIAS_FLIP_AFTER_GPU=1: a flip completes only once the GPU has run its
 // frame. The command processor queues a flip when it has *recorded* the
 // frame, and the vblank used to complete it whether or not the GPU had
 // executed any of it - while on the console a flip is the GPU reaching it,
 // so a game may take the flip for "the GPU is done with that frame's
 // buffers" and write the next frame's data over them.
 const bool g_flip_after_gpu = [] {
-    const char* e = std::getenv("BBHOST_FLIP_AFTER_GPU");
+    const char* e = std::getenv("HELIAS_FLIP_AFTER_GPU");
     return e && e[0] == '1';
 }();
 std::atomic<std::uint64_t> g_flips_held{0};
@@ -375,7 +375,7 @@ void vblank_tick(std::uint64_t vcount) {
             if (p.flip_queue.front().gpu_need > gpu_done) {
                 const std::uint64_t n = g_flips_held.fetch_add(1, std::memory_order_relaxed);
                 if (n == 0 || n % 3600 == 0) {
-                    host_log("video: a flip waited a vblank for the GPU to run its frame (%llu vblanks so far; BBHOST_FLIP_AFTER_GPU)",
+                    host_log("video: a flip waited a vblank for the GPU to run its frame (%llu vblanks so far; HELIAS_FLIP_AFTER_GPU)",
                              static_cast<unsigned long long>(n + 1));
                 }
                 continue;  // the GPU has not run the frame yet: a later vblank
@@ -418,28 +418,28 @@ void start_vsync() {
     std::call_once(g_vsync_once, [] {
         // Set, never cleared: the game at 90 or uncapped has set it already
         // (hle_video_set_game_pace).
-        if (const char* e = std::getenv("BBHOST_UNCAP"); e && e[0] == '1') g_flip_uncapped.store(true);
+        if (const char* e = std::getenv("HELIAS_UNCAP"); e && e[0] == '1') g_flip_uncapped.store(true);
         host_log("video: %s", g_present_on_arrival
                                   ? "a frame is shown when the command processor has it, its flip completes on the vblank "
-                                    "(BBHOST_PRESENT_ON_ARRIVAL=0: shown when its flip completes)"
-                                  : "a frame is shown when its flip completes on the vblank (BBHOST_PRESENT_ON_ARRIVAL=0)");
+                                    "(HELIAS_PRESENT_ON_ARRIVAL=0: shown when its flip completes)"
+                                  : "a frame is shown when its flip completes on the vblank (HELIAS_PRESENT_ON_ARRIVAL=0)");
         std::thread([] {
             // Named on both hosts (Windows: for the sampler and frame
             // statistics' thread list too), and above every other thread on
             // Windows: it does little, and a tick a guest worker delays is a
-            // flip completed late (core/host_clock.h, BBHOST_THREAD_PRIO).
+            // flip completed late (core/host_clock.h, HELIAS_THREAD_PRIO).
             host_thread_set_name("bb-vblank");
             host_thread_set_class(HostThreadClass::Pacing, "bb-vblank");
-            // BBHOST_VBLANK_SPIN_US=<n>: sleep to n us before each tick on the
+            // HELIAS_VBLANK_SPIN_US=<n>: sleep to n us before each tick on the
             // high-resolution timer and spin the rest with `pause`, for a tick
             // on the microsecond. 0 (the default, as Kyo's vblank thread in
             // KyoPS4x #249): the timer alone - its lateness is on the pacing
             // line, and a spinning core takes the APU's GPU power.
             static const std::int64_t spin_us = [] {
-                const char* e = std::getenv("BBHOST_VBLANK_SPIN_US");
+                const char* e = std::getenv("HELIAS_VBLANK_SPIN_US");
                 return e ? std::clamp<std::int64_t>(std::strtoll(e, nullptr, 10), 0, 4000) : 0;
             }();
-            if (spin_us) host_log("video: the flip clock spins the last %lld us before each tick (BBHOST_VBLANK_SPIN_US)", static_cast<long long>(spin_us));
+            if (spin_us) host_log("video: the flip clock spins the last %lld us before each tick (HELIAS_VBLANK_SPIN_US)", static_cast<long long>(spin_us));
             // The flip clock runs at the display's own refresh rate,
             // not at an assumed 59.94 Hz. A flip still completes at the rate
             // the game asked for (flip_rate) and the frame cap, so this only
@@ -521,10 +521,10 @@ void start_vsync() {
                     if (late_us >= 1000) g_pacing.ticks_late_1ms.fetch_add(1, std::memory_order_relaxed);
                 }
                 vblank_tick(++vcount);
-                // BBHOST_VBLANK_LOG=1: what the clock and the completions
+                // HELIAS_VBLANK_LOG=1: what the clock and the completions
                 // actually came out at, once a second.
                 static const bool tick_log = [] {
-                    const char* e = std::getenv("BBHOST_VBLANK_LOG");
+                    const char* e = std::getenv("HELIAS_VBLANK_LOG");
                     return e && e[0] == '1';
                 }();
                 if (tick_log) {
@@ -545,18 +545,18 @@ void start_vsync() {
                 // the vblank keeps ticking. Say so once per stall and print the
                 // last draws, which is usually enough to name the shader or
                 // resource involved.
-                // BBHOST_POOL_LOG=1: the same pool every 10 s, to see it fill
+                // HELIAS_POOL_LOG=1: the same pool every 10 s, to see it fill
                 // (and what it looks like on a run that does not freeze).
                 static const bool pool_log = [] {
-                    const char* e = std::getenv("BBHOST_POOL_LOG");
+                    const char* e = std::getenv("HELIAS_POOL_LOG");
                     return e && e[0] == '1';
                 }();
-                // BBHOST_POOL_LOG=2: a thread that watches the pool as fast as
+                // HELIAS_POOL_LOG=2: a thread that watches the pool as fast as
                 // it can, so a hold that lasts microseconds is still seen -
                 // how many entries are out at once says whether two threads
                 // are ever in that path together.
                 static const bool pool_watch = [] {
-                    const char* e = std::getenv("BBHOST_POOL_LOG");
+                    const char* e = std::getenv("HELIAS_POOL_LOG");
                     return e && e[0] == '2';
                 }();
                 if (pool_watch) {
@@ -825,7 +825,7 @@ void hle_video_set_game_pace(int fps) {
         // The game paces itself - our SprjFlipper::Update waits out 1/90 s, or
         // the uncapped limit - and steps by the frame time it measured, so a
         // flip completes as soon as the frame is recorded, as under
-        // BBHOST_UNCAP: held to the display's refresh, 90 on a 60 Hz display
+        // HELIAS_UNCAP: held to the display's refresh, 90 on a 60 Hz display
         // would run at 60 with 90's steps. The presenter still shows one frame
         // a refresh with V-Sync on (host/window.cpp drops the others).
         g_flip_uncapped.store(true);
@@ -879,9 +879,9 @@ std::uint64_t hle_video_loading_unshown() { return g_loading_unshown.load(std::m
 
 void hle_video_finish_flip(int handle, int buffer, std::int64_t arg, bool recorded) {
     // Called from the CP thread once it has recorded the frame's GPU work
-    // (not once the GPU has run it: BBHOST_FLIP_AFTER_GPU). The flip is
+    // (not once the GPU has run it: HELIAS_FLIP_AFTER_GPU). The flip is
     // queued and completed by the vblank tick at the game's flip rate, so the
-    // game's frame loop paces on the flip event. BBHOST_UNCAP=1 completes it
+    // game's frame loop paces on the flip event. HELIAS_UNCAP=1 completes it
     // at once (fast headless dumps). `recorded`: from the command processor,
     // after the frame's commands (else a game thread's request, which may be
     // ahead of them).
@@ -944,7 +944,7 @@ void hle_video_finish_flip(int handle, int buffer, std::int64_t arg, bool record
         }
         static std::atomic<bool> said{false};
         if (!said.exchange(true)) {
-            host_log("video: frames are shown when their flip is queued and completed on the vblank (BBHOST_PRESENT_ON_ARRIVAL=0: "
+            host_log("video: frames are shown when their flip is queued and completed on the vblank (HELIAS_PRESENT_ON_ARRIVAL=0: "
                      "both on the vblank)");
         }
         show_frame(buffer, display_va, dw, dh, flip);
@@ -987,7 +987,7 @@ void hle_video_finish_flip(int handle, int buffer, std::int64_t arg, bool record
         dw = p->display_w;
         dh = p->display_h;
     }
-    // BBHOST_UNCAP's flips (benchmarks) are all shown; a loading screen's when
+    // HELIAS_UNCAP's flips (benchmarks) are all shown; a loading screen's when
     // due (loading_show_due). `shown` true: present_flip leaves the window be.
     const bool unshown = !g_flip_uncapped.load() && !loading_show_due(flip.arrived_ns);
     present_flip(buffer, display_va, dw, dh, count, mark, unshown, flip);

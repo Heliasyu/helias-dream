@@ -1,4 +1,4 @@
-// bbhost-vk Phase 1: the scene/UI split's site table (engine/scene_split_sites.h)
+// heliasdream-vk Phase 1: the scene/UI split's site table (engine/scene_split_sites.h)
 // against Kyo's "Decoupled 1080p UI" patches for 1.09, byte for byte: the
 // table with a size as its parameter has to write what each of those
 // patches writes at that size. The two places where the community patches
@@ -198,7 +198,7 @@ int main() {
             const Site* s = site_at(l.at);
             if (!s) {
                 // The heap sizes the patches above 1080p add (0x4b36dxx) are
-                // bbhost's own business (live_resolution.cpp, grow_gfx_heap).
+                // heliasdream's own business (live_resolution.cpp, grow_gfx_heap).
                 CHECK(l.at >= 0x4b36d40 && l.at < 0x4b36e00);
                 continue;
             }
@@ -211,7 +211,7 @@ int main() {
             }
             const std::vector<std::uint8_t> got = encode(*s, p.w, p.h);
             if (s->at == 0x26c3af3) {
-                // Kyo writes the opcode only; bbhost writes the displacement
+                // Kyo writes the opcode only; heliasdream writes the displacement
                 // too, because its both-sides patch changed it (75 11).
                 CHECK(want.size() == 1 && got.size() == 2 && got[0] == want[0] && got[1] == 0x36);
                 continue;
@@ -252,7 +252,7 @@ int main() {
     CHECK(dw == 3840 && dh == 2160);
     display_size_at_start(false, false, 5120, 2160, 3840, 2160, &dw, &dh);
     CHECK(dw == 5120 && dh == 2160);
-    display_size_at_start(true, true, 5120, 2160, 3840, 2160, &dw, &dh);  // BBHOST_SPLIT_DISPLAY=max
+    display_size_at_start(true, true, 5120, 2160, 3840, 2160, &dw, &dh);  // HELIAS_SPLIT_DISPLAY=max
     CHECK(dw == 5120 && dh == 2160);
     display_size_at_start(false, false, 1920, 1080, 2560, 1440, &dw, &dh);  // a start above the largest
     CHECK(dw == 2560 && dh == 1440);

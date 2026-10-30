@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-// bbhost-vk Phase 4: adapted from bbport (deadinside28/bloodborne_pc, GPL-2.0-or-later),
+// heliasdream-vk Phase 4: adapted from bbport (deadinside28/bloodborne_pc, GPL-2.0-or-later),
 // gpu/shadps4/video_core/renderer_vulkan/fsr411/fsr411.h at 3c57da4 - the FSR 4.1.1 replay
-// on plain Vulkan. Changes for bbhost-vk are marked "bbhost-vk:". Credit: bbport's authors.
+// on plain Vulkan. Changes for heliasdream-vk are marked "heliasdream-vk:". Credit: bbport's authors.
 // bbport: FSR 4.1.1 (AMD's 4.1.1 upscaler DLL) on Vulkan, replaying what the DLL does on D3D12
 // (docs/upscaler.md; tools/fsr4cap records it, tools/fsr4cap/extract.py builds the asset sets:
 // SPIR-V of every pass and the model weights). Two variants of the model passes, as the DLL has
@@ -51,7 +51,7 @@ struct Frame {
     float pre_exposure = 1.0f;
     float sharpness = 0.0f; ///< 0..1
     bool sharpen = false;
-    /// bbhost-vk test7: with `sharpen`, stop after the postpass (its result in SharpenSource(),
+    /// heliasdream-vk test7: with `sharpen`, stop after the postpass (its result in SharpenSource(),
     /// layout General) and leave the sharpening into `output` to the caller.
     bool sharpen_external = false;
     bool reset = false;
@@ -71,9 +71,9 @@ public:
     [[nodiscard]] const std::string& Error() const noexcept;
     /// The variant, asset set and sizes in use, for logs ("FP8 t2160_m0 output 3840x2160").
     [[nodiscard]] std::string Describe() const;
-    /// bbhost-vk test7: the postpass's RGBA16F result when the frame had sharpen_external.
+    /// heliasdream-vk test7: the postpass's RGBA16F result when the frame had sharpen_external.
     [[nodiscard]] Image SharpenSource() const;
-    /// bbhost-vk test7b: the 1x1 R32F exposure the last frame used (RCAS divides by it).
+    /// heliasdream-vk test7b: the 1x1 R32F exposure the last frame used (RCAS divides by it).
     [[nodiscard]] Image SharpenExposure() const;
 
 private:

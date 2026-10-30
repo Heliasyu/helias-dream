@@ -19,7 +19,7 @@
 // read: the functions .eh_frame describes, and the code between them up to
 // the next known start (a function's, a vtable slot's or a call's target).
 //
-//   build/class_catalog > symbols/1.09-classes.txt      (BBHOST_EBOOT=...)
+//   build/class_catalog > symbols/1.09-classes.txt      (HELIAS_EBOOT=...)
 //   build/class_catalog --names > symbols/1.09-class-names.tsv
 // --names prints names in symbols/1.09-names.tsv's columns (address, name,
 // confidence, source, evidence): each class's GetRuntimeClass, and

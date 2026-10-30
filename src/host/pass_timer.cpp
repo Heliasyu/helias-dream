@@ -1,4 +1,4 @@
-// bbhost-vk Phase 5: the renderer passes' GPU time (host/pass_timer.h).
+// heliasdream-vk Phase 5: the renderer passes' GPU time (host/pass_timer.h).
 #include "host/pass_timer.h"
 
 #include "host/gpu_internal.h"

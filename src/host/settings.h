@@ -1,6 +1,6 @@
 // The host's settings as one object: what the options
 // screen (F10), the port's rows in the game's System menu and
-// bbhost-options.toml edit by name (host/options.h), read back by every
+// HeliasDream-options.toml edit by name (host/options.h), read back by every
 // consumer as typed, already-scaled fields. The table in options.cpp is the
 // single source; it rebuilds this snapshot on every change, and a reader
 // takes a copy (host_settings()) whenever host_opt_serial() has moved, or
@@ -39,15 +39,15 @@ struct HostSettings {
     float hdr_ui_brightness = 0.0f;  // the UI kept apart at this x paper white (host/hdr_ui.h); 0: boosted with the rest
     bool trophy_popups = true;
     bool compile_note = true;        // "Building shaders" while pipelines are built in play
-    int game_language = 1;           // the PS4's language code (1 English US); BBHOST_SYSTEM_LANG wins
-    unsigned submit_split = 0;       // every n-th draw a mid-job submission if the GPU ran dry; 0 off (BBHOST_SUBMIT_SPLIT wins)
+    int game_language = 1;           // the PS4's language code (1 English US); HELIAS_SYSTEM_LANG wins
+    unsigned submit_split = 0;       // every n-th draw a mid-job submission if the GPU ran dry; 0 off (HELIAS_SUBMIT_SPLIT wins)
     bool thread_priority = false;    // Graphics threads first (core/host_clock.h)
     bool fsr4_sharp_motion = false;  // FSR 4's balanced model at Performance and Ultra Performance
     // Texture detail (the samplers' LOD bias, added to the game's own): -1 a mip
     // sharper. NAN is Auto: log2(render / output) under FSR 3.1 / 4.1.1.
     float mip_bias = 0.0f;       // the in-game pop-up when a trophy is earned (host/trophies.h)
     int menu_key = 0;                // 0 F10, 1 Insert, 2 Home, 3 F1 (F10 always works)
-    int res_width = 1920, res_height = 1080;  // the render resolution (BBHOST_RES wins)
+    int res_width = 1920, res_height = 1080;  // the render resolution (HELIAS_RES wins)
 
     // Camera: multipliers on LockCamParam's values (engine/camera.cpp)
     float fov_scale = 1.0f;              // 1.0 the game's own; +5% a step
@@ -101,10 +101,10 @@ struct HostSettings {
     bool rebirth = true;
     bool five_players = true;
 
-    // bbhost-vk's upscaler (host/upscaler.h; docs/vk/PLAN.md). Phase 0 only
+    // heliasdream-vk's upscaler (host/upscaler.h; docs/vk/PLAN.md). Phase 0 only
     // carries them: what reaches the screen is still FSR 1 at the Resolution
     // setting whatever they say.
-    int upscaler = 1;                // 0 Off, 1 FSR 1 (bbhost's own), 2 FSR 3.1, 3 FSR 4.1.1
+    int upscaler = 1;                // 0 Off, 1 FSR 1 (heliasdream's own), 2 FSR 3.1, 3 FSR 4.1.1
     int upscale_quality = 0;         // 0 Native AA, 1 Quality, 2 Balanced, 3 Performance, 4 Ultra Performance
     float upscale_sharpness = 0.8f;  // 0..1; 0.8 is RCAS at 0.2 stops, FSR 1's own
     bool upscale_jitter = true;      // the scene's sub-pixel jitter for FSR 3.1 / 4.1.1 (testers can turn it off)

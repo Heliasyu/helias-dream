@@ -256,7 +256,7 @@ GUEST_ABI FILE* hle_fopen(const char* path, const char* mode) {
     // them makes sub_235d0e0 pick a reduced menu table (6/9/22 entries)
     // instead of the full 79, so title.gfx and most menus never load.
     static const bool trace_menuload = [] {
-        const char* e = std::getenv("BBHOST_TRACE_MENULOAD");
+        const char* e = std::getenv("HELIAS_TRACE_MENULOAD");
         return e && e[0] == '1';
     }();
     if (trace_menuload && path && std::strstr(path, "/menu/") && std::strstr(path, ".gfx")) {
@@ -1057,10 +1057,10 @@ void hle_register_libc() {
 // only functions that touch no thread-local state - no errno, no TLS - and
 // need little stack. The game's main loop and job workers call these hundreds
 // of thousands of times a second, and the thunk cost more than the work.
-// BBHOST_RAW_LIBC=0: the raw (unthunked) entries below go through the thunk
+// HELIAS_RAW_LIBC=0: the raw (unthunked) entries below go through the thunk
 // like everything else, to tell a raw-entry problem from a libc one.
     static const bool raw_libc = [] {
-        const char* e = std::getenv("BBHOST_RAW_LIBC");
+        const char* e = std::getenv("HELIAS_RAW_LIBC");
         return !e || e[0] != '0';
     }();
 #define REG_RAW(name, fn) \

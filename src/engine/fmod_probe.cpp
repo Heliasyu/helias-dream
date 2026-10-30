@@ -79,7 +79,7 @@ GUEST_ABI std::int64_t job_done_hook(std::uint64_t, const std::uint64_t* saved) 
 }  // namespace
 
 void fmod_probe_install(ElfImage* image) {
-    const char* e = std::getenv("BBHOST_FMOD_PROBE");
+    const char* e = std::getenv("HELIAS_FMOD_PROBE");
     if (!e || *e != '1') return;
     g_slide = image->mem.slide;
     const std::uint64_t at = g_slide + (kJobDone - kPreferredGuestSlide);

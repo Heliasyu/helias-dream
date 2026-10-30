@@ -5,7 +5,7 @@
 #
 #   SSHPASS=... tools/win_perf.sh NAME [ZIP] [VAR=value ...]
 #
-# ZIP (e.g. build/win/bbhost-win-<rev>.zip) is uploaded and unpacked once;
+# ZIP (e.g. build/win/heliasdream-win-<rev>.zip) is uploaded and unpacked once;
 # without it the newest package already there runs. VAR=value pairs go into
 # the game's environment. The password comes from SSHPASS (sshpass -e) and is
 # never written anywhere. Headless because an RDP session caps presentation
@@ -71,7 +71,7 @@ if [ -n "$ZIP" ]; then
     rput "$ZIP" "$FDIR/$BUILD.zip" || exit 1
     rcmd "cd /d $DIR && tar -xf $BUILD.zip && del $BUILD.zip" >/dev/null
 else
-    BUILD=$(rcmd "dir /b /ad /o-d $DIR\\bbhost-win-*" | tr -d '\r' | head -1)
+    BUILD=$(rcmd "dir /b /ad /o-d $DIR\\heliasdream-win-*" | tr -d '\r' | head -1)
 fi
 [ -n "$BUILD" ] || { echo "no package on the machine; pass a ZIP"; exit 1; }
 
@@ -110,22 +110,22 @@ cat > "$OUT/perf.cmd" <<CMD
 @echo off
 rem Written by tools/win_perf.sh: perf.cmd NAME BUILD - the frozen seed, headless, frame statistics.
 cd /d $DIR\\%2
-set BBHOST_NO_GAMEPAD=1
-set BBHOST_SKIP_INTRO=1
-set BBHOST_HEADLESS=1
-set BBHOST_FRAME_STATS=1
-set BBHOST_GAME_FPS=60
-set BBHOST_EXIT_FLIP=$FLIPS
-set BBHOST_CONFIG_DIR=$DIR\\cfg
-set BBHOST_OPTIONS_PATH=$DIR\\cfg\\bbhost-options.toml
-set BBHOST_AUTOPRESS=$taps
+set HELIAS_NO_GAMEPAD=1
+set HELIAS_SKIP_INTRO=1
+set HELIAS_HEADLESS=1
+set HELIAS_FRAME_STATS=1
+set HELIAS_GAME_FPS=60
+set HELIAS_EXIT_FLIP=$FLIPS
+set HELIAS_CONFIG_DIR=$DIR\\cfg
+set HELIAS_OPTIONS_PATH=$DIR\\cfg\\heliasdream-options.toml
+set HELIAS_AUTOPRESS=$taps
 ${env_lines}if not exist $DIR\\cfg mkdir $DIR\\cfg
-echo [options]> $DIR\\cfg\\bbhost-options.toml
-echo frame_cap = "60">> $DIR\\cfg\\bbhost-options.toml
+echo [options]> $DIR\\cfg\\heliasdream-options.toml
+echo frame_cap = "60">> $DIR\\cfg\\heliasdream-options.toml
 if not exist $DIR\\data mkdir $DIR\\data
 rmdir /s /q $DIR\\data\\saves 2>nul
 tar -xzf $SEED -C $DIR\\data saves
-bbhost.exe --config $DIR\\perf.toml > $DIR\\run-%1.log 2>&1
+heliasdream.exe --config $DIR\\perf.toml > $DIR\\run-%1.log 2>&1
 echo exit %ERRORLEVEL% >> $DIR\\run-%1.log
 CMD
 sed -i 's/$/\r/' "$OUT/perf.cmd" "$OUT/perf.toml"

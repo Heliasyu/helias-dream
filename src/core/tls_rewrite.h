@@ -7,7 +7,7 @@
 // (`65 48 8b 04 25 disp32`), the same length, with the guest TCB stored in
 // TLS slot n. The rewrite is done at load, while the text is still writable.
 //
-// On Linux the same rewrite runs behind BBHOST_TLS_GS=1: GS gets a block the
+// On Linux the same rewrite runs behind HELIAS_TLS_GS=1: GS gets a block the
 // size of a TEB whose slot n holds the TCB, FS stays glibc's for good, and
 // the thunks stop switching FS - so the Windows-shaped path is proven on
 // the game here, before a Windows build exists.
@@ -24,7 +24,7 @@ constexpr std::uint32_t kTebTlsSlots = 0x1480;
 constexpr std::uint32_t kTebTlsSlotCount = 64;
 constexpr std::size_t kTebStandInSize = 0x1800;
 
-// True when the guest reads its TCB through GS (BBHOST_TLS_GS=1 on Linux,
+// True when the guest reads its TCB through GS (HELIAS_TLS_GS=1 on Linux,
 // always on Windows). Read anywhere; fixed before the eboot is loaded.
 bool tls_gs_mode();
 // The displacement the rewritten sites read: kTebTlsSlots + 8 * slot, and

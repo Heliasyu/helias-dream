@@ -1,6 +1,6 @@
 #pragma once
 
-// bbhost.toml: a small TOML subset ([section], key = "string" | integer |
+// HeliasDream.toml: a small TOML subset ([section], key = "string" | integer |
 // true/false, # comments). Values are addressed as "section.key".
 
 #include <cstdint>
@@ -34,9 +34,9 @@ struct HostConfig {
     int update_check = -1;           // update.check: true/false
     std::string update_source;       // update.source: a GitHub "releases/latest" API URL
     std::string update_token_file;   // update.token_file
-    std::string fsr4_dll;            // upscaler.fsr4_dll: bbhost-vk, the user's amd_fidelityfx_upscaler_dx12.dll (FSR 4.1.1 is built from it)
+    std::string fsr4_dll;            // upscaler.fsr4_dll: heliasdream-vk, the user's amd_fidelityfx_upscaler_dx12.dll (FSR 4.1.1 is built from it)
     std::string player_name;   // player.name: what the name box starts from, or receives with "auto" (default online_id)
-    std::string ime_mode;      // player.ime / BBHOST_IME: "type" (default: type in the window) or "auto" (the name is player.name at once)
+    std::string ime_mode;      // player.ime / HELIAS_IME: "type" (default: type in the window) or "auto" (the name is player.name at once)
     int width = 1920;          // video.width
     int height = 1080;         // video.height
     int fps_cap = 30;          // video.fps_cap
@@ -44,23 +44,23 @@ struct HostConfig {
     std::string window_mode;   // video.window_mode: the Window mode setting's default ("Windowed" or "Fullscreen")
     std::string model_detail;  // video.model_detail: the Model detail setting's default ("Full", "Normal", "Low", "Lowest")
     int vblank_hz = 0;         // video.vblank_hz: the flip clock's rate; 0 = the display's own
-    bool headless = false;     // video.headless / --headless / BBHOST_HEADLESS=1
-    bool skip_intro = false;   // startup.skip_intro / BBHOST_SKIP_INTRO=0|1: the three company logos only
-    // loading.quick_reentry / BBHOST_QUICK_REENTRY=0|1: a load after a death or
+    bool headless = false;     // video.headless / --headless / HELIAS_HEADLESS=1
+    bool skip_intro = false;   // startup.skip_intro / HELIAS_SKIP_INTRO=0|1: the three company logos only
+    // loading.quick_reentry / HELIAS_QUICK_REENTRY=0|1: a load after a death or
     // lamp travel ends when the area is ready, not after the game's 12-second
     // minimum (engine/loading.h).
     bool quick_reentry = true;
-    // streaming.all_post_processors / BBHOST_ALL_POST_PROCESSORS=0|1: all three
+    // streaming.all_post_processors / HELIAS_ALL_POST_PROCESSORS=0|1: all three
     // resource post-processors in play, not two (patches/ingame-post-processors.toml).
     bool all_post_processors = false;
-    // world.change_appearance / BBHOST_CHANGE_APPEARANCE=0|1: the Hunter's
+    // world.change_appearance / HELIAS_CHANGE_APPEARANCE=0|1: the Hunter's
     // Dream mirror opens the appearance editor (engine/change_appearance.h).
     bool change_appearance = true;
-    // world.rebirth / BBHOST_REBIRTH=0|1: with the Yharnam Stone, the Altar of
+    // world.rebirth / HELIAS_REBIRTH=0|1: with the Yharnam Stone, the Altar of
     // Despair offers "Rebirth in the Nightmare" - back to the origin's level and
     // attributes, the echoes returned, the level-up menu (engine/rebirth.h).
     bool rebirth = true;
-    // world.five_players / BBHOST_FIVE_PLAYERS=0|1: Mensis, Mergo's Loft, the
+    // world.five_players / HELIAS_FIVE_PLAYERS=0|1: Mensis, Mergo's Loft, the
     // Nightmare Frontier and the Old Hunters' areas take two invaders, as the
     // chalice dungeons do (engine/five_players.h).
     bool five_players = true;
@@ -75,7 +75,7 @@ struct HostConfig {
     bool setup_requested = false;  // --setup: open the setup window (host/launcher.h)
     // startup.setup_window: open it at every start. A release build's default
     // is true, a build from source's false (its harnesses never stop there);
-    // BBHOST_SETUP_WINDOW=0|1 overrides.
+    // HELIAS_SETUP_WINDOW=0|1 overrides.
     bool setup_always = false;
 };
 
@@ -88,8 +88,8 @@ const HostConfig& config();
 // The options screen (host/options.h) owns this one once it has read its own
 // file; the loader reads config().skip_intro after that.
 void config_set_skip_intro(bool on);
-// The per-user bbhost.toml's format, saved as [bbhost] config_version by the
-// setup window. A file below it was written by an older bbhost:
+// The per-user HeliasDream.toml's format, saved as [heliasdream] config_version by the
+// setup window. A file below it was written by an older heliasdream:
 //   2 - an older setup window wrote startup.setup_window = false whenever it
 //       saved, its default then, so that value is set aside (this build's
 //       default stands) until the file is saved again.
@@ -100,7 +100,7 @@ void config_set_skip_intro(bool on);
 //   4 - the first-start template wrote player.ime = "auto", which answered
 //       the name before it could be typed and cancelled the chalice glyph
 //       and network password boxes as they opened; a file that still has it
-//       is rewritten to "type", the default (BBHOST_IME=auto keeps a
+//       is rewritten to "type", the default (HELIAS_IME=auto keeps a
 //       harness's).
 constexpr int kUserConfigVersion = 4;
 // The game folder and its update. The PS4 applies an update by putting its
@@ -125,7 +125,7 @@ struct App0Version {
 App0Version config_app0_version(const std::string& app0);
 // The PC enhancements, the same way: the options file's choices (F10, the
 // System menu's PC Enhancements, the setup window's tab) once it is read. A
-// BBHOST_CHANGE_APPEARANCE, BBHOST_REBIRTH or BBHOST_FIVE_PLAYERS of 0 or 1
+// HELIAS_CHANGE_APPEARANCE, HELIAS_REBIRTH or HELIAS_FIVE_PLAYERS of 0 or 1
 // still wins over the options file.
 void config_set_enhancements(bool change_appearance, bool rebirth, bool five_players);
 // The setup window's server, in memory before it is saved: its account calls
@@ -137,7 +137,7 @@ void config_set_online(const std::string& host, const std::string& scheme, bool 
 // file to edit, the two keys, and which path failed. "" when they are usable.
 // Writes a template next to the executable when there is no config at all.
 std::string config_setup_help(const HostConfig& c);
-// What to tell the player when the eboot's SHA-256 is not the build bbhost
+// What to tell the player when the eboot's SHA-256 is not the build heliasdream
 // runs (want_sha256): the eboot and its hash, the version app0's param.sfo
 // gives, and where a 1.09 eboot comes from.
 std::string config_eboot_help(const HostConfig& c, const std::string& sha256, const char* want_sha256);
@@ -152,12 +152,12 @@ struct ConfigEdit {
 // section, else in a new section - leaving every other line, comments
 // included, as it was. Creates the file (with its folder) when missing.
 bool config_set_values(const std::string& path, const std::vector<ConfigEdit>& edits);
-// The per-user bbhost.toml (config_user_dir()/bbhost.toml).
+// The per-user HeliasDream.toml (config_user_dir()/HeliasDream.toml).
 std::string config_user_file();
 // The folder saves go to when paths.data is not set (the per-user data folder).
 std::string config_default_data_dir();
 // The per-user folder the config and the F10 settings live in: %APPDATA%/HeliasDream,
-// $XDG_CONFIG_HOME/HeliasDream or ~/.config/HeliasDream (copied once from bbhost); BBHOST_CONFIG_DIR replaces it.
+// $XDG_CONFIG_HOME/HeliasDream or ~/.config/HeliasDream (copied once from heliasdream); HELIAS_CONFIG_DIR replaces it.
 std::string config_user_dir();
 // The directory the running executable is in ("." when unknown).
 std::string config_exe_dir();

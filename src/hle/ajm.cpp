@@ -70,10 +70,10 @@ struct At9State {
     std::size_t sf_remain = 0;
     std::uint32_t sf_frame = 0;
     std::vector<std::int16_t> frame;  // one decoded frame
-    std::FILE* dump = nullptr;        // BBHOST_AJM_DUMP: this stream's decoded output
+    std::FILE* dump = nullptr;        // HELIAS_AJM_DUMP: this stream's decoded output
     std::string dump_path;            // and where its first input bytes go (.head)
     bool head_written = true;
-    bool sig_pending = false;         // BBHOST_AJM_STARTS: the next run names the stream's sample
+    bool sig_pending = false;         // HELIAS_AJM_STARTS: the next run names the stream's sample
     ~At9State() {
         if (handle) {
             Atrac9ReleaseHandle(handle);
@@ -183,7 +183,7 @@ struct Sideband {
     }
 };
 
-// What runs did (BBHOST_AJM_STATS=1 logs every 5 s; a window with anything
+// What runs did (HELIAS_AJM_STATS=1 logs every 5 s; a window with anything
 // odd always logs): runs, runs that produced nothing from a superframe of
 // input, runs at their gapless end, invalid data.
 struct AjmStats {
@@ -201,9 +201,9 @@ std::uint64_t ajm_now_ms() {
     return static_cast<std::uint64_t>(ts.tv_sec) * 1000ull + static_cast<std::uint64_t>(ts.tv_nsec) / 1000000ull;
 }
 
-// BBHOST_AJM_TRACE=<n>: log the first n control and run jobs in full.
+// HELIAS_AJM_TRACE=<n>: log the first n control and run jobs in full.
 int ajm_trace_left() {
-    static std::atomic<int> left{[] { const char* e = std::getenv("BBHOST_AJM_TRACE"); return e ? std::atoi(e) : 0; }()};
+    static std::atomic<int> left{[] { const char* e = std::getenv("HELIAS_AJM_TRACE"); return e ? std::atoi(e) : 0; }()};
     return left.fetch_sub(1) > 0;
 }
 
@@ -243,11 +243,11 @@ void exec_control(AjmCtx& c, const ControlRec& r) {
             // sound effects went missing or were cut off. FMOD sends a new
             // gapless total after the reset whenever it wants one.
             if (r.flags & (kControlReset | kControlInitialize)) {
-                // BBHOST_AJM_STARTS=1: a line per stream an instance starts -
+                // HELIAS_AJM_STARTS=1: a line per stream an instance starts -
                 // one per sound FMOD plays from a compressed sample, so a count
                 // over a stretch of play says which sounds were started.
                 static const bool starts = [] {
-                    const char* e = std::getenv("BBHOST_AJM_STARTS");
+                    const char* e = std::getenv("HELIAS_AJM_STARTS");
                     return e && e[0] == '1';
                 }();
                 if (starts) {
@@ -255,10 +255,10 @@ void exec_control(AjmCtx& c, const ControlRec& r) {
                              (r.flags & kControlInitialize) ? "initialize" : "reset");
                     st.sig_pending = true;
                 }
-                // BBHOST_AJM_DUMP=<dir>: each stream an instance decodes (from
+                // HELIAS_AJM_DUMP=<dir>: each stream an instance decodes (from
                 // one reset to the next) as <dir>/ajm-<n>-inst<i>-<ch>ch.raw,
                 // s16 interleaved - what FMOD got, to compare with what played.
-                if (const char* dir = std::getenv("BBHOST_AJM_DUMP")) {
+                if (const char* dir = std::getenv("HELIAS_AJM_DUMP")) {
                     static std::atomic<int> seq{0};
                     if (st.dump) std::fclose(st.dump);
                     char path[512];
@@ -447,7 +447,7 @@ void exec_run(AjmCtx& c, const RunRec& r) {
         }
     }
     {
-        static const bool always = [] { const char* e = std::getenv("BBHOST_AJM_STATS"); return e && *e == '1'; }();
+        static const bool always = [] { const char* e = std::getenv("HELIAS_AJM_STATS"); return e && *e == '1'; }();
         const std::uint64_t now = ajm_now_ms();
         if (!g_ajm_stats.window_ms) g_ajm_stats.window_ms = now;
         if (now - g_ajm_stats.window_ms >= 5000) {

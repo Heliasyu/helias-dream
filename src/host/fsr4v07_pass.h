@@ -5,7 +5,7 @@
 // provider (third_party/FSR-Vulkan, ffx_vk_fsr4_v07*). The provider's SPIR-V
 // and weights are not part of this repository: the launcher downloads the
 // asset set Q2RTX builds from that source into the asset folder
-// (BBHOST_FSR4V07_DIR, default ~/.local/share/HeliasDream/fsr4_v07). Without them,
+// (HELIAS_FSR4V07_DIR, default ~/.local/share/HeliasDream/fsr4_v07). Without them,
 // or on a GPU without INT8 dot products, FSR 4 is FSR 3.1 (host/fsr3_pass.h)
 // and the log says why once. It runs on any GPU with INT8 dot products
 // (RDNA 2 and later, Turing and later, Arc); FSR 4.1.1 (host/fsr4_pass.h) is

@@ -1,6 +1,6 @@
 #include "host/plugins.h"
 
-#include "bbhost_plugin.h"
+#include "heliasdream_plugin.h"
 #include "core/config.h"
 #include "core/elf.h"
 #include "core/imports.h"
@@ -18,8 +18,8 @@
 #include "engine/lua_events.h"
 #include "engine/paramdef.h"
 #include "engine/params.h"
-#include "bbhost/engine/symbols.hpp"
-#include "bbhost/sdk.hpp"
+#include "heliasdream/engine/symbols.hpp"
+#include "heliasdream/sdk.hpp"
 #include "core/thunk.h"
 #include "guest_abi.h"
 #include "hle/fs.h"
@@ -53,8 +53,8 @@ namespace {
 struct Plugin {
     std::string name, path;
     void* handle = nullptr;
-    int (*init)(const BbHostApi*) = nullptr;
-    int (*image)(const BbHostApi*) = nullptr;
+    int (*init)(const HeliasApi*) = nullptr;
+    int (*image)(const HeliasApi*) = nullptr;
     const BbPluginInfo* info = nullptr;
     const BbOption* options = nullptr;  // bb_plugin_options, ended by a zero type
     bool official = false;  // signed with the release key
@@ -383,7 +383,7 @@ int api_on_world_load(void (*fn)(std::uint32_t, void*), void* user) {
     return 0;
 }
 
-// The world's characters, read through the layouts in include/bbhost/engine
+// The world's characters, read through the layouts in include/heliasdream/engine
 // (sprj/world_chr_man.hpp, chr_ins.hpp, chr_module.hpp) by offset, with every
 // pointer read checked: a set can change under a load.
 template <typename T>
@@ -693,11 +693,11 @@ int layout_loaded_hook(BbHookCtx* c, void*) {
     return 0;
 }
 
-// <data>/bbhost/plugin-overlays/<name>: cleared at every start (plugins_load),
+// <data>/heliasdream/plugin-overlays/<name>: cleared at every start (plugins_load),
 // made and mounted on a plugin's first write.
 std::string overlay_root() {
     const char* data = hle_fs_data_root();
-    return data && data[0] ? std::string(data) + "/bbhost/plugin-overlays" : std::string();
+    return data && data[0] ? std::string(data) + "/heliasdream/plugin-overlays" : std::string();
 }
 
 int api_overlay_file(const char* name, const char* path, const void* data, std::size_t size) {
@@ -778,8 +778,8 @@ int api_on_world_rules(const char* name, void (*fn)(const char*, void*), void* u
     return 0;
 }
 
-const BbHostApi g_api = {
-    BB_PLUGIN_API_VERSION, sizeof(BbHostApi), &api_log, &api_config, &api_data_dir, &api_mods_dir, &api_register_hle,
+const HeliasApi g_api = {
+    BB_PLUGIN_API_VERSION, sizeof(HeliasApi), &api_log, &api_config, &api_data_dir, &api_mods_dir, &api_register_hle,
     &api_eboot_sha256, &api_eboot_is_109, &api_guest_addr, &api_read, &api_write, &api_patch, &api_hook,
     &api_on_frame, &api_param_row, &api_param_get, &api_param_set, &api_lua_event, &api_event_flag_get, &api_event_flag_set,
     &api_player_stat_get, &api_player_stat_set, &api_on_event_flag, &api_player_position, &api_camera_get,
@@ -864,8 +864,8 @@ bool is_plugin_file(const std::string& n) {
 }  // namespace
 
 void plugins_load() {
-    if (const char* e = std::getenv("BBHOST_PLUGINS"); e && e[0] == '0') {
-        host_log("plugin: none loaded (BBHOST_PLUGINS=0)");
+    if (const char* e = std::getenv("HELIAS_PLUGINS"); e && e[0] == '0') {
+        host_log("plugin: none loaded (HELIAS_PLUGINS=0)");
         return;
     }
     // Last run's plugin overlays go: a plugin writes what this run needs.
@@ -924,8 +924,8 @@ void plugins_load() {
         p.name = name.substr(0, name.rfind('.'));
         p.path = path;
         p.handle = h;
-        p.init = reinterpret_cast<int (*)(const BbHostApi*)>(sym(h, "bb_plugin_init"));
-        p.image = reinterpret_cast<int (*)(const BbHostApi*)>(sym(h, "bb_plugin_image"));
+        p.init = reinterpret_cast<int (*)(const HeliasApi*)>(sym(h, "bb_plugin_init"));
+        p.image = reinterpret_cast<int (*)(const HeliasApi*)>(sym(h, "bb_plugin_image"));
         p.info = static_cast<const BbPluginInfo*>(sym(h, "bb_plugin_info"));
         p.options = static_cast<const BbOption*>(sym(h, "bb_plugin_options"));
         if (!p.init && !p.image) {
@@ -1259,7 +1259,7 @@ std::string plugins_adopts() {
 
 void plugins_enter_world(const std::string& host_rules) {
     if (!host_rules.empty()) {
-        // From the server: what bbhost would send itself ([a-z0-9_.;=,-], short),
+        // From the server: what heliasdream would send itself ([a-z0-9_.;=,-], short),
         // and different from this session's own rules only in plugins it can
         // adopt - else it is not a world this client can play.
         bool ok = host_rules.size() <= 256;

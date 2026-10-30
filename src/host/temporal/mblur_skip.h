@@ -1,6 +1,6 @@
 #pragma once
 
-// test8, BBHOST_MOTION_BLUR_SKIP=1: leaving out the motion blur's two draws a
+// test8, HELIAS_MOTION_BLUR_SKIP=1: leaving out the motion blur's two draws a
 // frame (YEBIS e0305cef, ~0.29-0.33 ms at 4K) while motion blur is off.
 //
 // With the setting off, shader_patch.cpp makes the blur's compare always

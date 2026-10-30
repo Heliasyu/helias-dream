@@ -196,10 +196,10 @@ bool load_core() {
     return true;
 }
 
-// Where nvngx_dlss is looked for: BBHOST_DLSS_DIR, then beside the executable.
+// Where nvngx_dlss is looked for: HELIAS_DLSS_DIR, then beside the executable.
 std::vector<std::wstring> search_paths() {
     std::vector<std::wstring> paths;
-    if (const char* e = std::getenv("BBHOST_DLSS_DIR"); e && *e) paths.push_back(std::filesystem::path(e).wstring());
+    if (const char* e = std::getenv("HELIAS_DLSS_DIR"); e && *e) paths.push_back(std::filesystem::path(e).wstring());
 #ifdef _WIN32
     wchar_t exe[MAX_PATH];
     if (GetModuleFileNameW(nullptr, exe, MAX_PATH)) paths.push_back(std::filesystem::path(exe).parent_path().wstring());
@@ -239,7 +239,7 @@ void initialize() {
     std::vector<const wchar_t*> path_ptrs;
     for (const auto& p : paths) path_ptrs.push_back(p.c_str());
     const FeatureCommonInfo info{{path_ptrs.data(), static_cast<unsigned>(path_ptrs.size())}, nullptr,
-                                 {&ngx_log, std::getenv("BBHOST_DLSS_LOG") ? 2 : 0, false}};
+                                 {&ngx_log, std::getenv("HELIAS_DLSS_LOG") ? 2 : 0, false}};
     const NgxResult r = g_dlss.init(kApplicationId, data_path.c_str(), g.instance, g.phys, g.device, &vkGetInstanceProcAddr, &vkGetDeviceProcAddr,
                                     kNgxApiVersion, &info);
     if (failed(r)) {
@@ -258,7 +258,7 @@ void initialize() {
     get_i(g_dlss.capabilities, "SuperSampling.NeedsUpdatedDriver", &needs_driver);
     if (failed(get_i(g_dlss.capabilities, "SuperSampling.Available", &available)) || !available) {
         fail(needs_driver ? "DLSS needs a newer NVIDIA driver"
-                          : "DLSS unavailable: put NVIDIA's nvngx_dlss (libnvidia-ngx-dlss.so / nvngx_dlss.dll) next to bbhost or in BBHOST_DLSS_DIR",
+                          : "DLSS unavailable: put NVIDIA's nvngx_dlss (libnvidia-ngx-dlss.so / nvngx_dlss.dll) next to heliasdream or in HELIAS_DLSS_DIR",
              true);
         return;
     }

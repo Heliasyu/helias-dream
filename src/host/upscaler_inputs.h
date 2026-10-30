@@ -1,6 +1,6 @@
 #pragma once
 
-// bbhost-vk Phase 2: what a temporal upscaler is handed each frame, the
+// heliasdream-vk Phase 2: what a temporal upscaler is handed each frame, the
 // same for every backend - FSR 3.1 (Phase 3), FSR 4.1.1 (Phase 4), and FSR 4
 // INT8, DLSS and XeSS (Phase 7). Each takes what it needs and maps the
 // conventions below to its own (jitter sign, motion scale, exposure).

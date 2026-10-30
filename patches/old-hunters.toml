@@ -12,12 +12,12 @@
 # The same index picks the edition's title ID and HTTP User-Agent ("...
 # A-UP9000-CUSA03179_00-BLOODBORNE000000..."). The private server accepts
 # both editions' agents (config.py SS_INFO_USER_AGENTS) and matches them
-# together. bbhost's saves go by directory name, not title ID, so the
+# together. heliasdream's saves go by directory name, not title ID, so the
 # character list is the same either way.
 #
 # A patch like any other, on unless turned off: the setup window's Patches
-# tab, or `old-hunters = false` under [patches] in bbhost.toml; it applies at
-# the next start. bbhost leaves it off, saying why in the log, when the game
+# tab, or `old-hunters = false` under [patches] in heliasdream.toml; it applies at
+# the next start. heliasdream leaves it off, saying why in the log, when the game
 # files lack the DLC's own (its title art, MENU_Title_00004, and its three
 # areas): files older than the 1.09 update's, whose title would be a flat
 # green picture (engine/patch_manifest.cpp, old_hunters_missing). (In v0.2.9 it was a PC enhancement, `old_hunters` under

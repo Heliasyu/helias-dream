@@ -103,7 +103,7 @@ std::uint64_t bind_glob_dat(const std::string& name, const std::string& nid, std
     return bind_import(name, nid, elf_offset);
 }
 
-// BBHOST_HLE_COUNT=1: the window's HLE calls by thread group (a name's digits
+// HELIAS_HLE_COUNT=1: the window's HLE calls by thread group (a name's digits
 // dropped, so GXWorker:1-5 count together) and function, the busiest first.
 const char* hle_fn_name(void* fn) {
     static const std::unordered_map<void*, const char*> names = [] {

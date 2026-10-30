@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-# Symbolize a gperftools CPU profile (BBHOST_CPUPROFILE) without pprof:
-#   tools/profsym.py tmp/cp.prof build/bbhost
-# Prints self and inclusive time per function. bbhost omits frame pointers, so
+# Symbolize a gperftools CPU profile (HELIAS_CPUPROFILE) without pprof:
+#   tools/profsym.py tmp/cp.prof build/heliasdream
+# Prints self and inclusive time per function. heliasdream omits frame pointers, so
 # only the self column is reliable. go tool pprof ran out of memory on the
 # ~1,300-line /proc/self/maps section these profiles carry.
 import bisect, collections, re, struct, subprocess, sys
@@ -64,7 +64,7 @@ def name(pc):
     short = path.rsplit('/', 1)[-1]
     n = names[j] if j >= 0 else '?'
     n = re.sub(r'\(.*', '', n) if len(n) > 120 else n
-    cache[pc] = n if short == 'bbhost' else f'{short}!{n}'
+    cache[pc] = n if short == 'heliasdream' else f'{short}!{n}'
     return cache[pc]
 total = sum(c for c, _ in samples)
 flat, cum = collections.Counter(), collections.Counter()

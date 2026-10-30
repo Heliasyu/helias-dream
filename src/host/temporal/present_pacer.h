@@ -1,6 +1,6 @@
 #pragma once
 
-// test11, BBHOST_PRESENT_PACE (on by default at a fixed pace: 30/60/90/120):
+// test11, HELIAS_PRESENT_PACE (on by default at a fixed pace: 30/60/90/120):
 // presents go out on an even grid of the pace's period.
 //
 // t12 (test10, post at render on): the GPU was 84-88% busy at 120 fps, so it

@@ -131,7 +131,7 @@ void host_timing_init() {
     // timers are high-resolution and do not need it; Sleep, the timed waits
     // (WaitOnAddress, winpthreads' condition variables) and the driver's own
     // waits do.
-    const bool period = !env_off("BBHOST_TIMER_PERIOD");
+    const bool period = !env_off("HELIAS_TIMER_PERIOD");
     if (period) timeBeginPeriod(1);
     // Power throttling off for the process (HighQoS): EXECUTION_SPEED keeps
     // Windows from running its threads at efficiency clocks (EcoQoS) when it
@@ -140,7 +140,7 @@ void host_timing_init() {
     // drops it otherwise). Looked up by name: SetProcessInformation is
     // Windows 8 and later, and older SDK headers lack the flags.
     bool qos = false;
-    if (!env_off("BBHOST_WIN_QOS")) {
+    if (!env_off("HELIAS_WIN_QOS")) {
         struct PowerThrottling {
             ULONG version, control_mask, state_mask;
         };
@@ -167,9 +167,9 @@ void host_timing_init() {
     ULONG coarsest = 0, finest = 0, now = 0;
     const bool have_res = query && query(&coarsest, &finest, &now) == 0;
     host_log("timing: timer resolution %s (system now %.3f ms, finest %.3f ms); power throttling %s; QPC %llu Hz",
-             period ? "1 ms asked at start" : "left to the system (BBHOST_TIMER_PERIOD=0)",
+             period ? "1 ms asked at start" : "left to the system (HELIAS_TIMER_PERIOD=0)",
              have_res ? now / 10000.0 : 0.0, have_res ? finest / 10000.0 : 0.0,
-             env_off("BBHOST_WIN_QOS") ? "left on (BBHOST_WIN_QOS=0)" : (qos ? "off for this process (HighQoS, resolution kept when hidden)" : "could not be switched off"),
+             env_off("HELIAS_WIN_QOS") ? "left on (HELIAS_WIN_QOS=0)" : (qos ? "off for this process (HighQoS, resolution kept when hidden)" : "could not be switched off"),
              static_cast<unsigned long long>(qpc().freq));
 #endif
 }
@@ -247,19 +247,19 @@ void host_threads_set_priority(bool) {}
 #endif
 
 void host_thread_set_class(HostThreadClass c, const char* who) {
-    static const bool on = !env_off("BBHOST_THREAD_PRIO");
+    static const bool on = !env_off("HELIAS_THREAD_PRIO");
 #if defined(_WIN32)
     const char* const level = c == HostThreadClass::Pacing ? "highest" : "above-normal";
     if (!on) {
         static std::atomic<bool> said{false};
-        if (!said.exchange(true)) host_log("timing: the pacing threads run at normal priority (BBHOST_THREAD_PRIO=0)");
+        if (!said.exchange(true)) host_log("timing: the pacing threads run at normal priority (HELIAS_THREAD_PRIO=0)");
         return;
     }
     const int prio = c == HostThreadClass::Pacing ? THREAD_PRIORITY_HIGHEST : THREAD_PRIORITY_ABOVE_NORMAL;
     // Each of these threads starts once (a command processor per queue), so
     // one line each.
     if (SetThreadPriority(GetCurrentThread(), prio)) {
-        host_log("timing: %s runs at %s priority (BBHOST_THREAD_PRIO=0: normal)", who, level);
+        host_log("timing: %s runs at %s priority (HELIAS_THREAD_PRIO=0: normal)", who, level);
     } else {
         host_log("timing: %s could not be set to %s priority (error %lu)", who, level, static_cast<unsigned long>(GetLastError()));
     }
@@ -358,8 +358,8 @@ bool parse_list(const std::string& l, cpu_set_t& out) {
 Placement& placement() {
     static Placement pl = [] {
         Placement p;
-        if (env_off("BBHOST_AFFINITY")) {
-            p.why = "BBHOST_AFFINITY=0";
+        if (env_off("HELIAS_AFFINITY")) {
+            p.why = "HELIAS_AFFINITY=0";
             return p;
         }
         if (sched_getaffinity(0, sizeof(p.any), &p.any) != 0) {
@@ -449,7 +449,7 @@ Placement& placement() {
 }  // namespace
 
 bool host_thread_tight_timers(const char* who) {
-    static const bool on = !env_off("BBHOST_TIMER_SLACK");
+    static const bool on = !env_off("HELIAS_TIMER_SLACK");
     if (!on) return false;
     thread_local bool done = false, ok = false;
     if (done) return ok;
@@ -458,7 +458,7 @@ bool host_thread_tight_timers(const char* who) {
     (ok ? g_slack_set : g_slack_failed).fetch_add(1, std::memory_order_relaxed);
     if (ok) g_slack_on.store(true, std::memory_order_relaxed);
     if (g_slack_set.load() + g_slack_failed.load() <= 16) {
-        host_log("timer slack: %s %s (BBHOST_TIMER_SLACK=0 leaves the default 50 us)", who ? who : "a thread",
+        host_log("timer slack: %s %s (HELIAS_TIMER_SLACK=0 leaves the default 50 us)", who ? who : "a thread",
                  ok ? "set to 1 ns" : "could not be set");
     }
     return ok;
@@ -483,7 +483,7 @@ void host_thread_place(HostPlace where, const char* who) {
     if (!said_masks) {
         said_masks = true;
         host_log("placement: %d L3 domains; the hot chain on CPUs %s, the shader compilers on %s in game (chosen by %s; "
-                 "BBHOST_AFFINITY=0 turns it off)",
+                 "HELIAS_AFFINITY=0 turns it off)",
                  p.domains, p.hot_list.c_str(), p.cold_list.c_str(), p.by.c_str());
     }
     static std::vector<std::string> named;
@@ -501,8 +501,8 @@ std::string host_cpu_placement_section() {
     char b[512];
     std::snprintf(b, sizeof(b),
                   "placement: on=%d domains=%d hot=%s cold=%s by=%s hot_threads=%d cold_threads=%d reset_threads=%d failed=%d%s%s "
-                  "(rc5: BBHOST_AFFINITY=0 turns it off)\n"
-                  "timer_slack: threads=%d failed=%d (rc5: 1 ns; BBHOST_TIMER_SLACK=0 leaves 50 us)",
+                  "(rc5: HELIAS_AFFINITY=0 turns it off)\n"
+                  "timer_slack: threads=%d failed=%d (rc5: 1 ns; HELIAS_TIMER_SLACK=0 leaves 50 us)",
                   p.on ? 1 : 0, p.domains, p.on ? p.hot_list.c_str() : "-", p.on ? p.cold_list.c_str() : "-",
                   p.on ? p.by.c_str() : "-", g_placed[0].load(), g_placed[1].load(), g_placed[2].load(), g_place_failed.load(),
                   p.on ? "" : " why=", p.on ? "" : p.why.c_str(), g_slack_set.load(), g_slack_failed.load());

@@ -1,4 +1,4 @@
-// bbhost-vk test7: FSR 4.1.1's sharpening pass (host/shaders/fsr4_sharpen.comp,
+// heliasdream-vk test7: FSR 4.1.1's sharpening pass (host/shaders/fsr4_sharpen.comp,
 // as compiled into host/shaders/fsr4_sharpen.spv.h) on whatever Vulkan device
 // there is (lavapipe is enough), against RCAS (AMD's FsrRcasF with noise
 // removal) in double on the postpass's log-encoded output, decoded as the

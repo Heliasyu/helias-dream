@@ -90,7 +90,7 @@ void hle_gnm_execute(const void* cb, std::size_t bytes);
 void hle_gnm_submit_async(int queue_id, const std::vector<std::pair<const void*, std::size_t>>& cbs,
                           std::function<void()> done,
                           const std::vector<std::pair<const void*, std::size_t>>& ce_cbs = {});
-// BBHOST_CE_HISTORY=1 (diagnostic, CP thread only): log which DumpConstRam
+// HELIAS_CE_HISTORY=1 (diagnostic, CP thread only): log which DumpConstRam
 // produced the memory at `va` and the WriteConstRam packets that filled it.
 void hle_gnm_explain_table(std::uint64_t va, std::size_t bytes);
 void hle_gnm_cp_drain();
@@ -101,7 +101,7 @@ std::uint64_t hle_gnm_cp_backlog();
 std::uint64_t hle_gnm_submitted_total();
 std::uint64_t hle_gnm_retired_total();
 std::string hle_gnm_flush_reasons();
-// BBHOST_ARENA_MONITOR=1: per-flip scan of the game's command-arena markers
+// HELIAS_ARENA_MONITOR=1: per-flip scan of the game's command-arena markers
 // (logs `arena: LOW`). The report carries the arena-wait counts whenever the
 // wait has run, and the per-arena states under the monitor ("" otherwise).
 void hle_gnm_arena_flip();
@@ -114,7 +114,7 @@ GUEST_ABI int hle_gx_arena_acquire(std::uint64_t* allocator, std::uint64_t* out)
 bool hle_gx_arena_overlap(std::uint64_t va, std::uint64_t bytes, std::uint64_t* chunk_base);
 bool hle_gx_arena_marker(std::uint64_t va);  // the last word of a chunk in a known arena
 bool hle_gx_arena_covers_marker(std::uint64_t va, std::uint64_t bytes);  // a range covering any chunk's marker
-bool hle_gnm_arena_monitor();  // BBHOST_ARENA_MONITOR=1
+bool hle_gnm_arena_monitor();  // HELIAS_ARENA_MONITOR=1
 // The buttons the last scePadRead handed the game (system.cpp).
 std::uint32_t hle_pad_delivered_buttons();
 std::string hle_av_stats();     // " movie-frames=N movie-audio-chunks=N"
@@ -130,7 +130,7 @@ void hle_gnm_exec_histogram();
 // PM4 packets the command processors executed since the last call, for the
 // 300-flip report: the total, native-draw tokens, and each opcode, most first.
 std::string hle_gnm_op_window();
-// BBHOST_GNM_SOURCES=1: command-buffer dwords by the source of the draw or dispatch that ends them, since the last call.
+// HELIAS_GNM_SOURCES=1: command-buffer dwords by the source of the draw or dispatch that ends them, since the last call.
 std::string hle_gx_source_window();
 // The last CP label writes (watchdog diagnostics).
 void hle_gnm_label_report();
@@ -160,7 +160,7 @@ void hle_video_set_picture(unsigned w, unsigned h);
 // A pad press the game reads as the player's: `button` (the pad's bits) from
 // `delay_ms` on, held `hold_ms`. Any thread.
 void hle_pad_tap(std::uint32_t button, int delay_ms, int hold_ms);
-// A pad button by the name BBHOST_AUTOPRESS gives it (cross, circle, l1, ...),
+// A pad button by the name HELIAS_AUTOPRESS gives it (cross, circle, l1, ...),
 // 0 for none. The stick names (lup, rright, ...) are bits above the pad's,
 // which only the autopress script turns into a deflection.
 std::uint32_t hle_pad_button_named(const std::string& name);
@@ -179,26 +179,26 @@ std::uint64_t hle_video_loading_unshown();      // loading flips completed witho
 void hle_dialog_set_default_name(const char* name, bool type_in_window);  // IME text (player.name) and whether to type it
 void hle_np_set_online_id(const char* id);          // sceNpGetOnlineId (online.online_id)
 
-// Debug soft-watchpoint (BBHOST_WATCH_FILL): record the CPU RIP that writes
+// Debug soft-watchpoint (HELIAS_WATCH_FILL): record the CPU RIP that writes
 // into [lo,hi). Used to find which guest GFx code writes the collapsed
 // fill-mesh vertex corners. No-op cost when disarmed.
 void hle_watch_arm(std::uint64_t lo, std::uint64_t hi);
 void hle_watch_arm_reads(std::uint64_t lo, std::uint64_t hi);
 void hle_watch_report();
 
-// Debug int3 breakpoint (BBHOST_BP_TESS): capture arg3 (RDX) at the Scaleform
+// Debug int3 breakpoint (HELIAS_BP_TESS): capture arg3 (RDX) at the Scaleform
 // shape tessellator sub_4b71b0 to read the mesh packing Matrix2x4.
 void hle_bp_arm(std::uint64_t va);
 void hle_bp_report();
 
-// BBHOST_GX_TRACE=<first>,<last>: hook the GX immediate draw
+// HELIAS_GX_TRACE=<first>,<last>: hook the GX immediate draw
 // and dispatch methods and the Gnm packet emitters, match executed draw and
 // dispatch packets back to them, and log a coverage summary after flip <last>.
 // Diagnostic only.
 struct GuestMemory;
 void hle_gx_trace_arm(GuestMemory* mem);
 // Command-processor side, for every executed draw / dispatch packet (no-op unless armed).
-// BBHOST_GX_BACKEND=1/2: returns the draw's inputs built from GX state (valid
+// HELIAS_GX_BACKEND=1/2: returns the draw's inputs built from GX state (valid
 // until the next call on this thread) when the packet came from a GX draw the
 // backend takes; `render` says whether to draw from them or only compare.
 struct GpuDrawInputs;
@@ -207,9 +207,9 @@ const GpuDrawInputs* hle_gx_trace_draw(std::uint32_t op, std::uint64_t packet_va
                                        std::uint32_t prim, const std::uint32_t* sh, const std::uint32_t* ctx,
                                        bool* render);
 void hle_gx_trace_dispatch(std::uint32_t op, std::uint64_t packet_va, std::uint32_t x, std::uint32_t cs_lo);
-// BBHOST_GX_NATIVE: the CP walked a host-draw token, a NOP whose
+// HELIAS_GX_NATIVE: the CP walked a host-draw token, a NOP whose
 // payload is kGxNativeMagic and a 64-bit id; sh / ctx are its register file.
-// With BBHOST_GX_NATIVE=2 returns the draw's inputs (its GX objects through
+// With HELIAS_GX_NATIVE=2 returns the draw's inputs (its GX objects through
 // hle_gx_trace_objects) for the CP to draw; null otherwise.
 constexpr std::uint32_t kGxNativeMagic = 0x42424e44u;  // "DNBB"
 const GpuDrawInputs* hle_gx_native_token(std::uint64_t id, const std::uint32_t* sh, const std::uint32_t* ctx);
@@ -218,7 +218,7 @@ const GpuDrawInputs* hle_gx_native_token(std::uint64_t id, const std::uint32_t* 
 void hle_gx_native_release();
 // The command processor's lookahead: a draw token further on in the stream.
 void hle_gx_native_prefetch(std::uint64_t id, bool next);
-// BBHOST_GX_NATIVE_COPIES: a GX buffer-copy pass's copy token, a type-3 NOP
+// HELIAS_GX_NATIVE_COPIES: a GX buffer-copy pass's copy token, a type-3 NOP
 // with payload {kGxCopyMagic, id low, id high}; runs the call's copies.
 constexpr std::uint32_t kGxCopyMagic = 0x50434242u;  // "BBCP"
 // GX's fill primitive (0x2ab5380) and the per-slice colour clear
@@ -235,7 +235,7 @@ void hle_gx_upload_token(std::uint64_t id);
 constexpr std::uint32_t kGxImageCopyMagic = 0x43494242u;  // "BBIC"
 void hle_gx_image_copy_token(std::uint64_t id);
 // A Scaleform HAL draw (0x73e670, 0x73e6b0, 0x73e640)
-// writes a draw token built from the HAL's objects. BBHOST_GX_NATIVE_SCALEFORM=2
+// writes a draw token built from the HAL's objects. HELIAS_GX_NATIVE_SCALEFORM=2
 // returns the draw's inputs (its objects through hle_gx_trace_objects) for the
 // CP to draw; =1 (shadow) keeps them for the draw packet that follows, which
 // hle_gx_scaleform_check compares against the register file.
@@ -246,18 +246,18 @@ void hle_gx_scaleform_report();  // exit report (also on SIGTERM)
 std::string hle_gx_scaleform_last();  // the last Scaleform token this thread drew: its tables and slots (diagnostics)
 // The register file: true when a shadow or packet-path mode is
 // on, which needs the command processor to keep the context registers and
-// draw from draw packets; otherwise neither is done (BBHOST_CP_REGISTER_FILE=1
-// and BBHOST_CP_DRAW_PACKETS=1 keep them anyway).
+// draw from draw packets; otherwise neither is done (HELIAS_CP_REGISTER_FILE=1
+// and HELIAS_CP_DRAW_PACKETS=1 keep them anyway).
 bool hle_gx_shadow_wanted();
 // The state fields of a token completed from the wrapper's context state,
-// against the register file (BBHOST_GX_YEBIS_FULL=1).
+// against the register file (HELIAS_GX_YEBIS_FULL=1).
 void hle_gx_wrapper_compare(const GpuDrawInputs& in, std::uint32_t count, std::uint64_t index_va, std::uint32_t index_type,
                             std::uint32_t instances, std::uint32_t prim, const std::uint32_t* sh, const std::uint32_t* ctx);
 void hle_gnm_cp_report();  // the command processor's register-file and draw-packet counters, at exit
 // A compute dispatch emitted through the wrapper writes a
 // dispatch token, {kGxDispatchMagic, id low, id high}, built from the
 // wrapper's context state (the compute program and its user data).
-// BBHOST_GX_NATIVE_DISPATCH=2 returns the dispatch for the CP to run; =1
+// HELIAS_GX_NATIVE_DISPATCH=2 returns the dispatch for the CP to run; =1
 // (shadow) keeps it for the dispatch packet that follows, which
 // hle_gx_dispatch_check compares against the register file. The default, 0,
 // leaves dispatches to their packets (gx_trace.cpp says why).
@@ -274,7 +274,7 @@ void hle_gx_dispatch_check(const GpuDispatch& regs, const std::uint32_t* writers
 void hle_gx_scaleform_check(std::uint32_t count, std::uint64_t index_va, std::uint32_t index_type, std::uint32_t instances,
                             std::uint32_t prim, const std::uint32_t* sh, const std::uint32_t* ctx);
 void hle_gx_copy_token(std::uint64_t id);
-// BBHOST_GX_NATIVE_YEBIS: YEBIS draws through its own D3D11-shaped
+// HELIAS_GX_NATIVE_YEBIS: YEBIS draws through its own D3D11-shaped
 // context (0x15fbc40), whose commit (0x15f9720) sets every stage's shader and
 // resources on each draw - 392 dwords a draw, 21% of the ring from 3% of the
 // draws, the largest single source of PM4 left. A type-3 NOP with payload
@@ -292,13 +292,13 @@ struct GxYebisDraw {
 };
 bool hle_gx_yebis_token(std::uint64_t id, GxYebisDraw* out);
 void hle_gx_yebis_drew(std::uint32_t index_count, std::uint64_t index_va, const GxYebisDraw& want);
-// With BBHOST_GX_NATIVE_YEBIS=4: checks the inputs built from YEBIS's own state
+// With HELIAS_GX_NATIVE_YEBIS=4: checks the inputs built from YEBIS's own state
 // against the register file its commit wrote for the same draw.
 void hle_gx_yebis_check(const std::uint32_t* sh);
-// With BBHOST_GX_NATIVE_YEBIS=5 the method wrote no draw packet, so the CP
+// With HELIAS_GX_NATIVE_YEBIS=5 the method wrote no draw packet, so the CP
 // draws at the token from these inputs; null when the flip is off.
 const GpuDrawInputs* hle_gx_yebis_token_draw(std::uint64_t id, GxYebisDraw* out);
-// With BBHOST_GX_BACKEND: the GX objects of the draw hle_gx_trace_draw last
+// With HELIAS_GX_BACKEND: the GX objects of the draw hle_gx_trace_draw last
 // matched on this thread (null when it did not come through a GX method).
 struct GxDrawObjects;
 const GxDrawObjects* hle_gx_trace_objects();

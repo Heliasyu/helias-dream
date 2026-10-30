@@ -9,7 +9,7 @@
 // engine's time is not reported for anyone: read 2026-10-08 after a day's
 // uptime, dwm.exe - which composes the desktop with the 3D engine - had 0 of
 // it, and no process more than 0.4 ms, while the copy and video engines were
-// counted (dwm's copy 0.7 s, Firefox's video decode 137 s). bbhost's perf
+// counted (dwm's copy 0.7 s, Firefox's video decode 137 s). heliasdream's perf
 // passes read 0 on every engine with its GPU memory counted (2.5 GiB
 // dedicated). So Task Manager cannot show this machine's 3D work, ours or
 // anyone's. The lines below are the number to read instead.
@@ -51,9 +51,9 @@
 // timestamp (the profiler resets 8,192 there): no device feature to enable,
 // and nothing on the host between the read and the next use.
 //
-// Read in: the `frames:` line (BBHOST_FRAME_STATS: `; gpu busy N ms/s (P%)`),
+// Read in: the `frames:` line (HELIAS_FRAME_STATS: `; gpu busy N ms/s (P%)`),
 // the FPS counter (host setting fps_counter: `GPU P%`), and a `gpu busy:`
-// line in the 300-flip report. BBHOST_GPU_BUSY=0 turns all of it off.
+// line in the 300-flip report. HELIAS_GPU_BUSY=0 turns all of it off.
 #include "host/gpu.h"
 #include "host/gpu_internal.h"
 #include "host/perf_capture.h"
@@ -161,7 +161,7 @@ std::string idle_section() {
     }
     std::snprintf(b, sizeof(b),
                   " reset_first_cmdbufs=%llu (rc4: queued gaps by the length of the command buffer before them; resets before "
-                  "the first timestamp, BBHOST_RESET_ORDER=0 turns that off; the 300-flip `gpu idle queued after:` lines name the sites)",
+                  "the first timestamp, HELIAS_RESET_ORDER=0 turns that off; the 300-flip `gpu idle queued after:` lines name the sites)",
                   static_cast<unsigned long long>(host_gpu_reset_first_cmdbufs()));
     out += b;
     return out;
@@ -312,8 +312,8 @@ bool read_pair(VkQueryPool pool, std::uint64_t (&ts)[2]) {
 
 void busy_init_locked() {
     g.busy = false;
-    if (const char* e = std::getenv("BBHOST_GPU_BUSY"); e && e[0] == '0') {
-        host_log("gpu: busy meter off (BBHOST_GPU_BUSY=0)");
+    if (const char* e = std::getenv("HELIAS_GPU_BUSY"); e && e[0] == '0') {
+        host_log("gpu: busy meter off (HELIAS_GPU_BUSY=0)");
         return;
     }
     std::uint32_t nq = 0;
@@ -346,7 +346,7 @@ void busy_init_locked() {
     g.busy = true;
     host_log("gpu: busy meter on: a timestamp at each command buffer's start and end, the game's and the presenter's "
              "(%u-bit, %.2f ns a tick); `gpu busy` in the frame statistics, the FPS counter and the 300-flip report; "
-             "BBHOST_GPU_BUSY=0 turns it off",
+             "HELIAS_GPU_BUSY=0 turns it off",
              bits, static_cast<double>(g.timestamp_period_ns));
 }
 
@@ -355,7 +355,7 @@ void busy_init_locked() {
 // Without it the callers have just taken g_cmd() (vkBeginCommandBuffer, the
 // barrier before vkEndCommandBuffer), so the recorder holds nothing of this
 // command buffer: g.cmd_ is it, and these two do not show up as recording
-// sites in BBHOST_GPU_PROFILE=2's gaps.
+// sites in HELIAS_GPU_PROFILE=2's gaps.
 void busy_begin_locked(Gpu::Slot& sl) {
     // A slot is retired before it is recorded again, which reads its pair; one
     // that was not would hold the game's spans back for good (`out`), so it
@@ -494,7 +494,7 @@ std::string host_gpu_busy_report() {
 
 // test7: the second line under `gpu busy:` - where the idle time went since
 // the last report (see Meter's gaps), the submissions' hand-over latency, the
-// command processor's waits for the GPU, and BBHOST_SUBMIT_SPLIT's splits.
+// command processor's waits for the GPU, and HELIAS_SUBMIT_SPLIT's splits.
 std::string host_gpu_idle_report() {
     static bool started = false;
     static std::chrono::steady_clock::time_point last_t;
@@ -572,16 +572,16 @@ std::string host_gpu_idle_report() {
                   static_cast<double>(lat.flushes - prev.flushes) * per_s, static_cast<double>(lat.flush_ns - prev.flush_ns) / 1e6 * per_s,
                   static_cast<double>(lat.splits - prev.splits) * per_s);
     r += buf;
-    // test7c, BBHOST_SUBMIT_BATCH: merged submissions, the jobs in them, and the holds.
+    // test7c, HELIAS_SUBMIT_BATCH: merged submissions, the jobs in them, and the holds.
     std::snprintf(buf, sizeof(buf), "; batched %.0f jobs/s into %.0f submits/s, held %.0f/s for %.2f ms/s",
                   static_cast<double>(lat.batch_jobs - prev.batch_jobs) * per_s, static_cast<double>(lat.batch_submits - prev.batch_submits) * per_s,
                   static_cast<double>(lat.batch_holds - prev.batch_holds) * per_s,
                   static_cast<double>(lat.batch_hold_ns - prev.batch_hold_ns) / 1e6 * per_s);
     r += buf;
     // The late gaps by what ended the command buffer before them, the top
-    // eight, as offsets in bbhost's image (tools/gpu_gaps.py --idle names them).
+    // eight, as offsets in heliasdream's image (tools/gpu_gaps.py --idle names them).
     std::sort(sites.begin(), sites.end(), [](const auto& a, const auto& b) { return a.second.first > b.second.first; });
-    if (!sites.empty()) r += "\n[bbhost]   gpu idle late after:";
+    if (!sites.empty()) r += "\n[heliasdream]   gpu idle late after:";
     for (std::size_t i = 0; i < sites.size() && i < 8; ++i) {
         if (sites[i].first)
             std::snprintf(buf, sizeof(buf), " %llx=%.2fms/s(%.0f/s)",
@@ -596,7 +596,7 @@ std::string host_gpu_idle_report() {
     // buffer before them (present: the blit) - and by that command buffer's length.
     std::sort(qsites.begin(), qsites.end(), [](const auto& a, const auto& b) { return a.second.first > b.second.first; });
     if (!qsites.empty()) {
-        r += "\n[bbhost]   gpu idle queued after:";
+        r += "\n[heliasdream]   gpu idle queued after:";
         for (std::size_t i = 0; i < qsites.size() && i < 10; ++i) {
             if (qsites[i].first == reinterpret_cast<void*>(1))
                 std::snprintf(buf, sizeof(buf), " present=%.2fms/s(%.0f/s)", ms_s(qsites[i].second.first),

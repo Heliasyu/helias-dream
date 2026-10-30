@@ -22,7 +22,7 @@ constexpr std::uint64_t kNowLoadingHelper = 0x593e8b8;     // CSNowLoadingHelper
 constexpr std::uint64_t kSprjRemo = 0x5940058;
 std::atomic<bool> g_fast{false};
 const bool g_fast_enabled = [] {
-    const char* e = std::getenv("BBHOST_FAST_LOADING");
+    const char* e = std::getenv("HELIAS_FAST_LOADING");
     return !(e && e[0] == '0');
 }();
 

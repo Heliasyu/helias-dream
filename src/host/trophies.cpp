@@ -20,7 +20,7 @@
 #include <string>
 #include <vector>
 
-#if defined(BBHOST_HAVE_SDL3)
+#if defined(HELIAS_HAVE_SDL3)
 #include <SDL3/SDL.h>
 #endif
 
@@ -137,7 +137,7 @@ std::mutex g_icons_mu;
 std::uint32_t be32(const std::uint8_t* p) { return std::uint32_t(p[0]) << 24 | std::uint32_t(p[1]) << 16 | std::uint32_t(p[2]) << 8 | p[3]; }
 std::uint64_t be64(const std::uint8_t* p) { return std::uint64_t(be32(p)) << 32 | be32(p + 4); }
 
-#if defined(BBHOST_HAVE_SDL3)
+#if defined(HELIAS_HAVE_SDL3)
 // One TROP<id>.PNG into its cell: decoded, halved (2x2 box), the corners
 // rounded so it sits in the pop-up's rounded tile.
 bool place_icon(const std::uint8_t* png, std::size_t size, int id, IconSheet& sheet) {
@@ -174,7 +174,7 @@ bool place_icon(const std::uint8_t* png, std::size_t size, int id, IconSheet& sh
 #endif
 
 void load_icons(IconSheet& sheet) {
-#if defined(BBHOST_HAVE_SDL3)
+#if defined(HELIAS_HAVE_SDL3)
     const std::string path = hle_fs_map_path_base("/app0/sce_sys/trophy/trophy00.trp");
     std::ifstream f(path, std::ios::binary);
     const std::vector<std::uint8_t> d((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
@@ -232,12 +232,12 @@ void trophy_popup(int id, int earned, int total) {
 }
 
 void trophy_popup_frame(float display_w, float display_h) {
-    // BBHOST_TROPHY_TEST=<id>: that trophy's pop-up once, a few seconds in, to see it.
+    // HELIAS_TROPHY_TEST=<id>: that trophy's pop-up once, a few seconds in, to see it.
     static bool tested = false;
     static const auto started = std::chrono::steady_clock::now();
     if (!tested && std::chrono::steady_clock::now() - started > std::chrono::seconds(8)) {
         tested = true;
-        if (const char* e = std::getenv("BBHOST_TROPHY_TEST"); e && *e) {
+        if (const char* e = std::getenv("HELIAS_TROPHY_TEST"); e && *e) {
             std::lock_guard<std::mutex> lk(g_mu);
             g_queue.push_back({std::atoi(e), 27, 40});
         }

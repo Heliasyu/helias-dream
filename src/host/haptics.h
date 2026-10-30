@@ -1,4 +1,4 @@
-// bbhost-vk: HD haptics and adaptive triggers for the DualSense and the
+// heliasdream-vk: HD haptics and adaptive triggers for the DualSense and the
 // DualSense Edge (docs/vk/PLAN.md, Phase X).
 //
 // HD haptics: plugged in by USB, either controller is also a 4-channel sound
@@ -17,7 +17,7 @@
 // Adaptive triggers: SDL's DualSense effect report (SDL_SendGamepadEffect),
 // USB or Bluetooth. L2, the gun, has a trigger break; R2, the heavy attack,
 // a light resistance that turns into a rising hum while it is held to charge.
-// Both relax in loading screens and bbhost's menus.
+// Both relax in loading screens and heliasdream's menus.
 #pragma once
 
 #include <cstddef>
@@ -55,10 +55,10 @@ TriggerEffects haptics_triggers(std::uint32_t id, float l2, float r2, bool relax
 
 // How far L2 has to travel before the game sees it pressed, 0..1, while its
 // trigger break is on (the shot fires at the snap, not before it); 0 when
-// it is not, and the usual threshold applies. BBHOST_L2_FIRE=0.7 moves it.
+// it is not, and the usual threshold applies. HELIAS_L2_FIRE=0.7 moves it.
 float haptics_l2_fire_point();
 // The same for R2: just into the light wall it has while the character
-// stands, so the wall is felt before the attack goes. BBHOST_R2_FIRE moves it.
+// stands, so the wall is felt before the attack goes. HELIAS_R2_FIRE moves it.
 float haptics_r2_fire_point();
 
 // A tap for the game's menus (the title menu, the pause menu, the inventory,

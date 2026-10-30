@@ -91,7 +91,7 @@ constexpr std::size_t kConstRamBytes = 48 * 1024;
 thread_local std::uint8_t t_const_ram[kConstRamBytes];
 std::atomic<std::uint64_t> g_dispatches{0}, g_dispatch_failed{0}, g_draws{0};
 const bool g_trace_draws = [] {
-    const char* e = std::getenv("BBHOST_TRACE_DRAWS");
+    const char* e = std::getenv("HELIAS_TRACE_DRAWS");
     return e && e[0] == '1';
 }();
 // With every draw a token, the CP neither keeps the context and
@@ -100,14 +100,14 @@ const bool g_trace_draws = [] {
 // SH registers are still kept: the compute dispatches read them.
 bool cp_registers() {
     static const bool v = [] {
-        const char* e = std::getenv("BBHOST_CP_REGISTER_FILE");
+        const char* e = std::getenv("HELIAS_CP_REGISTER_FILE");
         return (e && e[0] == '1') || hle_gx_shadow_wanted();
     }();
     return v;
 }
 bool cp_draw_packets() {
     static const bool v = [] {
-        const char* e = std::getenv("BBHOST_CP_DRAW_PACKETS");
+        const char* e = std::getenv("HELIAS_CP_DRAW_PACKETS");
         return (e && e[0] == '1') || hle_gx_shadow_wanted();
     }();
     return v;
@@ -115,7 +115,7 @@ bool cp_draw_packets() {
 // The dispatch packets run unless the dispatches come from tokens instead.
 bool cp_dispatch_packets() {
     static const bool v = [] {
-        const char* e = std::getenv("BBHOST_CP_DISPATCH_PACKETS");
+        const char* e = std::getenv("HELIAS_CP_DISPATCH_PACKETS");
         return (e && e[0] == '1') || !hle_gx_dispatch_native();
     }();
     return v;
@@ -130,7 +130,7 @@ bool drop_draw_packet(DroppedDraw kind, std::uint32_t count) {
     if (cp_draw_packets()) return false;
     if (g_draw_packets_dropped[kind].fetch_add(1, std::memory_order_relaxed) < 4) {
         host_log("cp: %s of %u at flip %llu not drawn: every draw is a token and the register file is not kept "
-                 "(BBHOST_CP_DRAW_PACKETS=1 draws it)", kDroppedDrawName[kind], count, static_cast<unsigned long long>(hle_video_flip_count()));
+                 "(HELIAS_CP_DRAW_PACKETS=1 draws it)", kDroppedDrawName[kind], count, static_cast<unsigned long long>(hle_video_flip_count()));
     }
     return true;
 }
@@ -142,7 +142,7 @@ thread_local std::uint32_t t_num_instances = 1;
 // SET_BASE's DrawIndexIndirPatchTable: where the indirect draw and dispatch
 // arguments live. The CP reads the counts from there instead of the packet.
 thread_local std::uint64_t t_indirect_base = 0;
-// The packet being executed (header address, opcode), for BBHOST_GX_TRACE.
+// The packet being executed (header address, opcode), for HELIAS_GX_TRACE.
 thread_local std::uint64_t t_packet_va = 0;
 thread_local std::uint32_t t_packet_op = 0;
 
@@ -153,7 +153,7 @@ std::atomic<std::uint64_t> g_wait_timeouts{0};
 std::atomic<std::uint64_t> g_wait_pending{0};  // waits satisfied by a recorded GPU write
 std::atomic<std::uint64_t> g_resyncs{0};       // PM4 walk re-locks
 
-// Hands a draw to the renderer; BBHOST_TRACE_DRAWS=1 also prints the state.
+// Hands a draw to the renderer; HELIAS_TRACE_DRAWS=1 also prints the state.
 void indirect_log(const char* kind, std::uint64_t args, const std::uint32_t* a, int count) {
     static std::atomic<int> logs{0};
     if (logs.fetch_add(1) >= 8) return;
@@ -182,7 +182,7 @@ void run_dispatch(const char* kind, std::uint32_t x, std::uint32_t y, std::uint3
     if (!cp_dispatch_packets()) {
         if (g_dispatch_packets_dropped[indirect_va ? 1 : 0].fetch_add(1, std::memory_order_relaxed) < 4) {
             host_log("cp: %s %ux%ux%u at flip %llu not run: every dispatch is a token and the register file is not kept "
-                     "(BBHOST_CP_DISPATCH_PACKETS=1 runs it)", kind, x, y, z, static_cast<unsigned long long>(hle_video_flip_count()));
+                     "(HELIAS_CP_DISPATCH_PACKETS=1 runs it)", kind, x, y, z, static_cast<unsigned long long>(hle_video_flip_count()));
         }
         return;
     }
@@ -200,7 +200,7 @@ void run_dispatch(const char* kind, std::uint32_t x, std::uint32_t y, std::uint3
     }
 }
 
-// BBHOST_GX_NATIVE=2: a draw its GX method left as a token.
+// HELIAS_GX_NATIVE=2: a draw its GX method left as a token.
 // Inputs, objects and geometry come from the call; the register file only
 // supplies what the draw's own packets never write.
 void native_draw(const GpuDrawInputs* in, const char* kind) {
@@ -243,9 +243,9 @@ void native_draw(const GpuDrawInputs* in, const char* kind) {
         // memory until the frame's own simulation writes them. The draw stays
         // indirect and the GPU reads the real count; the CPU's values only
         // size what the renderer binds, at least one element.
-        // BBHOST_INDIRECT_ZERO=skip drops them again.
+        // HELIAS_INDIRECT_ZERO=skip drops them again.
         static const bool skip_zero = [] {
-            const char* e = std::getenv("BBHOST_INDIRECT_ZERO");
+            const char* e = std::getenv("HELIAS_INDIRECT_ZERO");
             return e && std::strcmp(e, "skip") == 0;
         }();
         if (!a[0]) {
@@ -261,10 +261,10 @@ void native_draw(const GpuDrawInputs* in, const char* kind) {
 void trace_draw(const char* kind, std::uint32_t count, std::uint64_t index_va, std::uint32_t instances = 0,
                 std::uint64_t indirect_va = 0) {
     const std::uint64_t n = g_draws.fetch_add(1);
-    // BBHOST_TRACE_DRAWKIND=1: the draw opcode, count and index base for the
+    // HELIAS_TRACE_DRAWKIND=1: the draw opcode, count and index base for the
     // first draws (tells DRAW_INDEX_2 from DRAW_INDEX_AUTO for a given draw).
     static const bool trace_kind = [] {
-        const char* e = std::getenv("BBHOST_TRACE_DRAWKIND");
+        const char* e = std::getenv("HELIAS_TRACE_DRAWKIND");
         return e && e[0] == '1';
     }();
     if (trace_kind) {
@@ -342,24 +342,24 @@ void trace_draw(const char* kind, std::uint32_t count, std::uint64_t index_va, s
 std::atomic<std::uint64_t> g_exec_packets{0};
 std::atomic<std::uint64_t> g_exec_writes{0};
 const bool g_trace = [] {
-    const char* e = std::getenv("BBHOST_TRACE_GNM");
+    const char* e = std::getenv("HELIAS_TRACE_GNM");
     return e && e[0] == '1';
 }();
 // The YEBIS draw a token said was coming, until its DRAW_INDEX_2 is walked.
 thread_local bool t_yebis_pending = false;
 thread_local GxYebisDraw t_yebis_want{};
 std::atomic<std::uint64_t> g_op_hist[256];
-// BBHOST_GX_COST: nanoseconds per opcode. exec is the largest command-processor
+// HELIAS_GX_COST: nanoseconds per opcode. exec is the largest command-processor
 // bucket (3.9 ms a flip) and the ring is 61% register writes, so the question
 // is whether that time is spread over the register packets or concentrated in a
 // few handlers. Cost mode only: this is two clock reads a packet.
 std::atomic<std::uint64_t> g_op_ns[256];
 const bool g_exec_cost = [] {
-    const char* e = std::getenv("BBHOST_GX_COST");
+    const char* e = std::getenv("HELIAS_GX_COST");
     return e && std::atoi(e) != 0;
 }();
-std::atomic<std::uint64_t> g_token_nops{0};  // NOPs that were host-draw tokens (BBHOST_GX_NATIVE)
-std::atomic<std::uint64_t> g_copy_nops{0};   // NOPs that were copy tokens (BBHOST_GX_NATIVE_COPIES)
+std::atomic<std::uint64_t> g_token_nops{0};  // NOPs that were host-draw tokens (HELIAS_GX_NATIVE)
+std::atomic<std::uint64_t> g_copy_nops{0};   // NOPs that were copy tokens (HELIAS_GX_NATIVE_COPIES)
 std::atomic<std::uint64_t> g_exec_dwords{0};  // dwords of the packets executed, headers included
 thread_local int t_queue_id = -1;
 void drain_other_queues(int except_id, int max_ms);
@@ -376,13 +376,13 @@ WriteRec g_recs[kRecs];
 std::atomic<std::uint64_t> g_rec_next{0};
 thread_local std::uint32_t t_cur_op = 0;
 
-// BBHOST_WATCH_RANGE=0x<addr>:0x<len> logs every CP write touching it.
+// HELIAS_WATCH_RANGE=0x<addr>:0x<len> logs every CP write touching it.
 const std::uint64_t g_watch_lo = [] {
-    const char* e = std::getenv("BBHOST_WATCH_RANGE");
+    const char* e = std::getenv("HELIAS_WATCH_RANGE");
     return e ? std::strtoull(e, nullptr, 16) : 0ull;
 }();
 const std::uint64_t g_watch_hi = [] {
-    const char* e = std::getenv("BBHOST_WATCH_RANGE");
+    const char* e = std::getenv("HELIAS_WATCH_RANGE");
     if (!e) {
         return 0ull;
     }
@@ -390,13 +390,13 @@ const std::uint64_t g_watch_hi = [] {
     return c ? std::strtoull(e, nullptr, 16) + std::strtoull(c + 1, nullptr, 16) : 0ull;
 }();
 
-// BBHOST_ARENA_MONITOR=1:
+// HELIAS_ARENA_MONITOR=1:
 // the game's command arena marks the last word of each chunk 0 free, 1 in use
 // or 2 retired, and a retired chunk is freed by an EVENT_WRITE_EOP of 0, which
 // we record on the GPU. Markers are learned from those writes (8 bytes of 0
 // onto a word holding 2); any other CP write over a known marker is logged.
 const bool g_arena_monitor = [] {
-    const char* e = std::getenv("BBHOST_ARENA_MONITOR");
+    const char* e = std::getenv("HELIAS_ARENA_MONITOR");
     return e && e[0] == '1';
 }();
 std::mutex g_arena_mu;
@@ -404,16 +404,16 @@ std::set<std::uint64_t> g_arena_markers;
 std::atomic<std::uint64_t> g_arena_completions{0}, g_arena_foreign{0};
 std::atomic<std::uint64_t> g_arena_acquire_waits{0}, g_arena_acquire_wait_us{0}, g_arena_acquire_failed{0};  // hle_gx_arena_acquire
 std::atomic<std::uint64_t> g_arena_data_writes{0}, g_arena_data_bytes{0};  // non-EOP CP writes into arena chunks (monitor)
-// BBHOST_ARENA_EARLY_FREE=1 frees a retired chunk when the CP walks its zeroing
+// HELIAS_ARENA_EARLY_FREE=1 frees a retired chunk when the CP walks its zeroing
 // write (cp_write). Off by default: with the GX hooks armed, 2 of 3 runs
 // crashed in the GX heap's release pass or hung, against 0 of 2 with it off.
 const bool g_arena_early_free = [] {
-    const char* e = std::getenv("BBHOST_ARENA_EARLY_FREE");
+    const char* e = std::getenv("HELIAS_ARENA_EARLY_FREE");
     return e && e[0] == '1';
 }();
 thread_local std::vector<std::uint64_t> t_arena_frees;  // markers to free when this CP job's walk ends
 std::atomic<std::uint64_t> g_arena_early_frees{0};
-// BBHOST_ARENA_MONITOR=1: the CP writes held back behind queued GPU work that
+// HELIAS_ARENA_MONITOR=1: the CP writes held back behind queued GPU work that
 // land inside command-arena chunks (labels), per chunk base, and when early free
 // last zeroed each chunk (under g_arena_mu). When a chunk is handed out again, a
 // queued value not in its memory yet means the GPU had not executed that write:
@@ -582,10 +582,10 @@ constexpr std::size_t kLabelRing = 32;
 LabelWrite g_label_ring[kLabelRing];
 std::atomic<std::uint64_t> g_label_next{0};
 
-// BBHOST_TRACE_LABEL=<hex>: every CP write to one address. The game spins on a
+// HELIAS_TRACE_LABEL=<hex>: every CP write to one address. The game spins on a
 // flush counter without a timeout, so "did we ever write it" is the question.
 const std::uint64_t g_trace_label = [] {
-    const char* e = std::getenv("BBHOST_TRACE_LABEL");
+    const char* e = std::getenv("HELIAS_TRACE_LABEL");
     return e ? std::strtoull(e, nullptr, 0) : 0ull;
 }();
 std::atomic<std::uint64_t> g_trace_label_writes{0};
@@ -686,7 +686,7 @@ void note_label_write(std::uint64_t va, const void* src, std::size_t n) {
     std::memcpy(&v, src, n);
     const std::uint64_t i = g_label_next.fetch_add(1);
     g_label_ring[i % kLabelRing] = {va, v, t_cur_op, static_cast<std::uint32_t>(n)};
-    // BBHOST_ARENA_MONITOR: anything but zero written onto a chunk marker. The
+    // HELIAS_ARENA_MONITOR: anything but zero written onto a chunk marker. The
     // game writes 1 and 2 there itself; the CP should only ever write the 0 of
     // a retired chunk's EVENT_WRITE_EOP.
     if (g_arena_monitor && v != 0 && hle_gx_arena_marker(va)) {
@@ -707,7 +707,7 @@ void note_label_write(std::uint64_t va, const void* src, std::size_t n) {
     }
 }
 
-// BBHOST_ARENA_MONITOR=1: a write host_gpu_mem_write held back, if it lands in a
+// HELIAS_ARENA_MONITOR=1: a write host_gpu_mem_write held back, if it lands in a
 // command-arena chunk (not on its marker).
 void note_arena_queued(std::uint64_t va, const void* src, std::size_t n, std::uint64_t serial) {
     std::uint64_t chunk = 0;
@@ -729,7 +729,7 @@ void note_arena_queued(std::uint64_t va, const void* src, std::size_t n, std::ui
 }
 
 void cp_write(std::uint64_t va, const void* src, std::size_t n) {
-    // BBHOST_ARENA_MONITOR: a CP write of any size that covers a chunk marker
+    // HELIAS_ARENA_MONITOR: a CP write of any size that covers a chunk marker
     // with anything but the zero of a retired chunk's EVENT_WRITE_EOP.
     if (g_arena_monitor && hle_gx_arena_covers_marker(va, n) && !(n == 8 && hle_gx_arena_marker(va))) {
         static std::atomic<int> logs{0};
@@ -847,12 +847,12 @@ struct CeFrame {
 thread_local std::vector<CeFrame> t_ce_stack;
 thread_local std::uint32_t t_ce_count = 0, t_de_count = 0;
 
-// BBHOST_CE_HISTORY=1 (diagnostic): the recent constant-engine packets on this
+// HELIAS_CE_HISTORY=1 (diagnostic): the recent constant-engine packets on this
 // CP thread, so a draw can ask which DumpConstRam produced the resource table
 // it reads and which WriteConstRam packets filled that part of const RAM
 // (hle_gnm_explain_table).
 const bool g_ce_history = [] {
-    const char* e = std::getenv("BBHOST_CE_HISTORY");
+    const char* e = std::getenv("HELIAS_CE_HISTORY");
     return e && e[0] == '1';
 }();
 struct CeRecord {
@@ -931,11 +931,11 @@ bool ce_step() {
     return false;
 }
 
-// BBHOST_CP_CENSUS=1: what the command processor still walks,
+// HELIAS_CP_CENSUS=1: what the command processor still walks,
 // by packet type and dwords, with the NOP payloads (our tokens and Gnmx's
 // markers) told apart by their magic.
 const bool g_cp_census = [] {
-    const char* e = std::getenv("BBHOST_CP_CENSUS");
+    const char* e = std::getenv("HELIAS_CP_CENSUS");
     return e && e[0] == '1';
 }();
 std::atomic<std::uint64_t> g_census_packets[0x100] = {}, g_census_dwords[0x100] = {};
@@ -965,9 +965,9 @@ void census_packet(std::uint32_t op, const std::uint32_t* b, std::size_t n) {
 // records are written on a GX thread and are cold here, and read one line
 // at a time they were most of what a draw cost.
 void lookahead_tokens(const std::uint32_t* p) {
-    // BBHOST_TOKEN_PREFETCH=0: no lookahead (for pricing it on a machine).
+    // HELIAS_TOKEN_PREFETCH=0: no lookahead (for pricing it on a machine).
     static const bool on = [] {
-        const char* e = std::getenv("BBHOST_TOKEN_PREFETCH");
+        const char* e = std::getenv("HELIAS_TOKEN_PREFETCH");
         return !(e && e[0] == '0');
     }();
     if (!on) return;
@@ -1012,11 +1012,11 @@ void execute_packet(std::uint32_t op, const std::uint32_t* b, std::size_t n, int
             // difference. Left alone, the memory kept whatever it held, and
             // the moon's glare flickered and swelled over the whole screen.
             const unsigned type = b[0] & 0x3f, index = (b[0] >> 8) & 0xf;
-            // BBHOST_ZPASS_TRACE=1: the draws each pair of samples brackets -
+            // HELIAS_ZPASS_TRACE=1: the draws each pair of samples brackets -
             // the game samples the counters around a proxy it draws for a
             // light, and those draws are meant to be measured, not seen.
             static const bool zpass_trace = [] {
-                const char* e = std::getenv("BBHOST_ZPASS_TRACE");
+                const char* e = std::getenv("HELIAS_ZPASS_TRACE");
                 return e && e[0] == '1';
             }();
             if (zpass_trace && index == kEventIndexZpassDone) {
@@ -1037,10 +1037,10 @@ void execute_packet(std::uint32_t op, const std::uint32_t* b, std::size_t n, int
                 constexpr int kPixelPipes = 8;  // 16 on a Neo; the game reads as many as it wrote
                 constexpr std::uint64_t kValid = 1ull << 63;
                 if (hle_kernel_va_mapped(va, kPixelPipes * 16)) {
-                    // BBHOST_ZPASS_COUNT: how many pixels each sample claims
+                    // HELIAS_ZPASS_COUNT: how many pixels each sample claims
                     // passed, for working out what the game does with them.
                     static const std::uint64_t step = [] {
-                        const char* e = std::getenv("BBHOST_ZPASS_COUNT");
+                        const char* e = std::getenv("HELIAS_ZPASS_COUNT");
                         return e ? std::strtoull(e, nullptr, 0) : 0x2ffffffull;
                     }();
                     static std::atomic<std::uint64_t> counter{0};
@@ -1061,7 +1061,7 @@ void execute_packet(std::uint32_t op, const std::uint32_t* b, std::size_t n, int
                     // uninitialised count.
                     const std::uint64_t word = now | kValid;
                     for (int i = 0; i < kPixelPipes; ++i) store(va + 16 * static_cast<std::uint64_t>(i), &word, sizeof(word));
-                    // With BBHOST_ZPASS_TRACE an end dump (at block+8) prints the
+                    // With HELIAS_ZPASS_TRACE an end dump (at block+8) prints the
                     // block: a query the game can finish has bit 63 in all 16.
                     if (zpass_trace && (va & 15) == 8) {
                         static std::atomic<int> blocks{0};
@@ -1077,7 +1077,7 @@ void execute_packet(std::uint32_t op, const std::uint32_t* b, std::size_t n, int
                     static std::atomic<int> logs{0};
                     if (logs.fetch_add(1) == 0) {
                         host_log("HLE fake: the pixel-pipe counters an occlusion query samples are a rising count, not the pixels drawn "
-                                 "(first dump to 0x%llx; BBHOST_OCCLUSION=0, or the block is not in imported memory)",
+                                 "(first dump to 0x%llx; HELIAS_OCCLUSION=0, or the block is not in imported memory)",
                                  static_cast<unsigned long long>(va));
                     }
                 }
@@ -1091,7 +1091,7 @@ void execute_packet(std::uint32_t op, const std::uint32_t* b, std::size_t n, int
             // setZPassPredicationEnable/Disable; the draws between are GX
             // tokens, not packets carrying the predicate bit, so the span
             // between a set and its clear is what is predicated
-            // (host/occlusion.cpp). BBHOST_PREDICATION=0 ignores it.
+            // (host/occlusion.cpp). HELIAS_PREDICATION=0 ignores it.
             if (n < 2) break;
             static std::atomic<int> logs{0};
             if (logs.fetch_add(1) < 4) {
@@ -1125,7 +1125,7 @@ void execute_packet(std::uint32_t op, const std::uint32_t* b, std::size_t n, int
             note_ce(true, dst, off, bytes, t_const_ram + off);
             // The native binder replaces this round trip with a copy straight
             // out of YEBIS's resource array, which rests on constant RAM being
-            // a mirror of it. BBHOST_YEBIS_BIND_VERIFY=1 checks that here.
+            // a mirror of it. HELIAS_YEBIS_BIND_VERIFY=1 checks that here.
             if (yebis_bind::verifying()) {
                 yebis_bind::check_dump(off, t_const_ram + off, static_cast<std::uint32_t>(bytes));
             }
@@ -1324,9 +1324,9 @@ void execute_packet(std::uint32_t op, const std::uint32_t* b, std::size_t n, int
                     // A label the GPU is going to write arrives in microseconds;
                     // waiting seconds for one only happens when it is never
                     // coming, and during a world load there are dozens of them.
-                    // BBHOST_WAIT_MS overrides.
+                    // HELIAS_WAIT_MS overrides.
                     static const long wait_ms = [] {
-                        const char* e = std::getenv("BBHOST_WAIT_MS");
+                        const char* e = std::getenv("HELIAS_WAIT_MS");
                         const long v = e ? std::strtol(e, nullptr, 10) : 200;
                         return v > 0 ? v : 200;
                     }();
@@ -1366,11 +1366,11 @@ void execute_packet(std::uint32_t op, const std::uint32_t* b, std::size_t n, int
                             host_log("  mem+00: %08x %08x %08x %08x %08x %08x %08x %08x", p[0], p[1], p[2], p[3], p[4],
                                      p[5], p[6], p[7]);
                         }
-                        // BBHOST_FORCE_LABELS=1 also writes the expected value so CPU
+                        // HELIAS_FORCE_LABELS=1 also writes the expected value so CPU
                         // pollers proceed; default leaves the label alone (garbage
                         // compute output must not look "ready").
                         static const bool force_labels = [] {
-                            const char* e = std::getenv("BBHOST_FORCE_LABELS");
+                            const char* e = std::getenv("HELIAS_FORCE_LABELS");
                             return e && e[0] == '1';
                         }();
                         if (force_labels) {
@@ -1522,7 +1522,7 @@ void execute_packet(std::uint32_t op, const std::uint32_t* b, std::size_t n, int
             break;
         }
         case kNop:
-            // BBHOST_GX_NATIVE: a GX draw's host-draw token.
+            // HELIAS_GX_NATIVE: a GX draw's host-draw token.
             if (n >= 3 && b[0] == kGxNativeMagic) {
                 g_token_nops.fetch_add(1, std::memory_order_relaxed);
                 lookahead_tokens(b + n);
@@ -1638,7 +1638,7 @@ std::size_t resync_from(const std::uint32_t* cb, std::size_t dwords, std::size_t
     return dwords;
 }
 
-// BBHOST_ARENA_MONITOR=1: a buffer the CP walks for a job, in a command-arena
+// HELIAS_ARENA_MONITOR=1: a buffer the CP walks for a job, in a command-arena
 // chunk that early free released after that job was submitted.
 void note_stale_walk(std::uint64_t va, std::uint64_t bytes, int depth) {
     std::uint64_t chunk = 0;
@@ -1835,12 +1835,12 @@ void execute_one(const void* cb, std::size_t bytes, bool trusted = false) {
 struct Job {
     std::vector<std::pair<const void*, std::size_t>> cbs;
     std::vector<std::pair<const void*, std::size_t>> ce_cbs;  // constant engine, paired by index
-    // BBHOST_CP_COPY=1: our copy of the buffers above, so the game rewriting
+    // HELIAS_CP_COPY=1: our copy of the buffers above, so the game rewriting
     // them before the command processor gets there cannot desync the walk.
     std::deque<std::vector<std::uint8_t>> owned;  // deque: push_back must not move the earlier buffers
     std::vector<std::pair<const void*, std::size_t>> guest;  // the originals, for the snapshot comparison
     std::function<void()> done;
-    std::uint64_t free_event = 0;  // g_arena_free_event when submitted (BBHOST_ARENA_MONITOR)
+    std::uint64_t free_event = 0;  // g_arena_free_event when submitted (HELIAS_ARENA_MONITOR)
 };
 
 std::vector<std::pair<const void*, std::size_t>> snapshot_cbs(const std::vector<std::pair<const void*, std::size_t>>& in,
@@ -1870,10 +1870,10 @@ std::mutex g_queues_mu;
 std::atomic<std::uint64_t> g_submitted_total{0}, g_retired_total{0};
 std::unordered_map<int, Queue*> g_queues;
 
-// BBHOST_CPUPROFILE=<file>:<first flip>:<last flip>: sample the graphics
+// HELIAS_CPUPROFILE=<file>:<first flip>:<last flip>: sample the graphics
 // command-processor thread between those flips with gperftools. Run with
 // LD_PRELOAD=/usr/lib/libprofiler.so CPUPROFILE_PER_THREAD_TIMERS=1 and no
-// CPUPROFILE, then `go tool pprof -top build/bbhost <file>`. Only this host
+// CPUPROFILE, then `go tool pprof -top build/heliasdream <file>`. Only this host
 // thread may get a profiling timer: a process-wide SIGPROF can land in guest
 // code while FS points at the guest TCB, and the handler's TLS use would
 // corrupt it.
@@ -1887,13 +1887,13 @@ struct CpuProfile {
 
 CpuProfile cpu_profile_config() {
     CpuProfile p;
-    const char* e = std::getenv("BBHOST_CPUPROFILE");
+    const char* e = std::getenv("HELIAS_CPUPROFILE");
     if (!e) return p;
     const std::string spec(e);
     const std::size_t a = spec.find(':');
     const std::size_t b = a == std::string::npos ? a : spec.find(':', a + 1);
     if (b == std::string::npos) {
-        host_log("cpuprofile: BBHOST_CPUPROFILE wants <file>:<first flip>:<last flip>");
+        host_log("cpuprofile: HELIAS_CPUPROFILE wants <file>:<first flip>:<last flip>");
         return p;
     }
     if (!std::getenv("CPUPROFILE_PER_THREAD_TIMERS") || std::getenv("CPUPROFILE")) {
@@ -1943,7 +1943,7 @@ void cp_thread(Queue* q, int id) {
         host_thread_set_name(name);
         // Above the guest's threads on Windows: the game's frame waits on
         // this one, and a GX worker that took its core delayed every draw
-        // behind it (core/host_clock.h, BBHOST_THREAD_PRIO=0).
+        // behind it (core/host_clock.h, HELIAS_THREAD_PRIO=0).
         host_thread_set_class(HostThreadClass::GpuFeed, name);
     }
     CpuProfile profile = id == 0 ? cpu_profile_config() : CpuProfile{};
@@ -1956,7 +1956,7 @@ void cp_thread(Queue* q, int id) {
             q->jobs.pop_front();
         }
         cpu_profile_tick(profile);
-        if (id == 0) fliptrace::cp_job_begin();  // BBHOST_FLIP_TRACE
+        if (id == 0) fliptrace::cp_job_begin();  // HELIAS_FLIP_TRACE
         t_job_free_event = g_arena_monitor ? job.free_event : ~0ull;
         for (const auto& cb : job.cbs) note_command_buffer(reinterpret_cast<std::uintptr_t>(cb.first), cb.second);
         for (const auto& cb : job.ce_cbs) note_command_buffer(reinterpret_cast<std::uintptr_t>(cb.first), cb.second);
@@ -2015,9 +2015,9 @@ void cp_thread(Queue* q, int id) {
         // against 11.48 and 11.03, pinned). When this
         // merged (77e6dc5, 2026-09-12) each submission cost ~7 s per 300 world
         // flips; the recorder thread and the shadow's own command buffer have
-        // since taken that away. BBHOST_SUBMIT_EVERY_JOB=0 merges again.
+        // since taken that away. HELIAS_SUBMIT_EVERY_JOB=0 merges again.
         static const bool every_job = [] {
-            const char* e = std::getenv("BBHOST_SUBMIT_EVERY_JOB");
+            const char* e = std::getenv("HELIAS_SUBMIT_EVERY_JOB");
             return !(e && e[0] == '0');
         }();
         bool more_queued = false;
@@ -2109,10 +2109,10 @@ void hle_gnm_explain_table(std::uint64_t va, std::size_t bytes) {
 
 void hle_gnm_submit_async(int queue_id, const std::vector<std::pair<const void*, std::size_t>>& cbs,
                           std::function<void()> done, const std::vector<std::pair<const void*, std::size_t>>& ce_cbs) {
-    // BBHOST_SYNC_GNM=1 executes the graphics queue on the submitting thread
+    // HELIAS_SYNC_GNM=1 executes the graphics queue on the submitting thread
     // (debugging aid: no backlog between the game and the command processor).
     static const bool sync_gfx = [] {
-        const char* e = std::getenv("BBHOST_SYNC_GNM");
+        const char* e = std::getenv("HELIAS_SYNC_GNM");
         return e && e[0] == '1';
     }();
     if (sync_gfx && queue_id == 0) {
@@ -2154,9 +2154,9 @@ void hle_gnm_submit_async(int queue_id, const std::vector<std::pair<const void*,
     // Snapshot walks: 0 of those in two soaks, 1 each in the live pair, the
     // same frames; with GX drawing natively the stream is ~1-2 MB/s, so the
     // copy costs nothing measurable (it was off when every draw went through
-    // PM4). BBHOST_CP_COPY=0 walks the guest memory directly.
+    // PM4). HELIAS_CP_COPY=0 walks the guest memory directly.
     static const bool copy_cbs = [] {
-        const char* e = std::getenv("BBHOST_CP_COPY");
+        const char* e = std::getenv("HELIAS_CP_COPY");
         return !(e && e[0] == '0');
     }();
     if (copy_cbs) {
@@ -2194,11 +2194,11 @@ void hle_gnm_submit_async(int queue_id, const std::vector<std::pair<const void*,
     // burst is over: the extra latency is only during the burst. 16 did no
     // better.
     static const std::uint64_t max_backlog = [] {
-        const char* e = std::getenv("BBHOST_CP_BACKLOG");
+        const char* e = std::getenv("HELIAS_CP_BACKLOG");
         const long v = e ? std::strtol(e, nullptr, 10) : 10;
         return static_cast<std::uint64_t>(v > 0 ? v : 1);
     }();
-    MainThreadWait timed(0);  // back-pressure from the command processor, for frame stats and BBHOST_WAIT_LOG
+    MainThreadWait timed(0);  // back-pressure from the command processor, for frame stats and HELIAS_WAIT_LOG
     q->drained.wait(lk, [q] { return q->submitted - q->retired <= max_backlog; });
 }
 
@@ -2376,12 +2376,12 @@ void note_arena_extent(const std::uint64_t* allocator) {
     const std::uint64_t chunk_bytes = allocator[1] * 8;
     g_arena_extents[n] = {id, allocator[3], allocator[3] + allocator[2] * chunk_bytes, chunk_bytes};
     g_arena_extent_count.store(n + 1);
-    // BBHOST_ARENA_WATCH=1: a thread that scans this arena's markers every
+    // HELIAS_ARENA_WATCH=1: a thread that scans this arena's markers every
     // 2 ms and logs each one that becomes anything but 0, 1 or 2, with what
     // it was before and where the frame and the host GPU were. The protocol
     // only ever writes those three; whoever writes anything else is what
     // leaks the chunk.
-    if (const char* e = std::getenv("BBHOST_ARENA_WATCH"); e && e[0] == '1') {
+    if (const char* e = std::getenv("HELIAS_ARENA_WATCH"); e && e[0] == '1') {
         const std::uint64_t base = allocator[3], count = allocator[2];
         std::thread([base, count, chunk_bytes] {
             std::vector<std::uint64_t> last(count, 0);
@@ -2453,7 +2453,7 @@ bool hle_gx_arena_covers_marker(std::uint64_t va, std::uint64_t bytes) {
 }
 
 // The game's command-arena acquire (guest 0x2ad3b80), patched to this at load
-// (runtime.cpp, 1.09 only; BBHOST_ARENA_WAIT=0 keeps the original). The scan is
+// (runtime.cpp, 1.09 only; HELIAS_ARENA_WAIT=0 keeps the original). The scan is
 // the eboot's: from the chunk after the last one taken (+0x20), claim the first
 // marker holding 0 with a 0 -> 1 compare-and-swap and return 0; otherwise 1 when
 // some chunk is retired (2) and waiting for its completion, 2 when none is.
@@ -2463,7 +2463,7 @@ bool hle_gx_arena_covers_marker(std::uint64_t va, std::uint64_t bytes) {
 // callback (sub_2aaf230) cannot handle a failure (0x2ab0a98 writes through
 // null), while sub_2aaf030 already retries with a yield: so a failed scan feeds
 // the GPU and scans again, for up to 10 s.
-// BBHOST_ARENA_MONITOR=1: a chunk just handed out, against the writes queued
+// HELIAS_ARENA_MONITOR=1: a chunk just handed out, against the writes queued
 // into it during its previous life (note_arena_queued).
 void note_arena_handed_out(std::uint64_t chunk) {
     // Read before g_arena_mu: every submission before this has run on the GPU.
@@ -2528,7 +2528,7 @@ GUEST_ABI int hle_gx_arena_acquire(std::uint64_t* allocator, std::uint64_t* out)
     };
     int status = scan();
     if (status == 0) return 0;
-    MainThreadWait timed(0);  // for frame stats and BBHOST_WAIT_LOG
+    MainThreadWait timed(0);  // for frame stats and HELIAS_WAIT_LOG
     const auto start = std::chrono::steady_clock::now();
     do {
         host_gpu_submit();  // the completions the CP has recorded go to the GPU
@@ -2645,7 +2645,7 @@ void hle_gnm_exec_histogram() {
     host_log("gnm dispatches=%llu skipped=%llu draws=%llu draw-failures=%llu", static_cast<unsigned long long>(g_dispatches.load()),
              static_cast<unsigned long long>(g_dispatch_failed.load()), static_cast<unsigned long long>(g_draws.load()),
              static_cast<unsigned long long>(g_draw_failed.load()));
-    host_log("gnm: indirect draws whose count read 0 on the CPU, drawn for the GPU to read its own (BBHOST_INDIRECT_ZERO=skip drops them): %llu",
+    host_log("gnm: indirect draws whose count read 0 on the CPU, drawn for the GPU to read its own (HELIAS_INDIRECT_ZERO=skip drops them): %llu",
              static_cast<unsigned long long>(g_indirect_zero_cpu.load()));
     host_gpu_report();
     for (int op = 0; op < 256; ++op) {

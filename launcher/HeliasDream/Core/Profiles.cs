@@ -16,7 +16,7 @@ public static class Profiles
 {
     public const string Default = "Default";
 
-    static string Dir => Path.Combine(Paths.BbhostConfigDir, "profiles");
+    static string Dir => Path.Combine(Paths.HeliasConfigDir, "profiles");
 
     public static string Stem(string name)
     {
@@ -39,10 +39,10 @@ public static class Profiles
 
     /// The options file the engine reads for a profile.
     public static string OptionsFile(string profile) =>
-        profile == Default ? Paths.OptionsFile : Path.Combine(Paths.BbhostConfigDir, $"HeliasDream-options-{Stem(profile)}.toml");
+        profile == Default ? Paths.OptionsFile : Path.Combine(Paths.HeliasConfigDir, $"HeliasDream-options-{Stem(profile)}.toml");
 
     public static string DataDir(string profile) =>
-        Path.Combine(Paths.BbhostDataDir, "profiles", Stem(profile), "data");
+        Path.Combine(Paths.HeliasDataDir, "profiles", Stem(profile), "data");
 
     /// Makes a profile: its config (its own save folder, the player's name), and its settings
     /// copied from the Default's without the account, so it starts signed out.

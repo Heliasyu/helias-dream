@@ -14,7 +14,7 @@
 // it. None of the game's five sections is redirected: Language still opens
 // Language. Two guest patches carry it - a seventh slot in the section-name
 // table, and the one call that finalises the System builder - and both are
-// checked byte for byte. On by default; BBHOST_PC_OPTIONS=0 turns it off, and
+// checked byte for byte. On by default; HELIAS_PC_OPTIONS=0 turns it off, and
 // it stays off when the asset overlay does not supply the PCSetting sprite.
 
 #include <cstdint>
@@ -51,7 +51,7 @@ int option_menu_confirm_take();
 // Answers an open question NO, as the player would (no close of its own);
 // a question asked but never put up is withdrawn.
 void option_menu_confirm_close();
-// bbhost-vk: a pick list (or any popup) is up on PC Graphics, PC Upscaling or
+// heliasdream-vk: a pick list (or any popup) is up on PC Graphics, PC Upscaling or
 // Upscaling Quality - more on the screen's popup stack than when it opened.
 // A resolution or scene-size change asked from those screens waits for it to
 // close (engine/live_resolution.cpp): resizing under a closing pick list

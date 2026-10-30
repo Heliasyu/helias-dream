@@ -3,7 +3,7 @@
 // on, in the game's place as leaves (decomp/decomp.h).
 //
 // Each running event is a SprjEmkEventIns (0xe0 bytes; the SDK's layout,
-// include/bbhost/engine/sprj/emk_system.hpp), updated once a frame by
+// include/heliasdream/engine/sprj/emk_system.hpp), updated once a frame by
 // SprjEmkSystem::Update through its vtable:
 //
 //   SprjEmkEventIns::Update (0x16ecdc0)
@@ -37,7 +37,7 @@
 //   (0x16ebcf0).
 //
 // Everything these call stays the game's and is called at its address, so a
-// function switched off (BBHOST_DECOMP_OFF) is the game's for its callers here
+// function switched off (HELIAS_DECOMP_OFF) is the game's for its callers here
 // too: the groups' and conditions' own updates, Advance, Holder::Clear, the
 // bank functions, the restart queue, the event-sync packet (0x31) and
 // DL_PANIC.
@@ -51,9 +51,9 @@
 #include "decomp/events/flag_store.h"
 #include "decomp/guest.h"
 
-#include "bbhost/engine/fd4.hpp"
-#include "bbhost/engine/sprj/emk_system.hpp"
-#include "bbhost/engine/sprj/event_resource.hpp"
+#include "heliasdream/engine/fd4.hpp"
+#include "heliasdream/engine/sprj/emk_system.hpp"
+#include "heliasdream/engine/sprj/event_resource.hpp"
 #include "core/thunk.h"
 #include "log.h"
 

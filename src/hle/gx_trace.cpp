@@ -1,4 +1,4 @@
-// BBHOST_GX_TRACE=<first>,<last>: coverage of the engine's GX layer, with
+// HELIAS_GX_TRACE=<first>,<last>: coverage of the engine's GX layer, with
 // no behaviour change.
 //
 // Entry hooks on the GX immediate-context draw and dispatch methods snapshot
@@ -74,7 +74,7 @@ enum Kind : std::uint8_t {
     kEmitDispatchQueue,
     // GX UpdateSubresource (how constant buffers are written).
     kUpdateSubresource,
-    // GX buffer-copy passes (copy tokens, BBHOST_GX_NATIVE_COPIES).
+    // GX buffer-copy passes (copy tokens, HELIAS_GX_NATIVE_COPIES).
     kCopyBuffers,
     kCopyBuffer,
     // YEBIS's own D3D11-shaped context draw (YEBIS tokens).
@@ -271,9 +271,9 @@ std::atomic<bool> g_active{false};
 std::atomic<bool> g_printed{false};
 std::atomic<std::int64_t> g_draw_scan_budget{2000};
 std::atomic<std::int64_t> g_dispatch_scan_budget{1000};
-bool g_trace = false;  // BBHOST_GX_TRACE: coverage statistics
-int g_backend = 0;     // BBHOST_GX_BACKEND: 1 draws from GX inputs, 2 compares them
-// BBHOST_GX_NATIVE=1 (shadow): with BBHOST_GX_BACKEND=1, each
+bool g_trace = false;  // HELIAS_GX_TRACE: coverage statistics
+int g_backend = 0;     // HELIAS_GX_BACKEND: 1 draws from GX inputs, 2 compares them
+// HELIAS_GX_NATIVE=1 (shadow): with HELIAS_GX_BACKEND=1, each
 // immediate GX draw without HS/DS/GS writes a host-draw token (a NOP {magic,
 // id}) at the start of the method, which then runs as before. The CP
 // snapshots, at the token, the register fields render mode still takes from
@@ -309,7 +309,7 @@ enum NativeField {
 };
 std::atomic<std::uint64_t> g_native_changed[kNativeFields] = {};
 std::atomic<std::uint64_t> g_native_unnamed_slot[2][16] = {};  // VS / PS user-data slots no descriptor writes, changed
-// BBHOST_GX_NATIVE=2: draws the host ran from their tokens, draws that did not
+// HELIAS_GX_NATIVE=2: draws the host ran from their tokens, draws that did not
 // qualify, and draws whose token could not be written after the flushes ran.
 std::atomic<std::uint64_t> g_native_drawn{0}, g_native_late{0};
 Tally<> g_native_ineligible;
@@ -319,7 +319,7 @@ Tally<> g_native_ineligible;
 enum NativeCall { kNcOmFlush, kNcIaFlush, kNcRsFlush, kNcBookkeeping, kNcOmCommit, kNcPostDraw, kNcBookkeepingAfter, kNativeCalls };
 Tally<kNativeCalls> g_native_call_dwords;
 Tally<> g_native_call_switches;
-// BBHOST_GX_NATIVE_FLUSHES=1 (checks): native draws run the method's
+// HELIAS_GX_NATIVE_FLUSHES=1 (checks): native draws run the method's
 // output-merger, input-assembly and rasterizer flushes as it does. By default
 // they skip the input-assembly and rasterizer flushes, and run the
 // output-merger flush only when it may run a deferred clear. Apart from those
@@ -331,7 +331,7 @@ Tally<> g_native_call_switches;
 // register file changed, the next packet-path draw's flushes still write
 // whatever differs.
 const bool g_native_all_flushes = [] {
-    const char* e = std::getenv("BBHOST_GX_NATIVE_FLUSHES");
+    const char* e = std::getenv("HELIAS_GX_NATIVE_FLUSHES");
     return e && e[0] == '1';
 }();
 // What a *tessellated* draw's own packets set, which is what a
@@ -364,7 +364,7 @@ std::atomic<std::uint64_t> g_tess_have_inputs{0}, g_tess_in_ok{0};
 thread_local std::unordered_map<std::uint64_t, NativeTess> t_native_tess;
 // Native draws that ran the output-merger flush.
 Tally<> g_native_om_flushes;
-// BBHOST_GX_NATIVE_OM: what a native draw does about the
+// HELIAS_GX_NATIVE_OM: what a native draw does about the
 // output-merger commit (0x2ad2790) and flush (0x2ad2230).
 //   2 (default) neither runs. The commit emits target registers against its
 //     record of bound targets, which the renderer takes from the GX objects
@@ -385,7 +385,7 @@ Tally<> g_native_om_flushes;
 //     on average) - the state before draws became tokens, for A/B.
 //   0 the flush for passes, no commit (the 7.2 measurement).
 const int g_native_om = [] {
-    const char* e = std::getenv("BBHOST_GX_NATIVE_OM");
+    const char* e = std::getenv("HELIAS_GX_NATIVE_OM");
     return e && e[0] ? std::atoi(e) : 2;
 }();
 // The GX utility passes and the once-a-flip present
@@ -412,27 +412,27 @@ const int g_native_om = [] {
 // 0x14739b0), the viewport (0x14765e0), the scissors, the blend,
 // depth-stencil, primitive and rasterizer words - and at the draw's
 // emitter writes a token built from it instead of the packet.
-// BBHOST_GX_NATIVE_UTILITY: 0 packet path, 1 shadow (token and packet, the
+// HELIAS_GX_NATIVE_UTILITY: 0 packet path, 1 shadow (token and packet, the
 // CP compares them), 2 native (the default with native GX draws).
-// BBHOST_GX_NATIVE_PASSES (bits): 1 the depth decompress pass is skipped, 2
+// HELIAS_GX_NATIVE_PASSES (bits): 1 the depth decompress pass is skipped, 2
 // the colour eliminate pass is skipped, 4 the clear pass is a fill token;
 // default 7, 0 leaves the passes as they are.
 const int g_native_utility = [] {
-    const char* e = std::getenv("BBHOST_GX_NATIVE_UTILITY");
+    const char* e = std::getenv("HELIAS_GX_NATIVE_UTILITY");
     return e && e[0] ? std::atoi(e) : 2;
 }();
-// BBHOST_GX_YEBIS_FULL: a YEBIS token (BBHOST_GX_NATIVE_YEBIS=5) completed
+// HELIAS_GX_YEBIS_FULL: a YEBIS token (HELIAS_GX_NATIVE_YEBIS=5) completed
 // from the wrapper's context state - targets, blend, depth-stencil, viewport,
 // scissors, primitive and rasterizer words - so it reads nothing from the
 // register file: 0 off (partial, the register file's), 1 shadow (partial,
 // the wrapper's state compared with the register file at the token), 2
 // (default) complete.
 const int g_yebis_full = [] {
-    const char* e = std::getenv("BBHOST_GX_YEBIS_FULL");
+    const char* e = std::getenv("HELIAS_GX_YEBIS_FULL");
     return e && e[0] ? std::atoi(e) : 2;
 }();
 bool wrapper_complete_inputs(std::uint64_t cb, GpuDrawInputs& in, std::uint32_t* index_type);
-// BBHOST_GX_NATIVE_DISPATCH: compute dispatches as tokens
+// HELIAS_GX_NATIVE_DISPATCH: compute dispatches as tokens
 // from the wrapper's context state, at the dispatch emitters (0x1474c50,
 // 0x148a350 direct; 0x1474de0 indirect through SET_BASE): 0 packet path
 // (the default), 1 shadow (token and packet, compared at the packet), 2
@@ -443,11 +443,11 @@ bool wrapper_complete_inputs(std::uint64_t cb, GpuDrawInputs& in, std::uint32_t*
 // 8% of dispatches a walk carried stale user data in the shadow, so compute
 // keeps its packets and the SH register file.
 const int g_native_dispatch = [] {
-    const char* e = std::getenv("BBHOST_GX_NATIVE_DISPATCH");
+    const char* e = std::getenv("HELIAS_GX_NATIVE_DISPATCH");
     return e && e[0] ? std::atoi(e) : 0;
 }();
 const int g_native_passes = [] {
-    const char* e = std::getenv("BBHOST_GX_NATIVE_PASSES");
+    const char* e = std::getenv("HELIAS_GX_NATIVE_PASSES");
     return e && e[0] ? std::atoi(e) : 7;
 }();
 constexpr std::uint64_t kGammaPassDraw = 0x2ab70ff, kPresentDraw = 0x25d84a2;
@@ -469,17 +469,17 @@ std::atomic<std::uint64_t> g_gs_object_draws{0};
 Tally<kNativeSkips> g_native_skipped;
 const char* const kNativeSkipName[kNativeSkips] = {"indirect or an unsupported kind", "a hull or domain shader",
                                                    "a geometry shader", "inputs that could not be built"};
-// BBHOST_GX_NATIVE_REGS=1 (checks): decode what each guest call of a native
+// HELIAS_GX_NATIVE_REGS=1 (checks): decode what each guest call of a native
 // draw writes, counting SET_CONTEXT_REG writes by register and other type-3
 // packets by opcode (0xff for a packet that is not type 3).
 const bool g_native_regs = [] {
-    const char* e = std::getenv("BBHOST_GX_NATIVE_REGS");
+    const char* e = std::getenv("HELIAS_GX_NATIVE_REGS");
     return e && e[0] == '1';
 }();
 std::atomic<std::uint64_t> g_native_call_regs[kNativeCalls][0x400] = {};
 std::atomic<std::uint64_t> g_native_call_ops[kNativeCalls][0x100] = {};
 
-// BBHOST_GNM_SOURCES=1 (checks): cut each Gnm command buffer at its draw and
+// HELIAS_GNM_SOURCES=1 (checks): cut each Gnm command buffer at its draw and
 // dispatch packets and add each piece's dwords to the source of the packet
 // that ends it: the emitter's caller (Binary Ninja address), or a native draw
 // for its token. A piece is everything written on that command buffer since
@@ -487,7 +487,7 @@ std::atomic<std::uint64_t> g_native_call_ops[kNativeCalls][0x100] = {};
 // to the next piece. Pieces that cross chunks are counted, not measured.
 // `gnm sources` lines each window.
 const bool g_gnm_sources = [] {
-    const char* e = std::getenv("BBHOST_GNM_SOURCES");
+    const char* e = std::getenv("HELIAS_GNM_SOURCES");
     return e && e[0] == '1';
 }();
 constexpr std::uint64_t kSourceNative = 1;
@@ -530,26 +530,26 @@ void note_source(std::uint64_t cb, std::uint64_t wp, std::uint64_t end, std::uin
     g_source_largest = std::max(g_source_largest, dwords);
 }
 
-// BBHOST_GX_COST=1: time the GX hooks and the CP
+// HELIAS_GX_COST=1: time the GX hooks and the CP
 // hand-off per draw (`gx-cost:` lines) and hash sampled constant buffers at
 // the call so the renderer can count how many change before it reads them.
 const bool g_gx_cost_enabled = [] {
-    const char* e = std::getenv("BBHOST_GX_COST");
+    const char* e = std::getenv("HELIAS_GX_COST");
     return e && e[0] == '1';
 }();
-// kCostNative: a native draw's work inside the call hook (BBHOST_GX_NATIVE=2);
+// kCostNative: a native draw's work inside the call hook (HELIAS_GX_NATIVE=2);
 // kCostToken: the command processor turning its token into draw inputs.
 // The rest split kCostRecords, kCostNative and kCostToken into their parts.
 enum GxCost { kCostCall, kCostEmit, kCostRecords, kCostHandoff, kCostNative, kCostToken, kCostRecAlloc, kCostRecShader,
               kCostRecTex, kCostRecSmp, kCostRecCb, kCostRecHash, kCostNativeRecords, kCostNativeGuest, kCostNativeStore,
               kCostTokenLookup, kGxCosts };
 std::atomic<std::uint64_t> g_gx_cost_ns[kGxCosts] = {}, g_gx_cost_n[kGxCosts] = {};
-// dynamic_buffer_address under BBHOST_GX_COST: lookups through the key's table, and page scans with the pages they read.
+// dynamic_buffer_address under HELIAS_GX_COST: lookups through the key's table, and page scans with the pages they read.
 std::atomic<std::uint64_t> g_dynbuf_table{0}, g_dynbuf_scans{0}, g_dynbuf_pages{0};
 // Records sets the free list could not supply (new_records).
 std::atomic<std::uint64_t> g_records_new{0};
 // GX UpdateSubresource calls by kind (note_update). Only counted, so the hook
-// is armed only for the trace, BBHOST_GX_COST and BBHOST_WATCH_UPDATE.
+// is armed only for the trace, HELIAS_GX_COST and HELIAS_WATCH_UPDATE.
 Tally<> g_updates_static, g_updates_dynamic, g_updates_other, g_update_static_bytes;
 // The texture updates, which are the ones that stage into a
 // scratch buffer and dispatch a compute shader to write the image
@@ -559,12 +559,12 @@ Tally<> g_updates_tex, g_update_tex_bytes;
 std::mutex g_update_dst_mu;
 std::map<std::uint64_t, std::uint64_t> g_update_dst;  // destination address -> calls
 const bool g_upload_census = [] {
-    const char* e = std::getenv("BBHOST_GX_UPLOAD");
+    const char* e = std::getenv("HELIAS_GX_UPLOAD");
     return e && (e[0] == '1' || e[0] == '2');
 }();
 std::atomic<std::uint64_t> g_updates_watched{0};
 const std::uint64_t g_watch_update = [] {
-    const char* e = std::getenv("BBHOST_WATCH_UPDATE");
+    const char* e = std::getenv("HELIAS_WATCH_UPDATE");
     return e ? std::strtoull(e, nullptr, 0) : 0ull;
 }();
 struct GxCostTimer {
@@ -592,13 +592,13 @@ struct GxCostStamp {
     }
 };
 
-// BBHOST_GX_REPEATS=1 (a diagnostic; its hashing costs the GX threads ~2 us
+// HELIAS_GX_REPEATS=1 (a diagnostic; its hashing costs the GX threads ~2 us
 // a draw): consecutive draws on one context that repeat the previous draw's
 // records and inputs (native_draw_call, records_signature), and each stage's
 // parts. A soak on 2026-09-27: records 3.6%, inputs 31.4%; per stage the
 // shader 56%, views 73%, samplers 88%, constant buffers 23%.
 const bool g_gx_repeats = [] {
-    const char* e = std::getenv("BBHOST_GX_REPEATS");
+    const char* e = std::getenv("HELIAS_GX_REPEATS");
     return e && e[0] == '1';
 }();
 std::atomic<std::uint64_t> g_memo_draws{0}, g_memo_same_records{0}, g_memo_same_inputs{0}, g_memo_same_both{0};
@@ -806,10 +806,10 @@ struct alignas(16) GxRec {
     };
     Slot srv[8], smp[4], cb[4], vcb[4];
     std::uint8_t nsrv = 0, nsmp = 0, ncb = 0, nvcb = 0;
-    // BBHOST_GX_BACKEND: the draw's inputs as the GX objects give them.
+    // HELIAS_GX_BACKEND: the draw's inputs as the GX objects give them.
     GpuDrawInputs in;
     bool in_ok = false;
-    std::uint64_t native_id = 0;  // BBHOST_GX_NATIVE: this call's host-draw token (0: none)
+    std::uint64_t native_id = 0;  // HELIAS_GX_NATIVE: this call's host-draw token (0: none)
     bool tess = false;            // shadowed as a tessellated draw (mode 1)
 };
 // Records sets (about 13 KB each) are made on the recording threads and freed
@@ -969,11 +969,11 @@ void build_vertex_table(GxRec& r, std::uint64_t s) {
     }
 }
 
-// BBHOST_GX_VIEW_CHECK=1: whether a shader-resource view's T#
+// HELIAS_GX_VIEW_CHECK=1: whether a shader-resource view's T#
 // and a sampler's S# are still what they were made with when a draw binds
 // them - which decides whether the host can know a view by its id alone.
 const bool g_view_check = [] {
-    const char* e = std::getenv("BBHOST_GX_VIEW_CHECK");
+    const char* e = std::getenv("HELIAS_GX_VIEW_CHECK");
     return e && e[0] == '1';
 }();
 std::atomic<std::uint64_t> g_view_words[2][3] = {};  // [view, sampler][same, changed, not registered]
@@ -1144,10 +1144,10 @@ struct LinkInfo {
 constexpr std::size_t kLinkInfos = 256;
 thread_local LinkInfo* t_link_infos = nullptr;
 Tally<2> g_link_info;  // [0] from the cache, [1] worked out
-// BBHOST_GX_LINK_CHECK=1: every draw the cache serves is worked out as well
+// HELIAS_GX_LINK_CHECK=1: every draw the cache serves is worked out as well
 // and the two compared.
 const bool g_link_check = [] {
-    const char* e = std::getenv("BBHOST_GX_LINK_CHECK");
+    const char* e = std::getenv("HELIAS_GX_LINK_CHECK");
     return e && e[0] == '1';
 }();
 std::atomic<std::uint64_t> g_link_checked{0}, g_link_differ{0};
@@ -1398,13 +1398,13 @@ struct Stats {
     std::map<std::tuple<int, int, char>, std::uint64_t> stage_hits;
     std::vector<std::string> bad_samples;
 };
-// One GX draw in BBHOST_GX_BIND_EVERY (default 16, 0 = none)
+// One GX draw in HELIAS_GX_BIND_EVERY (default 16, 0 = none)
 // on each thread has its resource records copied at the emitter.
-// Rendering from GX (BBHOST_GX_BACKEND=1) resolves every draw's resources from
+// Rendering from GX (HELIAS_GX_BACKEND=1) resolves every draw's resources from
 // its records, so it takes them on every draw; comparing samples 1 in 16.
 bool sample_bindings() {
     static const int every = [] {
-        const char* e = std::getenv("BBHOST_GX_BIND_EVERY");
+        const char* e = std::getenv("HELIAS_GX_BIND_EVERY");
         return e ? std::atoi(e) : g_backend == 1 ? 1 : 16;
     }();
     thread_local unsigned n = 0;
@@ -1743,7 +1743,7 @@ GxRecordsPtr snapshot_records(const GxRec& r) {
             s.obj_cb_set |= 1u << cbs[i].j;
         }
         stamp.to(kCostRecCb);
-        // BBHOST_GX_COST: the constant buffers' contents at the call.
+        // HELIAS_GX_COST: the constant buffers' contents at the call.
         if (hash_cbs) {
             for (int j = 0; j < 14; ++j) {
                 if (!((s.obj_cb_set >> j) & 1)) continue;
@@ -1795,7 +1795,7 @@ thread_local GxRec t_last;
 // value 4 clear) is written by a compute copy in command order (0x2ab3560 ->
 // 0x2ab1c40); a dynamic one (value 4 set) gets a fresh copy renamed in the
 // calling context (0x2aadb90), written back when its map resolves (0x2aadf50).
-// Counted, and BBHOST_WATCH_UPDATE=<address> logs updates
+// Counted, and HELIAS_WATCH_UPDATE=<address> logs updates
 // covering that address. The frame is f[0] r9, f[1] r8, f[2] rcx, f[3] rdx,
 // f[4] rsi, f[5] rdi.
 void note_update(const std::uint64_t* f) {
@@ -1809,12 +1809,12 @@ void note_update(const std::uint64_t* f) {
         lo = b[0];
         hi = b[3];
     }
-    // BBHOST_GX_UPLOAD=2: who updates which buffer, from flip 3000 on (past
+    // HELIAS_GX_UPLOAD=2: who updates which buffer, from flip 3000 on (past
     // the menus), the first six calls of each caller with the first floats
     // of the data - the way to find the code that builds a vertex buffer the
     // GPU then reads. Texture updates are left out.
     static const bool census2 = [] {
-        const char* e = std::getenv("BBHOST_GX_UPLOAD");
+        const char* e = std::getenv("HELIAS_GX_UPLOAD");
         return e && e[0] == '2';
     }();
     if (census2 && ((flags & 4) || type == 1) && hle_video_flip_count() >= 3000) {
@@ -1864,7 +1864,7 @@ void note_update(const std::uint64_t* f) {
              static_cast<ull>(hle_video_flip_count()), tid(), v[0], v[1], v[2], v[3], v[4], v[5], v[6], v[7]);
 }
 
-// BBHOST_GX_NATIVE: writes a host-draw token (or, with kGxCopyMagic, a copy
+// HELIAS_GX_NATIVE: writes a host-draw token (or, with kGxCopyMagic, a copy
 // token) into the context's Gnm command buffer (ctx + 0x10: +0x8 end, +0x10 write pointer, +0x18 the refill
 // callback the emitters call as (buffer, dwords, +0x20, dwords left)).
 // Returns its id, 0 when it could not be written.
@@ -1915,7 +1915,7 @@ std::uint64_t write_native_token(std::uint64_t ctx, std::uint32_t magic = kGxNat
     return id;
 }
 
-// BBHOST_GX_NATIVE=2: the calls whose methods the host ran, by token id,
+// HELIAS_GX_NATIVE=2: the calls whose methods the host ran, by token id,
 // until the CP walks the token.
 struct NativeDraw {
     // What the command processor draws from, read in place: the inputs
@@ -2096,7 +2096,7 @@ bool om_flush_may_clear(std::uint64_t om, std::uint64_t state) {
     return false;
 }
 
-// BBHOST_GX_NATIVE_REGS=1: count the packets a guest call wrote between two
+// HELIAS_GX_NATIVE_REGS=1: count the packets a guest call wrote between two
 // write pointers in one chunk.
 void count_native_packets(NativeCall call, std::uint64_t from, std::uint64_t to) {
     for (std::uint64_t p = from; p + 4 <= to;) {
@@ -2119,7 +2119,7 @@ void count_native_packets(NativeCall call, std::uint64_t from, std::uint64_t to)
     }
 }
 
-// BBHOST_GX_NATIVE=2: a draw method's work without its commit and draw
+// HELIAS_GX_NATIVE=2: a draw method's work without its commit and draw
 // packets. The three flushes are skipped (g_native_all_flushes runs them as
 // the method does) and so are the output-merger commit and flush
 // (g_native_om); the post-draw (0x2acbd50, which folds the flushes' dirty
@@ -2129,7 +2129,7 @@ void count_native_packets(NativeCall call, std::uint64_t from, std::uint64_t to)
 // commit's caches then still describe what the register file holds, so the
 // next PM4-path draw emits what differs. False when the draw does not qualify
 // or no token could be written; the method then runs.
-// BBHOST_GX_COST: how often a draw's records and inputs are what the previous
+// HELIAS_GX_COST: how often a draw's records and inputs are what the previous
 // draw on its context built - what a per-context memo of them would save the
 // GX threads, which the game's job barrier waits for.
 std::uint64_t records_signature(const GxDrawRecords& rec) {
@@ -2277,7 +2277,7 @@ std::uint32_t named_user_dwords(const GxStageRecords& st) {
     return mask & 0xffff;
 }
 
-// BBHOST_GX_NATIVE=1: a draw's records taken with its token, at the call,
+// HELIAS_GX_NATIVE=1: a draw's records taken with its token, at the call,
 // for its draw packet's emitter (same thread) to compare with the records
 // after the commit: whether a native draw, which never runs the commit, can
 // take them at the call.
@@ -2372,7 +2372,7 @@ void report_native() {
     host_log("gx-native: unnamed user data changed by slot, VS:%s; PS:%s", slots[0].c_str(), slots[1].c_str());
 }
 
-// BBHOST_GX_NATIVE_COPIES=0 (checks): the GX buffer-copy passes dispatch their
+// HELIAS_GX_NATIVE_COPIES=0 (checks): the GX buffer-copy passes dispatch their
 // compute copies as before. =2 (checks) writes the copy token and still runs
 // the pass, so the host copy lands just before the compute one. By default, with native draws on, a call of either
 // pass writes a copy token where its compute packets would go and records its
@@ -2382,12 +2382,12 @@ void report_native() {
 // does not run: the compute stage's bindings, their caches and the register
 // file keep what they had, and no range table is allocated.
 const int g_native_copies = [] {
-    const char* e = std::getenv("BBHOST_GX_NATIVE_COPIES");
+    const char* e = std::getenv("HELIAS_GX_NATIVE_COPIES");
     return e ? std::atoi(e) : 1;
 }();
-// BBHOST_GX_COPY_KINDS=batch or single (checks): replace only that pass.
+// HELIAS_GX_COPY_KINDS=batch or single (checks): replace only that pass.
 const int g_copy_kinds = [] {
-    const char* e = std::getenv("BBHOST_GX_COPY_KINDS");
+    const char* e = std::getenv("HELIAS_GX_COPY_KINDS");
     if (e && std::strcmp(e, "batch") == 0) return 1;
     if (e && std::strcmp(e, "single") == 0) return 2;
     return 3;
@@ -2456,7 +2456,7 @@ std::uint64_t native_copy(Kind kind, const std::uint64_t* f) {
 // its fills; the command processor runs host_gpu_fill at the token - the
 // same work the fill recogniser did after walking the dispatch, without the
 // dispatch, its scratch memcpy, the shader bind or the compute pipeline.
-// BBHOST_GX_NATIVE_FILLS=0 runs the methods as before.
+// HELIAS_GX_NATIVE_FILLS=0 runs the methods as before.
 struct GuestFill {
     std::uint64_t va;
     std::uint64_t bytes;
@@ -2470,7 +2470,7 @@ struct GuestFill {
     bool depth_target = false;
 };
 const bool g_native_fills = [] {
-    const char* e = std::getenv("BBHOST_GX_NATIVE_FILLS");
+    const char* e = std::getenv("HELIAS_GX_NATIVE_FILLS");
     return !e || e[0] != '0';
 }();
 std::mutex g_fills_mu;
@@ -2555,7 +2555,7 @@ std::uint64_t native_clear_rtv(const std::uint64_t* f) {
 // is the caller's, gone after the call) and the command processor copies
 // them into the image at the token (host_gpu_upload_region). 2D textures the
 // registry has a T# for (engine/gx_resources.h) only, so the surface can be
-// made at the token when the cache has none. BBHOST_GX_NATIVE_UPLOADS=0 runs
+// made at the token when the cache has none. HELIAS_GX_NATIVE_UPLOADS=0 runs
 // the method.
 struct GuestUpload {
     std::uint64_t base;
@@ -2564,7 +2564,7 @@ struct GuestUpload {
     std::vector<std::uint8_t> data;
 };
 const bool g_native_uploads = [] {
-    const char* e = std::getenv("BBHOST_GX_NATIVE_UPLOADS");
+    const char* e = std::getenv("HELIAS_GX_NATIVE_UPLOADS");
     return !e || e[0] != '0';
 }();
 std::mutex g_uploads_mu;
@@ -2675,10 +2675,10 @@ std::uint64_t native_upload(const std::uint64_t* f) {
 // destination's type (8x8 groups for 2D); the box is clamped to the source
 // mip and the destination's room as the method clamps it. Taken for 1D and
 // 2D textures the registry has T#s for, with the same format (T# dfmt and
-// nfmt); anything else runs the method. BBHOST_GX_NATIVE_IMAGE_COPIES=0 runs
+// nfmt); anything else runs the method. HELIAS_GX_NATIVE_IMAGE_COPIES=0 runs
 // it always.
 const bool g_native_image_copies = [] {
-    const char* e = std::getenv("BBHOST_GX_NATIVE_IMAGE_COPIES");
+    const char* e = std::getenv("HELIAS_GX_NATIVE_IMAGE_COPIES");
     return !e || e[0] != '0';
 }();
 std::mutex g_image_copies_mu;
@@ -2762,14 +2762,14 @@ std::uint64_t native_copy_texture(const std::uint64_t* f) {
     return 1;
 }
 
-// BBHOST_GX_NATIVE_YEBIS: YEBIS draws, by token id, until the CP walks the
+// HELIAS_GX_NATIVE_YEBIS: YEBIS draws, by token id, until the CP walks the
 // token. Shadow only for now - the method still runs - so this says whether the
 // token lands where the draw's packets begin and names the draw the call asked
 // for. 0x15fbc40(ctx, index count, index VA, ...) runs a prep, the commit
 // 0x15f9720, the DRAW_INDEX_2 emitter 0x1474360 and a post-draw; its Gnm
 // command buffer is *(ctx + 8), the same struct GX contexts hold at +0x10.
 // Set with the other modes once the backend is known: 5 (draws from their
-// tokens) by default when the GX backend is on, as BBHOST_GX_NATIVE is.
+// tokens) by default when the GX backend is on, as HELIAS_GX_NATIVE is.
 int g_native_yebis = 0;
 std::mutex g_yebis_mu;
 std::unordered_map<std::uint64_t, GxYebisDraw> g_yebis_draws;             // under g_yebis_mu
@@ -2843,14 +2843,14 @@ void yebis_dump_resources(std::uint64_t state, int stage, std::uint64_t obj, std
     }
 }
 
-// BBHOST_GX_YEBIS_INVENTORY=1: count what kind of descriptor each YEBIS stage
+// HELIAS_GX_YEBIS_INVENTORY=1: count what kind of descriptor each YEBIS stage
 // binds and in which user-data slot. It is reconnaissance, printed at exit and
 // read by nobody in a normal run, and it was costing every YEBIS draw a walk
 // of every stage's descriptor table: 4.6 million of the 8.6 million reads that
 // needed process_vm_readv in a three-minute soak, and about 14 seconds of
 // system call in them. Off by default; the draw does not use any of it.
 const bool g_yebis_inventory = [] {
-    const char* e = std::getenv("BBHOST_GX_YEBIS_INVENTORY");
+    const char* e = std::getenv("HELIAS_GX_YEBIS_INVENTORY");
     return e && e[0] == '1';
 }();
 
@@ -3029,7 +3029,7 @@ bool build_yebis_inputs(std::uint64_t state, GpuDrawInputs& in, std::uint32_t pr
 std::atomic<std::uint64_t> g_yebis_checked{0}, g_yebis_field_bad[6] = {}, g_yebis_slot_bad[2][16] = {};
 const char* const kYebisField[6] = {"vs_pgm", "ps_pgm", "vs_user", "ps_user", "ps_input_ena", "cb_shader_mask"};
 
-// The flip (BBHOST_GX_NATIVE_YEBIS=5): the parts of the commit that are not
+// The flip (HELIAS_GX_NATIVE_YEBIS=5): the parts of the commit that are not
 // packets, run as guest calls, and nothing else. 0x15f9720 opens the ring it
 // builds into (0x15fd230), builds each stage's resources (0x15f7840), writes
 // them and the shaders as packets - which is what this drops - uploads the
@@ -3061,7 +3061,7 @@ std::uint64_t ns_now() {
 // extended descriptor resolved to. Returns false if a stage could not be built.
 bool yebis_run_builders(std::uint64_t state, std::uint64_t cb, std::uint64_t arg3, GpuDrawInputs& in, bool* built_here,
                         yebis_bind::Work& work) {
-    // BBHOST_YEBIS_BIND: whether the builder is ours. It has to be all of the
+    // HELIAS_YEBIS_BIND: whether the builder is ours. It has to be all of the
     // draw's stages or none of them - a stage that gives up half way has
     // already moved its rings - so the tables are checked before any is built.
     const int bind = yebis_bind::mode();
@@ -3155,14 +3155,14 @@ bool yebis_run_builders(std::uint64_t state, std::uint64_t cb, std::uint64_t arg
 // full-screen triangle each. f: rdi ctx, rsi target, rdx resource, ecx first
 // slice, r8d slices.
 std::atomic<std::uint64_t> g_clear_calls{0}, g_clear_slices{0};
-// BBHOST_GX_SKIP_CLEARS=1: do not run the pass at all. The flush runs it to
+// HELIAS_GX_SKIP_CLEARS=1: do not run the pass at all. The flush runs it to
 // prepare a colour target, which on the hardware is partly CMASK/FMASK
-// housekeeping that bbhost has no equivalent for - so the first question is
+// housekeeping that heliasdream has no equivalent for - so the first question is
 // whether anything it writes is visible here. If frames are unchanged the pass
 // is simply not needed; if they break it does real work and has to be migrated
 // rather than dropped.
 const bool g_skip_clears = [] {
-    const char* e = std::getenv("BBHOST_GX_SKIP_CLEARS");
+    const char* e = std::getenv("HELIAS_GX_SKIP_CLEARS");
     return e && e[0] == '1';
 }();
 std::uint64_t clear_colour_cost(const std::uint64_t* f) {
@@ -3312,22 +3312,22 @@ std::uint64_t native_yebis(const std::uint64_t* f) {
 //     here for the buffer the HAL bound) and the draw gives the index offset
 //     and count; an instanced draw gives its instance count (0x73e610 wrote it
 //     as NUM_INSTANCES).
-// BBHOST_GX_NATIVE_SCALEFORM=1 (shadow) writes the token and lets the method
+// HELIAS_GX_NATIVE_SCALEFORM=1 (shadow) writes the token and lets the method
 // run; the command processor compares the token's inputs with the register
 // file at the draw packet that follows, by field. =2 (native, the default with
 // native GX draws) writes the token and returns: no flush, no draw packet, the
 // CP draws from the token. =0 leaves the HAL on the packet path.
 const int g_native_scaleform = [] {
-    const char* e = std::getenv("BBHOST_GX_NATIVE_SCALEFORM");
+    const char* e = std::getenv("HELIAS_GX_NATIVE_SCALEFORM");
     return e && e[0] ? std::atoi(e) : 2;
 }();
-// BBHOST_SF_UNIFORMS=0: a Scaleform draw's uniform block is read where the
+// HELIAS_SF_UNIFORMS=0: a Scaleform draw's uniform block is read where the
 // game left it, when the command processor and the GPU get to the draw. By
 // default the token takes it at the call - the game writes the next frame's
 // uniforms at the same addresses, and a draw recorded a frame late read them
 // (the inventory menu collapsing for a frame).
 const bool g_sf_uniforms = [] {
-    const char* e = std::getenv("BBHOST_SF_UNIFORMS");
+    const char* e = std::getenv("HELIAS_SF_UNIFORMS");
     return !(e && e[0] == '0');
 }();
 std::atomic<std::uint64_t> g_sf_uniforms_placed{0};
@@ -3349,7 +3349,7 @@ struct SfStage {
     // The shader's own data (the uniform block: per-quad transforms, colours)
     // as it was at the call, and where its V# went: user-data slot `ud` when
     // direct, else table dword `ud`. Placed beside the tables when the CP
-    // walks the token, and the V# pointed at it (BBHOST_SF_UNIFORMS).
+    // walks the token, and the V# pointed at it (HELIAS_SF_UNIFORMS).
     std::vector<std::uint32_t> uniforms;
     int uniform_ud = -1;
     bool uniform_direct = false;
@@ -3417,9 +3417,9 @@ std::uint64_t sf_index_base(std::uint64_t cb) {
     WrapperState w;
     return wrapper_state_copy(cb, w) ? w.index_base : 0;
 }
-// BBHOST_GX_UD_TRACE=1 (checks): where each compute user-data write lands.
+// HELIAS_GX_UD_TRACE=1 (checks): where each compute user-data write lands.
 const bool g_ud_trace = [] {
-    const char* e = std::getenv("BBHOST_GX_UD_TRACE");
+    const char* e = std::getenv("HELIAS_GX_UD_TRACE");
     return e && e[0] == '1';
 }();
 void ud_trace(const char* what, std::uint64_t cb, std::uint32_t stage, std::uint32_t sgpr, std::uint32_t count) {
@@ -3479,10 +3479,10 @@ void note_user_value(std::uint64_t cb, std::uint32_t stage, std::uint32_t sgpr, 
 // packet. What is *not* suppressed: the compute stage's user data (stage 0,
 // whichever writer sets it), the compute program and SET_BASE, which the
 // dispatches still take from the register file.
-// BBHOST_GX_SKIP_STATE_PACKETS=0 keeps them; 1 forces them off even when the
+// HELIAS_GX_SKIP_STATE_PACKETS=0 keeps them; 1 forces them off even when the
 // register file is kept (which would then be stale - checks only).
 const int g_skip_state_packets = [] {
-    const char* e = std::getenv("BBHOST_GX_SKIP_STATE_PACKETS");
+    const char* e = std::getenv("HELIAS_GX_SKIP_STATE_PACKETS");
     return e && e[0] ? std::atoi(e) : -1;  // -1: whenever the register file is not kept
 }();
 std::atomic<std::uint64_t> g_state_packets_skipped[kKinds] = {};
@@ -3497,9 +3497,9 @@ std::atomic<std::uint64_t> g_state_packets_skipped[kKinds] = {};
 // soaks with them on were no better than two without, and their p95 was worse:
 // 16.4 and 16.7 ms against 14.0 and 15.8). The table stays as the record of
 // which writers are dead, for whoever wants to patch them out instead.
-// BBHOST_GX_DEAD_WRITERS=1 installs them.
+// HELIAS_GX_DEAD_WRITERS=1 installs them.
 const bool g_dead_writers = [] {
-    const char* e = std::getenv("BBHOST_GX_DEAD_WRITERS");
+    const char* e = std::getenv("HELIAS_GX_DEAD_WRITERS");
     return e && e[0] == '1';
 }();
 struct DeadWriter {
@@ -3553,7 +3553,7 @@ std::uint8_t state_packet_dwords(Kind id) {
 bool skip_state_packets() {
     static const bool v = [] {
         if (g_skip_state_packets >= 0) return g_skip_state_packets == 1;
-        const char* keep = std::getenv("BBHOST_CP_REGISTER_FILE");
+        const char* keep = std::getenv("HELIAS_CP_REGISTER_FILE");
         if (keep && keep[0] == '1') return false;
         return !hle_gx_shadow_wanted();
     }();
@@ -4183,10 +4183,10 @@ int wrapper_draw(Kind kind, const std::uint64_t* f, std::uint64_t caller) {
     std::memcpy(in.vs_user, w->user[2], sizeof(in.vs_user));
     std::memcpy(in.ps_user, w->user[1], sizeof(in.ps_user));
     {
-        // BBHOST_GLITCH=1: the gamma pass with nothing in the pixel stage's
+        // HELIAS_GLITCH=1: the gamma pass with nothing in the pixel stage's
         // s[2:3] (its lookup table's T# is read through it: a black frame).
         static const bool watch = [] {
-            const char* e = std::getenv("BBHOST_GLITCH");
+            const char* e = std::getenv("HELIAS_GLITCH");
             return e && e[0] == '1';
         }();
         static std::atomic<int> logs{0};
@@ -4591,9 +4591,9 @@ GUEST_ABI std::uint64_t gx_hook(std::uint64_t id, const std::uint64_t* f) {
             // including the patch count), three soaks each way put main-loop
             // work inside the run-to-run spread with fewer stalls and hitches,
             // and no frame goes over the brightness mark.
-            // BBHOST_GX_TESS_NATIVE=0 puts them back on the packet path.
+            // HELIAS_GX_TESS_NATIVE=0 puts them back on the packet path.
             static const bool tess_native = [] {
-                const char* e = std::getenv("BBHOST_GX_TESS_NATIVE");
+                const char* e = std::getenv("HELIAS_GX_TESS_NATIVE");
                 return !(e && e[0] == '0');
             }();
             r.in_ok = g_backend && build_inputs(r, r.in, tess_native);
@@ -4609,7 +4609,7 @@ GUEST_ABI std::uint64_t gx_hook(std::uint64_t id, const std::uint64_t* f) {
                 }
             }
             // The tessellated draws are the packet path. With
-            // BBHOST_GX_NATIVE=1 they get a token too - nothing is suppressed,
+            // HELIAS_GX_NATIVE=1 they get a token too - nothing is suppressed,
             // it only records what the draw's own packets then set.
             if (g_native == 1 && g_backend == 1 && !tess_native && r.kind <= kDrawIndexedInstanced && !r.st[3].shader &&
                 (r.st[1].shader || r.st[2].shader)) {
@@ -5172,17 +5172,17 @@ std::uint8_t* emit_stub(std::uint8_t* c, std::uint64_t id, void* host, std::uint
 }  // namespace
 
 void hle_gx_trace_arm(GuestMemory* mem) {
-    const char* e = std::getenv("BBHOST_GX_TRACE");
-    const char* b = std::getenv("BBHOST_GX_BACKEND");
+    const char* e = std::getenv("HELIAS_GX_TRACE");
+    const char* b = std::getenv("HELIAS_GX_BACKEND");
     g_trace = e && *e && !(e[0] == '0' && !e[1]);
     // GX-native draws are the default: the backend renders from the GX
     // objects, and immediate draws in its subset run from host-draw tokens
-    // without their Gnm packets. BBHOST_GX_BACKEND=0 or BBHOST_GX_NATIVE=0 goes
+    // without their Gnm packets. HELIAS_GX_BACKEND=0 or HELIAS_GX_NATIVE=0 goes
     // back to the packet path.
     g_backend = b ? std::atoi(b) : 1;
-    const char* n = std::getenv("BBHOST_GX_NATIVE");
+    const char* n = std::getenv("HELIAS_GX_NATIVE");
     g_native = n ? std::atoi(n) : g_backend == 1 ? 2 : 0;
-    const char* y = std::getenv("BBHOST_GX_NATIVE_YEBIS");
+    const char* y = std::getenv("HELIAS_GX_NATIVE_YEBIS");
     g_native_yebis = y ? std::atoi(y) : g_backend == 1 ? 5 : 0;
     if (!g_trace && !g_backend) return;
     if (const char* comma = g_trace ? std::strchr(e, ',') : nullptr) {
@@ -5190,8 +5190,8 @@ void hle_gx_trace_arm(GuestMemory* mem) {
         g_last = std::strtoull(comma + 1, nullptr, 10);
     }
     if (g_last <= g_first) g_last = g_first + 300;
-    if (const char* c = std::getenv("BBHOST_CP_COPY"); c && c[0] == '1') {
-        host_log("gx: BBHOST_CP_COPY=1 walks snapshots, so executed packets will not match their emitters");
+    if (const char* c = std::getenv("HELIAS_CP_COPY"); c && c[0] == '1') {
+        host_log("gx: HELIAS_CP_COPY=1 walks snapshots, so executed packets will not match their emitters");
     }
     g_slide = mem->slide;
     g_image_size = mem->size;
@@ -5264,7 +5264,7 @@ void hle_gx_trace_arm(GuestMemory* mem) {
              g_trace ? "on" : "off", static_cast<ull>(g_first), static_cast<ull>(g_last), g_backend);
 }
 
-// BBHOST_GX_NATIVE=1: the register fields render mode takes from the register
+// HELIAS_GX_NATIVE=1: the register fields render mode takes from the register
 // file, as the CP had them at each token (CP thread).
 struct NativeShadow {
     std::uint32_t user[2][16];
@@ -5280,16 +5280,16 @@ thread_local std::unordered_map<std::uint64_t, NativeShadow> t_native_shadow;
 // clear bits, and a generic scissor narrower than the screen scissor GX builds.
 std::atomic<std::uint64_t> g_token_rc_set{0}, g_token_rc_clear{0}, g_token_generic_narrows{0};
 std::atomic<std::uint64_t> g_token_depth_clear_set{0}, g_token_stencil_clear_set{0};  // clear values not 0
-// BBHOST_GX_TOKEN_USER_DATA=register (checks): token draws take the register
+// HELIAS_GX_TOKEN_USER_DATA=register (checks): token draws take the register
 // file's user data in slots no descriptor names, as they did before, and the
 // renderer checks whether any shader variant reads it. By default those slots
 // are 0: no variant read a nonzero one over 2.74M token stages (native-regs-05).
 const bool g_token_user_data_register = [] {
-    const char* e = std::getenv("BBHOST_GX_TOKEN_USER_DATA");
+    const char* e = std::getenv("HELIAS_GX_TOKEN_USER_DATA");
     return e && std::strcmp(e, "register") == 0;
 }();
 
-// BBHOST_GNM_SOURCES=1: the command-buffer pieces since the last call by
+// HELIAS_GNM_SOURCES=1: the command-buffer pieces since the last call by
 // source, largest first; empty when the switch is off.
 std::string hle_gx_source_window() {
     if (!g_gnm_sources) return {};
@@ -5331,7 +5331,7 @@ std::string hle_gx_source_window() {
     return out;
 }
 
-// A copy token (BBHOST_GX_NATIVE_COPIES): the call's copies, as buffer copies
+// A copy token (HELIAS_GX_NATIVE_COPIES): the call's copies, as buffer copies
 // at the token's place in the command stream.
 thread_local GpuDrawInputs t_yebis_built{};
 thread_local bool t_yebis_have = false;
@@ -5500,10 +5500,10 @@ void hle_gx_copy_token(std::uint64_t id) {
         copies = std::move(it->second);
         g_copies.erase(it);
     }
-    // BBHOST_COPY_TRACE=<flip>: each token of that flip and the next, with the
-    // draw it falls before (BBHOST_DUMP_DRAWS lists the draws), for G9.
+    // HELIAS_COPY_TRACE=<flip>: each token of that flip and the next, with the
+    // draw it falls before (HELIAS_DUMP_DRAWS lists the draws), for G9.
     static const long trace_flip = [] {
-        const char* e = std::getenv("BBHOST_COPY_TRACE");
+        const char* e = std::getenv("HELIAS_COPY_TRACE");
         return e ? std::strtol(e, nullptr, 10) : -1L;
     }();
     if (trace_flip >= 0) {
@@ -5623,7 +5623,7 @@ const GpuDrawInputs* hle_gx_scaleform_token(std::uint64_t id) {
     static thread_local GpuDrawInputs t_sf_in;
     t_sf_in = d.in;
     static const bool glitch = [] {
-        const char* e = std::getenv("BBHOST_GLITCH");
+        const char* e = std::getenv("HELIAS_GLITCH");
         return e && e[0] == '1';
     }();
     for (int k = 0; glitch && k < 2; ++k) {
@@ -5889,7 +5889,7 @@ void hle_gx_scaleform_report() {
     // reads' regions named from the process's map (no longer read in play).
     if (const std::uint64_t last = native_report_last_id()) native_periodic_report(last - 1, true, true);
     if (g_sf_uniforms_placed.load()) {
-        host_log("gx-scaleform: %llu uniform blocks taken at the call and read from there (BBHOST_SF_UNIFORMS)",
+        host_log("gx-scaleform: %llu uniform blocks taken at the call and read from there (HELIAS_SF_UNIFORMS)",
                  static_cast<unsigned long long>(g_sf_uniforms_placed.load()));
     }
     if (g_view_check) {
@@ -5916,7 +5916,7 @@ void hle_gx_dispatch_check(const GpuDispatch& regs, const std::uint32_t* writers
 // /proc/self/maps: the periodic ~12 ms hitch of the rc5 profile. Now the
 // command processor only marks it due and the reporter thread (bb-gx-report)
 // writes it; `name_regions`: also name the slow reads' regions from the
-// process's map (at exit, or BBHOST_GX_REPORT_MAPS=1). `id`: the token that made
+// process's map (at exit, or HELIAS_GX_REPORT_MAPS=1). `id`: the token that made
 // it due.
 void native_periodic_report(std::uint64_t id, bool name_regions, bool at_exit) {
     {
@@ -6054,7 +6054,7 @@ void native_periodic_report(std::uint64_t id, bool name_regions, bool at_exit) {
             // What those megabytes are, from the process's own map: the
             // point is to name the region so the read can stop being a
             // system call, not to guess from the address.
-            // rc6: only at exit or with BBHOST_GX_REPORT_MAPS=1 - the read of
+            // rc6: only at exit or with HELIAS_GX_REPORT_MAPS=1 - the read of
             // /proc/self/maps (3,000+ mappings) was most of the periodic
             // report's ~12 ms stall in the rc5 profile.
 #if !defined(_WIN32)
@@ -6112,18 +6112,18 @@ void native_periodic_report(std::uint64_t id, bool name_regions, bool at_exit) {
                  static_cast<ull>(g_fill_calls.load()), static_cast<ull>(g_fill_rtv_calls.load()), static_cast<ull>(g_fill_rtv_whole.load()),
                  static_cast<ull>(g_fill_rtv_layout_failed.load()), static_cast<ull>(g_fill_tokens.load()), static_cast<ull>(g_fill_ranges.load()),
                  static_cast<double>(g_fill_bytes.load()) / (1 << 20), static_cast<ull>(g_fill_unmatched.load()),
-                 static_cast<ull>(g_fill_unwritten.load()), g_native_fills ? "" : " (BBHOST_GX_NATIVE_FILLS=0)");
+                 static_cast<ull>(g_fill_unwritten.load()), g_native_fills ? "" : " (HELIAS_GX_NATIVE_FILLS=0)");
         host_log("gx-upload: texture upload calls %llu, tokens %llu (%.1f MiB of rows), not 2D %llu, no T# in the registry %llu, refused %llu, "
                  "unmatched %llu, not written %llu%s",
                  static_cast<ull>(g_upload_calls.load()), static_cast<ull>(g_upload_tokens.load()), static_cast<double>(g_upload_bytes.load()) / (1 << 20),
                  static_cast<ull>(g_upload_not_2d.load()), static_cast<ull>(g_upload_no_tsharp.load()), static_cast<ull>(g_upload_bad_args.load()),
-                 static_cast<ull>(g_upload_unmatched.load()), static_cast<ull>(g_upload_unwritten.load()), g_native_uploads ? "" : " (BBHOST_GX_NATIVE_UPLOADS=0)");
+                 static_cast<ull>(g_upload_unmatched.load()), static_cast<ull>(g_upload_unwritten.load()), g_native_uploads ? "" : " (HELIAS_GX_NATIVE_UPLOADS=0)");
         host_log("gx-copy-image: texture copy calls %llu, tokens %llu, not 1D/2D %llu, no T# %llu, formats differ %llu, refused %llu, "
                  "unmatched %llu, not written %llu%s",
                  static_cast<ull>(g_icopy_calls.load()), static_cast<ull>(g_icopy_tokens.load()), static_cast<ull>(g_icopy_not_2d.load()),
                  static_cast<ull>(g_icopy_no_tsharp.load()), static_cast<ull>(g_icopy_format.load()), static_cast<ull>(g_icopy_bad.load()),
                  static_cast<ull>(g_icopy_unmatched.load()), static_cast<ull>(g_icopy_unwritten.load()),
-                 g_native_image_copies ? "" : " (BBHOST_GX_NATIVE_IMAGE_COPIES=0)");
+                 g_native_image_copies ? "" : " (HELIAS_GX_NATIVE_IMAGE_COPIES=0)");
         host_log("gx-upload: calls not taken by resource type: 1D %llu, 3D %llu, buffers %llu, other %llu", static_cast<ull>(g_upload_by_type[2].load()),
                  static_cast<ull>(g_upload_by_type[4].load()), static_cast<ull>(g_upload_by_type[1].load()),
                  static_cast<ull>(g_upload_by_type[0].load() + g_upload_by_type[5].load() + g_upload_by_type[6].load() + g_upload_by_type[7].load()));
@@ -6163,17 +6163,17 @@ std::once_flag g_reporter_once;
 
 bool report_maps_env() {
     static const bool on = [] {
-        const char* e = std::getenv("BBHOST_GX_REPORT_MAPS");
+        const char* e = std::getenv("HELIAS_GX_REPORT_MAPS");
         return e && *e == '1';
     }();
     return on;
 }
 
-// BBHOST_GX_REPORT_INLINE=1: the reports on the command processor's thread,
-// as in rc5 (without the map read unless BBHOST_GX_REPORT_MAPS=1).
+// HELIAS_GX_REPORT_INLINE=1: the reports on the command processor's thread,
+// as in rc5 (without the map read unless HELIAS_GX_REPORT_MAPS=1).
 bool report_inline_env() {
     static const bool on = [] {
-        const char* e = std::getenv("BBHOST_GX_REPORT_INLINE");
+        const char* e = std::getenv("HELIAS_GX_REPORT_INLINE");
         return e && *e == '1';
     }();
     return on;

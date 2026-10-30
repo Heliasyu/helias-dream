@@ -5,25 +5,25 @@
 #
 # Output goes to build/menudrive/: run.log and every screenshot a step takes.
 # DISPLAY defaults to :77 (an Xvfb 1920x1080x24). The run is isolated from the
-# machine it is on: no controller (BBHOST_NO_GAMEPAD), no scripted presses
-# (BBHOST_AUTOPRESS unset - a flip-timed one fires wherever the mouse has got
+# machine it is on: no controller (HELIAS_NO_GAMEPAD), no scripted presses
+# (HELIAS_AUTOPRESS unset - a flip-timed one fires wherever the mouse has got
 # to by then). MENU_DRIVE_TIMEOUT caps the run (default 520 s).
 set -u
-export BBHOST_SETUP_WINDOW=0  # a harness run never stops at the setup window
+export HELIAS_SETUP_WINDOW=0  # a harness run never stops at the setup window
 cd "$(dirname "$0")/.."
 OUT=${MENU_DRIVE_OUT:-build/menudrive}; rm -rf "$OUT"; mkdir -p "$OUT"
-export DISPLAY=${DISPLAY_DRIVE:-:77} BBHOST_SKIP_INTRO=1
-export BBHOST_POINTER_LOG=1 BBHOST_PAD_LOG=1 BBHOST_NO_GAMEPAD=1
+export DISPLAY=${DISPLAY_DRIVE:-:77} HELIAS_SKIP_INTRO=1
+export HELIAS_POINTER_LOG=1 HELIAS_PAD_LOG=1 HELIAS_NO_GAMEPAD=1
 # Pad steps (padplug, pad:, padstick:) drive a virtual controller instead: the
-# game opens that one alone (BBHOST_GAMEPAD_MATCH), never the one on the desk.
-case " $* " in *" pad"*) unset BBHOST_NO_GAMEPAD; export BBHOST_GAMEPAD_MATCH=045e:02ea ;; esac
-unset BBHOST_AUTOPRESS
+# game opens that one alone (HELIAS_GAMEPAD_MATCH), never the one on the desk.
+case " $* " in *" pad"*) unset HELIAS_NO_GAMEPAD; export HELIAS_GAMEPAD_MATCH=045e:02ea ;; esac
+unset HELIAS_AUTOPRESS
 # The run's settings are a copy: a step that changes one (a key binding, a
-# toggle) must not write the player's bbhost-options.toml.
-[ -f bbhost-options.toml ] && cp bbhost-options.toml "$OUT/bbhost-options.toml"
-export BBHOST_OPTIONS_PATH=$OUT/bbhost-options.toml
+# toggle) must not write the player's heliasdream-options.toml.
+[ -f heliasdream-options.toml ] && cp heliasdream-options.toml "$OUT/heliasdream-options.toml"
+export HELIAS_OPTIONS_PATH=$OUT/heliasdream-options.toml
 # -k: a game that does not end on SIGTERM (seen online) is killed 20 s later.
-timeout -k 20 "${MENU_DRIVE_TIMEOUT:-520}" "${BBHOST_BIN:-./build/bbhost}" > "$OUT/run.log" 2>&1 &
+timeout -k 20 "${MENU_DRIVE_TIMEOUT:-520}" "${HELIAS_BIN:-./build/heliasdream}" > "$OUT/run.log" 2>&1 &
 PID=$!
 sleep 3
 WID=
@@ -32,7 +32,7 @@ for _ in $(seq 1 20); do
 done
 # Under a wrapper (a debugger) the window belongs to a child: find it by name.
 [ -z "$WID" ] && for _ in $(seq 1 60); do
-  WID=$(xdotool search --name "bbhost" 2>/dev/null | tail -1); [ -n "$WID" ] && break; sleep 1
+  WID=$(xdotool search --name "heliasdream" 2>/dev/null | tail -1); [ -n "$WID" ] && break; sleep 1
 done
 [ -n "$WID" ] && xdotool windowactivate --sync "$WID" 2>/dev/null
 export WID

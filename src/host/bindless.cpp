@@ -1,4 +1,4 @@
-// Bindless views and samplers (BBHOST_BINDLESS=1).
+// Bindless views and samplers (HELIAS_BINDLESS=1).
 //
 // A graphics stage used to take a descriptor set of its own for every draw
 // whose images or samplers differed from a set made before: a material list
@@ -93,7 +93,7 @@ void write_sampler(std::uint32_t slot, VkSampler sampler) {
 
 bool bindless_wanted() {
     static const bool on = [] {
-        const char* e = std::getenv("BBHOST_BINDLESS");
+        const char* e = std::getenv("HELIAS_BINDLESS");
         return e && e[0] == '1';
     }();
     return on;

@@ -1,4 +1,4 @@
-// BBHOST_CAPTURE_DRAW: see draw_capture.h.
+// HELIAS_CAPTURE_DRAW: see draw_capture.h.
 //
 // A capture is a directory holding manifest.json and blobs/*.bin. The manifest
 // names every blob with its size and SHA-256; tools/drawreplay refuses a
@@ -47,13 +47,13 @@ struct Config {
     int every = 1;  // capture one of every n matching draws (distinct light instances)
     bool each = false;  // '*': the first draw of each pipeline whose no-fallback variant is ready (tools/lift_verify.py)
     bool each_ps = false;  // '*ps': the same, one draw for each pixel shader
-    bool armed = false;    // BBHOST_CAPTURE_ARMED=1: only while armed (host_gpu_capture_arm)
+    bool armed = false;    // HELIAS_CAPTURE_ARMED=1: only while armed (host_gpu_capture_arm)
 };
 
 const Config& config() {
     static const Config c = [] {
         Config c;
-        const char* e = std::getenv("BBHOST_CAPTURE_DRAW");
+        const char* e = std::getenv("HELIAS_CAPTURE_DRAW");
         if (!e || !*e) return c;
         std::string s(e);
         if (const std::size_t pc = s.find('%'); pc != std::string::npos) {
@@ -64,23 +64,23 @@ const Config& config() {
         c.each_ps = s == "*ps";
         c.each = s == "*" || c.each_ps;
         c.enabled = !s.empty();
-        if (const char* a = std::getenv("BBHOST_CAPTURE_ARMED")) c.armed = a[0] == '1';
-        if (const char* f = std::getenv("BBHOST_CAPTURE_MIN_FLIP")) c.min_flip = std::strtoull(f, nullptr, 10);
-        if (const char* d = std::getenv("BBHOST_CAPTURE_DIR"); d && *d) c.dir = d;
-        if (const char* n = std::getenv("BBHOST_CAPTURE_COUNT")) c.count = std::max(1, std::atoi(n));
-        if (const char* n = std::getenv("BBHOST_CAPTURE_EVERY")) c.every = std::max(1, std::atoi(n));
+        if (const char* a = std::getenv("HELIAS_CAPTURE_ARMED")) c.armed = a[0] == '1';
+        if (const char* f = std::getenv("HELIAS_CAPTURE_MIN_FLIP")) c.min_flip = std::strtoull(f, nullptr, 10);
+        if (const char* d = std::getenv("HELIAS_CAPTURE_DIR"); d && *d) c.dir = d;
+        if (const char* n = std::getenv("HELIAS_CAPTURE_COUNT")) c.count = std::max(1, std::atoi(n));
+        if (const char* n = std::getenv("HELIAS_CAPTURE_EVERY")) c.every = std::max(1, std::atoi(n));
         return c;
     }();
     return c;
 }
 
 int g_captured = 0;  // under g.mu
-std::set<std::string> g_each_seen;  // BBHOST_CAPTURE_DRAW=*: pipelines (*ps: pixel shaders) already captured (under g.mu)
+std::set<std::string> g_each_seen;  // HELIAS_CAPTURE_DRAW=*: pipelines (*ps: pixel shaders) already captured (under g.mu)
 int g_rejected = 0;
-// BBHOST_CAPTURE_ARMED=1: the draws still to take, and where (under g.mu).
+// HELIAS_CAPTURE_ARMED=1: the draws still to take, and where (under g.mu).
 int g_armed = 0;
 std::string g_armed_dir;
-std::uint64_t g_matches = 0;  // matching draws seen, for BBHOST_CAPTURE_EVERY
+std::uint64_t g_matches = 0;  // matching draws seen, for HELIAS_CAPTURE_EVERY
 
 struct Readback {
     std::string blob;
@@ -637,7 +637,7 @@ CapturePtr capture_begin_locked(CaptureDraw&& in) {
         draw.set("index_va", json::hex(d.index_va));
     }
 
-    // BBHOST_VERTEX_INPUT: elements, attributes, and each binding's bytes up to
+    // HELIAS_VERTEX_INPUT: elements, attributes, and each binding's bytes up to
     // the last element the draw reads.
     json::Value vertex_input;  // null for a draw that runs its fetch shader
     if (d.vertex_input) {
@@ -748,7 +748,7 @@ CapturePtr capture_begin_locked(CaptureDraw&& in) {
     identity.set("rejected_candidates_before", g_rejected);
 
     json::Value& m = s.manifest;
-    m.set("schema", "bbhost-draw-capture");
+    m.set("schema", "heliasdream-draw-capture");
     m.set("version", 1);
     m.set("identity", identity);
     m.set("translate", d.translate);

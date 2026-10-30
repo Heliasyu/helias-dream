@@ -14,7 +14,7 @@
 # wait and the readiness check stay the game's. Measured: respawns 2.2-2.7 s,
 # a lamp's travel 2.6 s; the first frames after arrival hitch no more than
 # after a 12 s load. On unless `quick_reentry = false` under [loading] in
-# bbhost.toml (BBHOST_QUICK_REENTRY=0 or 1 overrides).
+# heliasdream.toml (HELIAS_QUICK_REENTRY=0 or 1 overrides).
 [patch]
 name = "quick-reentry"
 eboot = "941f887a562aae054fac35af8cc8f27cf075f3d4cc2e029fb5ae2a663aaa5ae7"

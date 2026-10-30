@@ -22,7 +22,7 @@
 // error is always towards keeping a table, never dropping a live one.
 #include "host/gpu_internal.h"
 
-#ifdef BBHOST_HAVE_SPIRV_OPT
+#ifdef HELIAS_HAVE_SPIRV_OPT
 #include <spirv-tools/optimizer.hpp>
 #endif
 
@@ -35,7 +35,7 @@ namespace gpu {
 bool table_slots_read(const gcn::TranslateResult& meta, std::uint32_t& mask, std::uint32_t* any) {
     mask = ~0u;
     if (any) *any = ~0u;
-#ifndef BBHOST_HAVE_SPIRV_OPT
+#ifndef HELIAS_HAVE_SPIRV_OPT
     (void)meta;
     return false;
 #else

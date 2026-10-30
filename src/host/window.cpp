@@ -63,12 +63,12 @@
 #include <unordered_map>
 #include <vector>
 
-#if defined(BBHOST_HAVE_SDL3)
+#if defined(HELIAS_HAVE_SDL3)
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_vulkan.h>
 #include <vulkan/vulkan.h>
 
-#include "host/frame_capture.h"  // bbhost-vk debug tooling
+#include "host/frame_capture.h"  // heliasdream-vk debug tooling
 #include "host/gpu_timer.h"
 #endif
 
@@ -107,7 +107,7 @@ unsigned g_display_w = 0, g_display_h = 0;
 std::atomic<bool> g_mouse_visible{true};
 std::atomic<bool> g_mouse_relative{false};
 std::atomic<bool> g_mouse_relative_applied{false};
-// BBHOST_IME_TEST: opens the text box once at startup and again on F11.
+// HELIAS_IME_TEST: opens the text box once at startup and again on F11.
 std::atomic<bool> g_ime_test_reopen{true};
 
 // The options screen's two display settings (host/options.h). Both can be set
@@ -115,7 +115,7 @@ std::atomic<bool> g_ime_test_reopen{true};
 // calls into it.
 std::atomic<bool> g_want_fullscreen{false};
 std::atomic<bool> g_want_vsync{true};
-std::atomic<bool> g_want_hdr{false};  // the HDR setting (host_window_set_hdr); BBHOST_HDR=0/1 wins
+std::atomic<bool> g_want_hdr{false};  // the HDR setting (host_window_set_hdr); HELIAS_HDR=0/1 wins
 // When the presenting thread last finished a present, and how many it has
 // finished: with V-Sync on that instant is a display vblank, which is the
 // phase the flip clock steers towards.
@@ -141,7 +141,7 @@ TextEntry g_entry;  // the text and what the box takes (host/text_entry.h)
 std::string g_text_label = "Enter name";  // what the box over the game asks for
 
 
-#if defined(BBHOST_HAVE_SDL3)
+#if defined(HELIAS_HAVE_SDL3)
 
 SDL_Window* g_window = nullptr;
 
@@ -201,21 +201,21 @@ std::vector<SDL_Gamepad*> g_pads;
 std::mutex g_pads_mu;
 bool pads_ignored() {
     static const bool no_pad = [] {
-        const char* e = std::getenv("BBHOST_NO_GAMEPAD");
+        const char* e = std::getenv("HELIAS_NO_GAMEPAD");
         return e && e[0] == '1';
     }();
     return no_pad;
 }
-// BBHOST_GAMEPAD_MATCH=vvvv:pppp (USB vendor:product, hex): only that pad is
+// HELIAS_GAMEPAD_MATCH=vvvv:pppp (USB vendor:product, hex): only that pad is
 // opened - a scripted run's virtual pad, not the controller on the desk.
 bool pad_matches(SDL_JoystickID id) {
-    static const char* want = std::getenv("BBHOST_GAMEPAD_MATCH");
+    static const char* want = std::getenv("HELIAS_GAMEPAD_MATCH");
     if (!want || !*want) return true;
     char have[16];
     std::snprintf(have, sizeof(have), "%04x:%04x", SDL_GetGamepadVendorForID(id), SDL_GetGamepadProductForID(id));
     return std::strcmp(have, want) == 0;
 }
-// The Deck's own controls, opened raw while bbhost was not started by Steam:
+// The Deck's own controls, opened raw while heliasdream was not started by Steam:
 // Steam's desktop layout is then live as well and turns the same buttons into
 // Return, Escape and Space (A, B, Y), the arrow keys and mouse clicks, so a
 // press does two things - menus open and close under the player (the first
@@ -243,7 +243,7 @@ void note_deck_outside_steam(SDL_Gamepad* g) {
     if (SDL_GetGamepadVendor(g) != 0x28de || SDL_GetGamepadProduct(g) != 0x1205 || (launched && *launched) || !steam_running()) return;
     g_deck_outside_steam = true;
     host_log("input: the Deck's controls outside Steam - Steam's desktop layout also sends keys and clicks for them, so each "
-             "press does two things; start bbhost from Steam (Add a Non-Steam Game), in Game Mode or Desktop Mode");
+             "press does two things; start heliasdream from Steam (Add a Non-Steam Game), in Game Mode or Desktop Mode");
 }
 // A key or click right behind a pad press on such a Deck is the desktop
 // layout's twin of it: say so on screen, at most every half minute.
@@ -253,7 +253,7 @@ void warn_deck_double_input() {
     const auto now = std::chrono::steady_clock::now();
     if (now - g_last_pad_press > std::chrono::milliseconds(200) || (said.time_since_epoch().count() && now - said < std::chrono::seconds(30))) return;
     said = now;
-    host_message_show("Start bbhost from Steam: outside it, Deck buttons also send keys", 8.0f);
+    host_message_show("Start heliasdream from Steam: outside it, Deck buttons also send keys", 8.0f);
 }
 
 // Started by Steam - a non-Steam shortcut too - SDL is handed
@@ -279,11 +279,11 @@ void take_steam_pad_filter() {
     SDL_SetHintWithPriority(SDL_HINT_GAMECONTROLLER_IGNORE_DEVICES_EXCEPT, "", SDL_HINT_OVERRIDE);
 }
 bool steam_virtual(SDL_Gamepad* g) { return SDL_GetGamepadVendor(g) == 0x28de && SDL_GetGamepadProduct(g) == 0x11ff; }
-// BBHOST_GAMEPAD (the launcher's controller choice): a part of the pad's name,
+// HELIAS_GAMEPAD (the launcher's controller choice): a part of the pad's name,
 // or its SDL GUID. Unset or "auto": every pad drives the game.
 const char* chosen_pad() {
     static const char* want = [] {
-        const char* e = std::getenv("BBHOST_GAMEPAD");
+        const char* e = std::getenv("HELIAS_GAMEPAD");
         return e && *e && SDL_strcasecmp(e, "auto") != 0 ? e : nullptr;
     }();
     return want;
@@ -427,7 +427,7 @@ struct Presenter {
     // might still hold it (the validation layer said so every frame).
     std::vector<VkSemaphore> render_sems;
     VkFence fence = VK_NULL_HANDLE;
-    // Signalled by the acquire instead of acquire_sem (BBHOST_PRESENT_ACQUIRE_FENCE).
+    // Signalled by the acquire instead of acquire_sem (HELIAS_PRESENT_ACQUIRE_FENCE).
     VkFence acquire_fence = VK_NULL_HANDLE;
     VkPresentModeKHR mode = VK_PRESENT_MODE_FIFO_KHR;
     bool latest_ready = false;  // the device has FIFO_LATEST_READY enabled (gpu.cpp)
@@ -442,46 +442,46 @@ struct Presenter {
 Presenter g_vk;
 
 // ---- How a frame reaches the display, and the switches back ----------------
-// BBHOST_PRESENT_LEGACY=1 puts every one of these back as it was before them,
+// HELIAS_PRESENT_LEGACY=1 puts every one of these back as it was before them,
 // for an A/B run with one variable - showing frames on arrival too
-// (BBHOST_PRESENT_ON_ARRIVAL, hle/video.cpp). A switch set on its own wins.
+// (HELIAS_PRESENT_ON_ARRIVAL, hle/video.cpp). A switch set on its own wins.
 bool present_legacy() {
     static const bool legacy = [] {
-        const char* e = std::getenv("BBHOST_PRESENT_LEGACY");
+        const char* e = std::getenv("HELIAS_PRESENT_LEGACY");
         return e && e[0] == '1';
     }();
     return legacy;
 }
-// A switch that is on unless set to 0 (or BBHOST_PRESENT_LEGACY=1).
+// A switch that is on unless set to 0 (or HELIAS_PRESENT_LEGACY=1).
 bool present_env_off(const char* name) {
     const char* e = std::getenv(name);
     return e ? e[0] == '0' : present_legacy();
 }
-// BBHOST_PRESENT_PASS=0: the frame is blitted (vkCmdBlitImage, after a clear
+// HELIAS_PRESENT_PASS=0: the frame is blitted (vkCmdBlitImage, after a clear
 // of the whole image when it has bars) and anything over it - the FPS counter,
 // the pointer, F10's screen, the F9 menu - goes in a second rendering that
 // loads the image back. By default it is one rendering: the picture drawn by a
 // sampling triangle, the overlay and the menu in the same pass, the bars the
 // pass's clear (host/present_pass.h). A magnified picture keeps FSR's passes.
-const bool g_present_pass = !present_env_off("BBHOST_PRESENT_PASS");
-// BBHOST_PRESENT_ACQUIRE_FENCE=0: the acquire signals a semaphore that the
+const bool g_present_pass = !present_env_off("HELIAS_PRESENT_PASS");
+// HELIAS_PRESENT_ACQUIRE_FENCE=0: the acquire signals a semaphore that the
 // blit's submission waits on, on the renderer's queue. A wait on a queue holds
 // everything queued behind it - the game's next submissions included - until
 // the display gives the image back, which on a FIFO swapchain with frames
 // queued is the next vblank. By default the acquire signals a fence the
 // presenting thread waits for, so only this thread waits for the display.
-const bool g_acquire_fence = !present_env_off("BBHOST_PRESENT_ACQUIRE_FENCE");
-// BBHOST_PRESENT_SUBMIT=1: before its blit the presenter submits whatever the
+const bool g_acquire_fence = !present_env_off("HELIAS_PRESENT_ACQUIRE_FENCE");
+// HELIAS_PRESENT_SUBMIT=1: before its blit the presenter submits whatever the
 // renderer is recording, as it did on every frame. The frame it shows is
 // normally submitted already (the command processor submits each job before
 // it queues the flip), and what it cut short was the next frame's recording:
 // its render pass closed, and one more submission a frame. By default it
 // submits only when the flip's frame is still in the recording.
 const bool g_present_submit_always = [] {
-    const char* e = std::getenv("BBHOST_PRESENT_SUBMIT");
+    const char* e = std::getenv("HELIAS_PRESENT_SUBMIT");
     return e ? e[0] == '1' : present_legacy();
 }();
-// BBHOST_PRESENT_GPU_WAIT=1 or 0: whether the presenting thread sleeps on the
+// HELIAS_PRESENT_GPU_WAIT=1 or 0: whether the presenting thread sleeps on the
 // blit's fence before vkQueuePresentKHR. AMD's Windows driver polls inside the
 // present until the frame's GPU work is done (Kyo's trace of his fork: the
 // present thread at 97% of a core, mostly that poll - on an APU, power the GPU
@@ -491,7 +491,7 @@ const bool g_present_submit_always = [] {
 // for AMD's own driver (vk_start). Elsewhere the present does not poll, and a
 // wait there would only queue the next frame's copy later.
 bool present_gpu_wait_default(VkDriverId driver) {
-    const char* e = std::getenv("BBHOST_PRESENT_GPU_WAIT");
+    const char* e = std::getenv("HELIAS_PRESENT_GPU_WAIT");
     if (e) return e[0] == '1';
     return !present_legacy() && driver == VK_DRIVER_ID_AMD_PROPRIETARY;
 }
@@ -516,7 +516,7 @@ const char* present_mode_name(VkPresentModeKHR m) {
 // FIFO - where every frame waits its turn, up to two refreshes behind with
 // three images. V-Sync off: IMMEDIATE (shown at once, tearing), else MAILBOX.
 // FIFO is the only mode a surface must support, so it is what is left.
-// BBHOST_PRESENT_MODE=fifo|mailbox|latest|immediate|relaxed asks for one
+// HELIAS_PRESENT_MODE=fifo|mailbox|latest|immediate|relaxed asks for one
 // (FIFO when the surface lacks it); =old is the choice before this one (FIFO
 // with V-Sync; MAILBOX, else IMMEDIATE, without).
 VkPresentModeKHR choose_present_mode(bool vsync, std::string& why) {
@@ -533,7 +533,7 @@ VkPresentModeKHR choose_present_mode(bool vsync, std::string& why) {
     why = "the surface offers";
     for (VkPresentModeKHR m : modes) why += std::string(" ") + present_mode_name(m);
     std::vector<VkPresentModeKHR> want;
-    const char* forced = std::getenv("BBHOST_PRESENT_MODE");
+    const char* forced = std::getenv("HELIAS_PRESENT_MODE");
     const std::string f = forced ? forced : present_legacy() ? "old" : "";
     if (f == "old") {
         if (!vsync) want = {VK_PRESENT_MODE_MAILBOX_KHR, VK_PRESENT_MODE_IMMEDIATE_KHR};
@@ -545,7 +545,7 @@ VkPresentModeKHR choose_present_mode(bool vsync, std::string& why) {
 #if defined(VK_KHR_present_mode_fifo_latest_ready)
         if (f == "latest") want = {VK_PRESENT_MODE_FIFO_LATEST_READY_KHR};
 #endif
-        why += "; BBHOST_PRESENT_MODE=" + f;
+        why += "; HELIAS_PRESENT_MODE=" + f;
     } else if (vsync) {
         want = {VK_PRESENT_MODE_MAILBOX_KHR};
 #if defined(VK_KHR_present_mode_fifo_latest_ready)
@@ -650,16 +650,16 @@ bool vk_create_swapchain() {
     vkGetPhysicalDeviceSurfaceFormatsKHR(g_vk.phys, g_vk.surface, &nfmt, nullptr);
     std::vector<VkSurfaceFormatKHR> fmts(nfmt);
     vkGetPhysicalDeviceSurfaceFormatsKHR(g_vk.phys, g_vk.surface, &nfmt, fmts.data());
-    // B8G8R8A8 where the surface lists it. BBHOST_SWAPCHAIN_FORMAT=rgba8:
+    // B8G8R8A8 where the surface lists it. HELIAS_SWAPCHAIN_FORMAT=rgba8:
     // R8G8B8A8 instead, as shadPS4 makes its swapchain - with the other
     // swapchain switches below, an A/B for the path the driver takes to the
     // screen (host/gpu_busy.cpp). The blit converts,
     // and the overlay's and FSR's targets follow the format.
     static const VkFormat wanted = [] {
-        const char* e = std::getenv("BBHOST_SWAPCHAIN_FORMAT");
+        const char* e = std::getenv("HELIAS_SWAPCHAIN_FORMAT");
         const std::string v = e ? e : "";
         if (v == "rgba8") return VK_FORMAT_R8G8B8A8_UNORM;
-        if (!v.empty() && v != "bgra8") host_log("present: BBHOST_SWAPCHAIN_FORMAT=%s is not rgba8 or bgra8; ignored", v.c_str());
+        if (!v.empty() && v != "bgra8") host_log("present: HELIAS_SWAPCHAIN_FORMAT=%s is not rgba8 or bgra8; ignored", v.c_str());
         return VK_FORMAT_B8G8R8A8_UNORM;
     }();
     g_vk.format = fmts.empty() ? VK_FORMAT_B8G8R8A8_UNORM : fmts[0].format;
@@ -677,7 +677,7 @@ bool vk_create_swapchain() {
     g_vk.hdr = false;
     {
         static const int forced = [] {
-            const char* e = std::getenv("BBHOST_HDR");
+            const char* e = std::getenv("HELIAS_HDR");
             return e && (e[0] == '0' || e[0] == '1') ? e[0] - '0' : -1;
         }();
         const bool want_hdr = forced >= 0 ? forced == 1 : g_want_hdr.load();
@@ -719,9 +719,9 @@ bool vk_create_swapchain() {
     // wait for the display while the next is drawn, and MAILBOX and
     // FIFO_LATEST_READY need a third - one shown, one waiting, one drawn - to
     // replace the waiting one rather than block. More only adds frames the
-    // display can fall behind by. BBHOST_SWAPCHAIN_IMAGES=<n> asks for n.
+    // display can fall behind by. HELIAS_SWAPCHAIN_IMAGES=<n> asks for n.
     std::uint32_t images = caps.minImageCount + 1;
-    if (const char* e = std::getenv("BBHOST_SWAPCHAIN_IMAGES"); e && std::atoi(e) > 0) images = static_cast<std::uint32_t>(std::atoi(e));
+    if (const char* e = std::getenv("HELIAS_SWAPCHAIN_IMAGES"); e && std::atoi(e) > 0) images = static_cast<std::uint32_t>(std::atoi(e));
     images = std::max(images, caps.minImageCount);
     if (caps.maxImageCount) images = std::min(images, caps.maxImageCount);
     sci.minImageCount = images;
@@ -732,10 +732,10 @@ bool vk_create_swapchain() {
     sci.imageUsage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
     // Storage too where the surface and the format allow it: FSR's last pass
     // then writes the swapchain image itself instead of a copy blitted into it.
-    // BBHOST_FSR_DIRECT=0: always the blit.
+    // HELIAS_FSR_DIRECT=0: always the blit.
     {
         static const bool direct = [] {
-            const char* e = std::getenv("BBHOST_FSR_DIRECT");
+            const char* e = std::getenv("HELIAS_FSR_DIRECT");
             return !(e && e[0] == '0');
         }();
         VkFormatProperties fp{};
@@ -744,7 +744,7 @@ bool vk_create_swapchain() {
                        (fp.optimalTilingFeatures & VK_FORMAT_FEATURE_STORAGE_IMAGE_BIT);
         if (g_vk.storage) sci.imageUsage |= VK_IMAGE_USAGE_STORAGE_BIT;
     }
-    // bbhost-vk: transfer reads too, only with BBHOST_VK_CAPTURE=1 (the
+    // heliasdream-vk: transfer reads too, only with HELIAS_VK_CAPTURE=1 (the
     // presented-frame capture, host/frame_capture.h); otherwise nothing.
     sci.imageUsage |= frame_capture::swapchain_usage(caps.supportedUsageFlags);
     sci.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
@@ -809,7 +809,7 @@ bool vk_create_swapchain() {
                  : sci.imageFormat == VK_FORMAT_B8G8R8A8_UNORM ? "B8G8R8A8"
                                                                : "another format",
                  sci.minImageCount, static_cast<unsigned>(sci.imageUsage),
-                 g_vk.storage ? " (storage: FSR writes the images; BBHOST_FSR_DIRECT=0 not)" : "");
+                 g_vk.storage ? " (storage: FSR writes the images; HELIAS_FSR_DIRECT=0 not)" : "");
 #if defined(_WIN32)
         const bool via_dxgi = modules_after.find("d3d12.dll") != std::string::npos && modules_before.find("d3d12.dll") == std::string::npos;
         host_log("present: Windows' graphics modules: %s before the swapchain, %s after%s",
@@ -922,7 +922,7 @@ bool vk_start() {
 std::atomic<std::uint64_t> g_present_dropped{0};
 std::atomic<std::uint64_t> g_present_waits{0}, g_present_wait_ns{0};  // rc2: the command processor waiting on the presenter (host_present)
 
-// bbhost-vk's per-pass GPU timer (host/gpu_timer.h) over the presenter's
+// heliasdream-vk's per-pass GPU timer (host/gpu_timer.h) over the presenter's
 // command buffer, while debug_upscaler_time is on: made the first frame it is
 // on, and not touched otherwise (the command buffer is then stock).
 GpuTimer g_pass_timer;
@@ -945,16 +945,16 @@ bool vk_pass_timer_frame_begin(VkCommandBuffer cmd) {
 std::mutex g_fps_mu;
 std::deque<std::chrono::steady_clock::time_point> g_present_times;  // the last second's presents
 
-// test11, BBHOST_PRESENT_PACE (host/temporal/present_pacer.h): on unless =0,
-// at the game's fixed pace. BBHOST_AB_SECONDS=<s> (with BBHOST_AB_TOGGLE unset
+// test11, HELIAS_PRESENT_PACE (host/temporal/present_pacer.h): on unless =0,
+// at the game's fixed pace. HELIAS_AB_SECONDS=<s> (with HELIAS_AB_TOGGLE unset
 // or "pace") turns it off and on every s seconds and logs each half's present
 // intervals - what MangoHud times - as `ab: present pace` lines.
 // rc2: permanent - no options switch any more (vk.1's "Even frame pacing"
 // is gone from the menu and the launcher; a saved value is ignored).
-// BBHOST_PRESENT_PACE=0 stays, for debugging.
+// HELIAS_PRESENT_PACE=0 stays, for debugging.
 bool pace_mode() {
     static const bool on = [] {
-        const char* e = std::getenv("BBHOST_PRESENT_PACE");
+        const char* e = std::getenv("HELIAS_PRESENT_PACE");
         return !(e && e[0] == '0');
     }();
     return on;
@@ -977,7 +977,7 @@ std::int64_t pace_slot(std::int64_t now) {
     static bool said = false;
     if (!said && period) {
         said = true;
-        host_log("present: pacing %s (BBHOST_PRESENT_PACE%s): presents held to an even %.3f ms grid, a late frame at once",
+        host_log("present: pacing %s (HELIAS_PRESENT_PACE%s): presents held to an even %.3f ms grid, a late frame at once",
                  pace_mode() && period ? "on" : "off", pace_mode() ? "=0 turns it off" : "=0", static_cast<double>(period) / 1e6);
     }
     // Not while a loading screen shows, nor for 2 s after: the frames then
@@ -1037,11 +1037,11 @@ std::string pacer_section() {
     std::snprintf(b, sizeof(b),
                   "pacer: period_us=%.1f creep_us=%.1f last_window_3rd_earliest_us=%.1f waited=%llu avg_wait_us=%.0f late_arrivals=%llu "
                   "late_presents=%llu restarts=%llu pulls=%llu pulled_ms=%.1f (totals since start)\n"
-                  "blit_submit: priority=%llu stream=%llu priority_wait_for_frame_ms=%.1f priority_timeouts=%llu (BBHOST_PRESENT_PRIORITY=0: "
+                  "blit_submit: priority=%llu stream=%llu priority_wait_for_frame_ms=%.1f priority_timeouts=%llu (HELIAS_PRESENT_PRIORITY=0: "
                   "always the stream)\n"
                   "blit_ride: rode=%llu alone=%llu missed=%llu cap_fallbacks=%llu waits_over_50ms=%llu wait_max_ms=%.1f "
-                  "(BBHOST_BLIT_RIDE=0: never rides; BBHOST_PRESENT_PRIORITY_WAIT_MS: the cap, 100)\n"
-                  "latency_limit: waits=%llu wait_ms=%.1f (BBHOST_FRAME_LATENCY=0 drops instead)",
+                  "(HELIAS_BLIT_RIDE=0: never rides; HELIAS_PRESENT_PRIORITY_WAIT_MS: the cap, 100)\n"
+                  "latency_limit: waits=%llu wait_ms=%.1f (HELIAS_FRAME_LATENCY=0 drops instead)",
                   g_pacer_pub.period.load() / 1e3, g_pacer_pub.creep.load() / 1e3,
                   g_pacer_pub.robust.load() < 0 ? -1.0 : g_pacer_pub.robust.load() / 1e3, static_cast<unsigned long long>(waited),
                   waited ? static_cast<double>(g_pacer_pub.wait_total.load()) / 1e3 / static_cast<double>(waited) : 0.0,
@@ -1059,8 +1059,8 @@ const bool g_pacer_section = (perf::add_section("present", pacer_section), true)
 // The A/B halves' present intervals.
 void pace_ab_note(std::int64_t t) {
     static const long ab_s = [] {
-        const char* e = std::getenv("BBHOST_AB_SECONDS");
-        const char* w = std::getenv("BBHOST_AB_TOGGLE");
+        const char* e = std::getenv("HELIAS_AB_SECONDS");
+        const char* w = std::getenv("HELIAS_AB_TOGGLE");
         const bool pace = !w || !*w || std::strcmp(w, "pace") == 0;
         return e && pace ? std::strtol(e, nullptr, 10) : 0L;
     }();
@@ -1150,11 +1150,11 @@ void vk_present(int buffer_index, std::uint64_t display_va, unsigned display_w, 
     if (!g_vk.ok) {
         return;
     }
-    // BBHOST_PRESENT_DELAY_US: pretend the display blocks us for this long, so
+    // HELIAS_PRESENT_DELAY_US: pretend the display blocks us for this long, so
     // a run on a virtual display (Xvfb never blocks in acquire) can be checked
     // against what a real vsync does to the game's frame rate.
     static const long fake_wait_us = [] {
-        const char* e = std::getenv("BBHOST_PRESENT_DELAY_US");
+        const char* e = std::getenv("HELIAS_PRESENT_DELAY_US");
         return e ? std::strtol(e, nullptr, 10) : 0L;
     }();
     if (fake_wait_us > 0) host_sleep_us(static_cast<std::uint64_t>(fake_wait_us));
@@ -1165,7 +1165,7 @@ void vk_present(int buffer_index, std::uint64_t display_va, unsigned display_w, 
     present_step("waiting for the last present");
     vkWaitForFences(g_vk.device, 1, &g_vk.fence, VK_TRUE, UINT64_MAX);
     host_gpu_busy_present_done();  // the last blit's two timestamps, before this one rewrites them
-    frame_capture::after_fence(g_vk.device);  // bbhost-vk: a captured frame has landed (BBHOST_VK_CAPTURE=1 only)
+    frame_capture::after_fence(g_vk.device);  // heliasdream-vk: a captured frame has landed (HELIAS_VK_CAPTURE=1 only)
     // A V-Sync change has no surface event behind it, so the options screen
     // asks for the rebuild the acquire would otherwise never be told to do.
     if (g_swap_dirty.exchange(false)) {
@@ -1178,7 +1178,7 @@ void vk_present(int buffer_index, std::uint64_t display_va, unsigned display_w, 
     }
     present_step("acquiring an image");
     // The image is ours once the acquire's fence signals (or, the old way, once
-    // the GPU has waited on its semaphore: BBHOST_PRESENT_ACQUIRE_FENCE=0).
+    // the GPU has waited on its semaphore: HELIAS_PRESENT_ACQUIRE_FENCE=0).
     const bool by_fence = g_acquire_fence && g_vk.acquire_fence;
     const VkSemaphore acquire_sem = by_fence ? VK_NULL_HANDLE : g_vk.acquire_sem;
     const VkFence acquire_fence = by_fence ? g_vk.acquire_fence : VK_NULL_HANDLE;
@@ -1236,11 +1236,11 @@ void vk_present(int buffer_index, std::uint64_t display_va, unsigned display_w, 
     // submission order, so submitting them first is enough. Waiting for them
     // to finish (host_gpu_flush) held the renderer lock through a GPU drain on
     // every presented frame - about 13 ms a frame in the world, all of it the
-    // command processor blocked. BBHOST_PRESENT_FLUSH=1 (checks) waits again.
+    // command processor blocked. HELIAS_PRESENT_FLUSH=1 (checks) waits again.
     // And only when the flip's frame is not in a submission yet: by then the
     // recording is usually the next frame's (host_gpu_submit_for_flip).
     static const bool present_flush = [] {
-        const char* e = std::getenv("BBHOST_PRESENT_FLUSH");
+        const char* e = std::getenv("HELIAS_PRESENT_FLUSH");
         return e && e[0] == '1';
     }();
     present_step("submitting the renderer's work");
@@ -1269,7 +1269,7 @@ void vk_present(int buffer_index, std::uint64_t display_va, unsigned display_w, 
     bi.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
     vkBeginCommandBuffer(g_vk.cmd, &bi);
     host_gpu_busy_present_begin(g_vk.cmd);  // the busy meter's first timestamp (host/gpu_busy.cpp)
-    // bbhost-vk debug tooling, only while its toggles are on: the presenter's
+    // heliasdream-vk debug tooling, only while its toggles are on: the presenter's
     // own passes timed (debug_upscaler_time), and the motion-vector view's
     // hook (debug_motion_vectors; nothing to show before a temporal upscaler).
     const bool timed = vk_pass_timer_frame_begin(g_vk.cmd);
@@ -1365,7 +1365,7 @@ void vk_present(int buffer_index, std::uint64_t display_va, unsigned display_w, 
             const int t_pass = timed ? g_pass_timer.begin(g_vk.cmd, "one pass") : -1;
             if (present_pass_begin(g_vk.cmd, g_vk.images[idx], g_vk.views[idx], g_vk.extent, shown, have ? &src : nullptr,
                                    have ? black : none)) {
-                // Show Motion Vectors (bbhost-vk Phase 2): the scene's motion
+                // Show Motion Vectors (heliasdream-vk Phase 2): the scene's motion
                 // image over the picture, under the overlay.
                 if (motion_view && have) {
                     PresentSource mv;
@@ -1481,7 +1481,7 @@ void vk_present(int buffer_index, std::uint64_t display_va, unsigned display_w, 
                              VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, 1, &to_present);
     }
     if (timed) g_pass_timer.end(g_vk.cmd, t_present);
-    // bbhost-vk: the presented frame copied out (BBHOST_VK_CAPTURE=1 and asked for).
+    // heliasdream-vk: the presented frame copied out (HELIAS_VK_CAPTURE=1 and asked for).
     frame_capture::record(g_vk.cmd, g_vk.device, g_vk.phys, g_vk.images[idx], g_vk.format, g_vk.extent);
     host_gpu_busy_present_end(g_vk.cmd);  // counted as on its way from here: it is always submitted below
     vkEndCommandBuffer(g_vk.cmd);
@@ -1529,7 +1529,7 @@ void vk_present(int buffer_index, std::uint64_t display_va, unsigned display_w, 
     // they were back to back (submit, then pacer). The pacer judges the
     // frame ready when its blit is recorded (and, by the priority path,
     // submitted); the present waits for both. Not with
-    // BBHOST_PRESENT_GPU_WAIT, which waits for the GPU in between.
+    // HELIAS_PRESENT_GPU_WAIT, which waits for the GPU in between.
     std::int64_t pace_wait = 0, t_pre_ns = 0;
     auto t_submitted = std::chrono::steady_clock::now();
     if (!g_vk.gpu_wait) {
@@ -1549,7 +1549,7 @@ void vk_present(int buffer_index, std::uint64_t display_va, unsigned display_w, 
     }
     const auto t_gpu_wait0 = std::chrono::steady_clock::now();
     // The frame done on the GPU before the present is asked for, on no lock
-    // (BBHOST_PRESENT_GPU_WAIT). Bounded: a lost device signals nothing.
+    // (HELIAS_PRESENT_GPU_WAIT). Bounded: a lost device signals nothing.
     if (g_vk.gpu_wait) {
         present_step("waiting for the frame on the GPU");
         vkWaitForFences(g_vk.device, 1, &g_vk.fence, VK_TRUE, 1000000000ull);
@@ -1568,7 +1568,7 @@ void vk_present(int buffer_index, std::uint64_t display_va, unsigned display_w, 
     // thread under the renderer's lock too, which is what orders the command
     // processor's own submits there.
     // test11: the present held to its slot on the pace's grid, on no lock
-    // (BBHOST_PRESENT_PACE; the A/B halves' intervals logged from here).
+    // (HELIAS_PRESENT_PACE; the A/B halves' intervals logged from here).
     // rc3: the pacer told the time just before the present call.
     t_pre_ns = pace_now_ns();
     pace_presented(t_pre_ns);
@@ -1645,7 +1645,7 @@ void vk_present(int buffer_index, std::uint64_t display_va, unsigned display_w, 
         split.priority = priority;
         perf::note_present(ns_of(t_presented), static_cast<std::int64_t>(flip.arrived_ns), g_present_dropped.load(std::memory_order_relaxed),
                            g_present_waits.load(std::memory_order_relaxed), g_present_wait_ns.load(std::memory_order_relaxed), split);
-        fliptrace::present(ns_of(t_presented), static_cast<std::int64_t>(flip.arrived_ns));  // BBHOST_FLIP_TRACE (off: returns)
+        fliptrace::present(ns_of(t_presented), static_cast<std::int64_t>(flip.arrived_ns));  // HELIAS_FLIP_TRACE (off: returns)
         pacer_publish();
     }
     if (++presents % 300 == 0) {
@@ -1659,7 +1659,7 @@ void vk_present(int buffer_index, std::uint64_t display_va, unsigned display_w, 
                  static_cast<unsigned long long>(blit_us / 1000), static_cast<unsigned long long>(submit_us / 1000),
                  static_cast<unsigned long long>(queue_present_us / 1000), static_cast<unsigned long long>(g_present_dropped.load()));
         host_log("present: the command processor waited for the presenter %llu times, %llu ms in all (frame-latency limit; "
-                 "BBHOST_FRAME_LATENCY=0 drops instead)",
+                 "HELIAS_FRAME_LATENCY=0 drops instead)",
                  static_cast<unsigned long long>(g_present_waits.load()), static_cast<unsigned long long>(g_present_wait_ns.load() / 1000000));
         // What each of those frames cost and how old it was when it went up:
         // bb-present's own CPU, the time from the command processor queueing
@@ -1694,7 +1694,7 @@ constexpr std::uint32_t kL3 = 0x2, kR3 = 0x4, kOptions = 0x8, kUp = 0x10, kRight
 std::atomic<bool> g_key_strong{false};
 
 void text_title_locked() {
-#if defined(BBHOST_HAVE_SDL3)
+#if defined(HELIAS_HAVE_SDL3)
     if (!g_window) return;
     if (g_text_want) {
         std::string shown = g_entry.text;
@@ -1734,7 +1734,7 @@ std::uint8_t axis_to_u8(std::int16_t v) {
 }
 
 // The adaptive triggers of every DualSense and DualSense Edge (host/haptics.h),
-// sent only when they change. Relaxed in loading screens and bbhost's menus.
+// sent only when they change. Relaxed in loading screens and heliasdream's menus.
 void update_triggers() {
     std::lock_guard<std::mutex> lock(g_pads_mu);
     static std::unordered_map<SDL_JoystickID, std::array<std::uint8_t, 22>> sent;
@@ -2089,11 +2089,11 @@ void update_pad() {
     } else {
         g_key_strong.store(false, std::memory_order_relaxed);
     }
-    // BBHOST_TOUCH_TEST=1: the middle mouse button reports a finger on the
+    // HELIAS_TOUCH_TEST=1: the middle mouse button reports a finger on the
     // touchpad at the pointer's position, so the whole path - PadState through
     // ScePadData's touchData - can be exercised without a DualShock 4.
     static const bool touch_test = [] {
-        const char* e = std::getenv("BBHOST_TOUCH_TEST");
+        const char* e = std::getenv("HELIAS_TOUCH_TEST");
         return e && e[0] == '1';
     }();
     if (touch_test && p.touch_count == 0) {
@@ -2118,7 +2118,7 @@ void update_pad() {
 
 
 void host_window_set_fullscreen(bool on) {
-#if defined(BBHOST_HAVE_SDL3)
+#if defined(HELIAS_HAVE_SDL3)
     if (g_want_fullscreen.exchange(on) == on) {
         return;
     }
@@ -2132,7 +2132,7 @@ void host_window_set_fullscreen(bool on) {
 }
 
 float host_window_refresh_hz() {
-#if defined(BBHOST_HAVE_SDL3)
+#if defined(HELIAS_HAVE_SDL3)
     if (!g_active.load() || !g_window) return 0.0f;
     // Cached: the flip clock asks once a second, and this walks SDL's display
     // list. A mode change or a drag to another monitor is picked up then.
@@ -2154,7 +2154,7 @@ float host_window_refresh_hz() {
 }
 
 std::uint64_t host_present_last_ns(std::uint64_t* serial) {
-#if defined(BBHOST_HAVE_SDL3)
+#if defined(HELIAS_HAVE_SDL3)
     *serial = g_present_serial.load(std::memory_order_acquire);
     return g_present_last_ns.load(std::memory_order_relaxed);
 #else
@@ -2164,7 +2164,7 @@ std::uint64_t host_present_last_ns(std::uint64_t* serial) {
 }
 
 void host_window_set_vsync(bool on) {
-#if defined(BBHOST_HAVE_SDL3)
+#if defined(HELIAS_HAVE_SDL3)
     if (g_want_vsync.exchange(on) == on) {
         return;
     }
@@ -2176,10 +2176,10 @@ void host_window_set_vsync(bool on) {
 }
 
 void host_window_set_hdr(bool on) {
-#if defined(BBHOST_HAVE_SDL3)
+#if defined(HELIAS_HAVE_SDL3)
     if (g_want_hdr.exchange(on) == on) return;
-    if (const char* e = std::getenv("BBHOST_HDR"); e && (e[0] == '0' || e[0] == '1')) {
-        host_log("present: HDR output %s in the settings, but BBHOST_HDR=%c decides", on ? "on" : "off", e[0]);
+    if (const char* e = std::getenv("HELIAS_HDR"); e && (e[0] == '0' || e[0] == '1')) {
+        host_log("present: HDR output %s in the settings, but HELIAS_HDR=%c decides", on ? "on" : "off", e[0]);
         return;
     }
     // Before the presenter exists the first swapchain reads the wish; after,
@@ -2193,7 +2193,7 @@ void host_window_set_hdr(bool on) {
 #endif
 }
 
-#if defined(BBHOST_HAVE_SDL3)
+#if defined(HELIAS_HAVE_SDL3)
 namespace {
 // Set once SDL has made the window: what is left (the shared GPU device and
 // the presenter) takes as long as the GPU's start does.
@@ -2211,9 +2211,9 @@ bool window_start_impl(int width, int height, const char* title);
 // Windows 11 laptop, every run), while the game ran on without it; the
 // caller is the thread that pumps it (run_guest_start).
 bool host_window_start(int width, int height, const char* title) {
-#if defined(BBHOST_HAVE_SDL3) && defined(_WIN32)
+#if defined(HELIAS_HAVE_SDL3) && defined(_WIN32)
     return window_start_impl(width, height, title);
-#elif defined(BBHOST_HAVE_SDL3)
+#elif defined(HELIAS_HAVE_SDL3)
     // The shared state lives past a return from here (the thread may not
     // have finished), so it is the thread's as much as ours.
     struct Start {
@@ -2256,7 +2256,7 @@ bool host_window_start(int width, int height, const char* title) {
 #endif
 }
 
-#if defined(BBHOST_HAVE_SDL3)
+#if defined(HELIAS_HAVE_SDL3)
 namespace {
 bool window_start_impl(int width, int height, const char* title) {
     take_steam_pad_filter();
@@ -2267,11 +2267,11 @@ bool window_start_impl(int width, int height, const char* title) {
     // The options are read before the window exists, so a saved Fullscreen
     // is only a wish until here (host_window_set_fullscreen).
     const bool fullscreen = g_want_fullscreen.load();
-    // The monitor (the launcher's Monitor setting, BBHOST_DISPLAY=<connector
+    // The monitor (the launcher's Monitor setting, HELIAS_DISPLAY=<connector
     // name, e.g. DP-1>): the window, and fullscreen, open there; the window
     // system's choice when unset or not found.
     SDL_DisplayID on = 0;
-    if (const char* want = std::getenv("BBHOST_DISPLAY"); want && *want) {
+    if (const char* want = std::getenv("HELIAS_DISPLAY"); want && *want) {
         int n = 0;
         if (SDL_DisplayID* ids = SDL_GetDisplays(&n)) {
             for (int k = 0; k < n && !on; ++k) {
@@ -2280,7 +2280,7 @@ bool window_start_impl(int width, int height, const char* title) {
             }
             SDL_free(ids);
         }
-        host_log(on ? "window: on the display %s (BBHOST_DISPLAY)" : "window: no display named %s; the window system's choice", want);
+        host_log(on ? "window: on the display %s (HELIAS_DISPLAY)" : "window: no display named %s; the window system's choice", want);
     }
     SDL_PropertiesID props = SDL_CreateProperties();
     SDL_SetStringProperty(props, SDL_PROP_WINDOW_CREATE_TITLE_STRING, title);
@@ -2302,7 +2302,7 @@ bool window_start_impl(int width, int height, const char* title) {
         return false;
     }
     g_window_made.store(true);
-    // BBHOST_NO_GAMEPAD=1: ignore controllers, so a test run on a virtual
+    // HELIAS_NO_GAMEPAD=1: ignore controllers, so a test run on a virtual
     // display takes input only from its own script and not from a controller
     // plugged into the machine it runs on (pads_ignored).
     int n = 0;
@@ -2327,7 +2327,7 @@ bool window_start_impl(int width, int height, const char* title) {
 MouseState host_mouse_state();
 
 bool host_window_pump() {
-#if defined(BBHOST_HAVE_SDL3)
+#if defined(HELIAS_HAVE_SDL3)
     if (!g_active) {
         return true;
     }
@@ -2413,9 +2413,9 @@ bool host_window_pump() {
                 }
                 if (!e.key.repeat && e.key.scancode == SDL_SCANCODE_F11) {
                     // rc2: F11 saves a performance snapshot (host/perf_capture.h);
-                    // with BBHOST_IME_TEST it reopens the test's text box, as before.
+                    // with HELIAS_IME_TEST it reopens the test's text box, as before.
                     static const bool ime_test = [] {
-                        const char* v = std::getenv("BBHOST_IME_TEST");
+                        const char* v = std::getenv("HELIAS_IME_TEST");
                         return v && v[0] == '1';
                     }();
                     if (ime_test) g_ime_test_reopen.store(true, std::memory_order_relaxed);
@@ -2424,7 +2424,7 @@ bool host_window_pump() {
                 }
                 if (!e.key.repeat && e.key.scancode == SDL_SCANCODE_F12 && (e.key.mod & SDL_KMOD_SHIFT) &&
                     frame_capture::enabled()) {
-                    frame_capture::request("Shift+F12");  // bbhost-vk: the presented frame (BBHOST_VK_CAPTURE=1)
+                    frame_capture::request("Shift+F12");  // heliasdream-vk: the presented frame (HELIAS_VK_CAPTURE=1)
                     break;
                 }
                 if (!e.key.repeat && e.key.scancode == SDL_SCANCODE_F12) {
@@ -2605,12 +2605,12 @@ bool host_window_pump() {
         }
     }
     update_pad();
-    // BBHOST_IME_TEST=1: open the text box at startup, so the overlay's font
+    // HELIAS_IME_TEST=1: open the text box at startup, so the overlay's font
     // and layout can be seen without reaching character creation. It opens as
     // the name box does (hle/dialog.cpp); =glyph and =password open it as the
     // other two of the game's boxes, which are deeper in than a test reaches.
     static const int ime_test = [] {
-        const char* e = std::getenv("BBHOST_IME_TEST");
+        const char* e = std::getenv("HELIAS_IME_TEST");
         return !e ? 0 : !std::strcmp(e, "1") ? 1 : !std::strcmp(e, "glyph") ? 2 : !std::strcmp(e, "password") ? 3 : 0;
     }();
     if (ime_test) {
@@ -2778,7 +2778,7 @@ bool host_window_pump() {
         }
         trophy_popup_frame(pw, ph);
     }
-    // bbhost-vk (debug_upscaler_time): the presenter's passes on the GPU,
+    // heliasdream-vk (debug_upscaler_time): the presenter's passes on the GPU,
     // under the FPS counter (host/gpu_timer.h; also in the log every 300
     // frames). Nothing while the toggle is off.
     if (host_settings().debug_upscaler_time) {
@@ -2798,8 +2798,8 @@ bool host_window_pump() {
         host_overlay_rect(x - 8.0f, y - 4.0f, w + 16.0f, 24.0f * scale + 8.0f, 0x000000a0u);
         host_overlay_text(x, y, scale, 0xe6e6e6ffu, line.c_str());
     }
-    upscaler_note_settings();  // bbhost-vk: logs a change of the (not yet used) upscaler settings
-    frame_capture::poll();     // bbhost-vk: BBHOST_VK_CAPTURE=1's trigger file and timer
+    upscaler_note_settings();  // heliasdream-vk: logs a change of the (not yet used) upscaler settings
+    frame_capture::poll();     // heliasdream-vk: HELIAS_VK_CAPTURE=1's trigger file and timer
     {
         // A plugin's banner (host_message_show): centred in the upper third,
         // fading over its last half second.
@@ -2857,7 +2857,7 @@ bool host_window_pump() {
             std::snprintf(text, sizeof(text), "Building shaders: %zu left", left);
             const float scale = 0.8f, w = host_overlay_text_width(scale, text);
             float y = host_settings().fps_counter ? 14.0f + 24.0f * scale + 16.0f : 14.0f;
-            if (host_settings().debug_upscaler_time) y += 24.0f * 0.7f + 16.0f;  // bbhost-vk: under the GPU time line
+            if (host_settings().debug_upscaler_time) y += 24.0f * 0.7f + 16.0f;  // heliasdream-vk: under the GPU time line
             const float x = dw - w - 20.0f;
             host_overlay_rect(x - 8.0f, y - 4.0f, w + 16.0f, 24.0f * scale + 8.0f, 0x000000a0u);
             host_overlay_text(x, y, scale, 0xe8dcc0ffu, text);
@@ -2966,13 +2966,13 @@ bool host_window_pump() {
     // half rebuilt. Nothing on it (no counter, pointer, box or screen) and the
     // presenter's pass draws nothing over the picture.
     host_overlay_commit();
-    // BBHOST_MOUSE_LOG=1: the pointer as the host sees it, for bringing it up
+    // HELIAS_MOUSE_LOG=1: the pointer as the host sees it, for bringing it up
     // before there is a consumer. This **consumes** the edges, the wheel and
     // `moved` the way a real reader does - without that the first click stays
     // latched and re-logs on every pump - so it is a bring-up aid, not
     // something to leave on beside a consumer.
     static const bool mouse_log = [] {
-        const char* e = std::getenv("BBHOST_MOUSE_LOG");
+        const char* e = std::getenv("HELIAS_MOUSE_LOG");
         return e && e[0] == '1';
     }();
     if (mouse_log) {
@@ -3034,7 +3034,7 @@ bool host_text_entry_open() {
 // only the newest frame; the game triple-buffers, so a dropped frame means the
 // display could not keep up anyway.
 namespace {
-#if defined(BBHOST_HAVE_SDL3)
+#if defined(HELIAS_HAVE_SDL3)
 struct PendingPresent {
     bool has = false;
     int buffer = 0;
@@ -3054,9 +3054,9 @@ PendingPresent g_present_next;
 // time spent on a frame nobody saw). The wait is bounded (two periods of
 // the game's pace, at least 20 ms) so a stuck presenter cannot stall the
 // game; past it the frame is replaced as before and counted.
-// BBHOST_FRAME_LATENCY=0 (debugging) replaces at once, as vk.1 did.
+// HELIAS_FRAME_LATENCY=0 (debugging) replaces at once, as vk.1 did.
 const bool g_frame_latency_limit = [] {
-    const char* e = std::getenv("BBHOST_FRAME_LATENCY");
+    const char* e = std::getenv("HELIAS_FRAME_LATENCY");
     return !(e && e[0] == '0');
 }();
 
@@ -3099,7 +3099,7 @@ const char* host_present_step(double& seconds) {
 }
 
 void host_window_error_box(const char* title, const char* text) {
-#if defined(BBHOST_HAVE_SDL3)
+#if defined(HELIAS_HAVE_SDL3)
     if (!SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, title, text, nullptr)) host_log("window: the message box failed: %s", SDL_GetError());
 #else
     (void)title;
@@ -3108,7 +3108,7 @@ void host_window_error_box(const char* title, const char* text) {
 }
 
 void host_window_stop() {
-#if defined(BBHOST_HAVE_SDL3)
+#if defined(HELIAS_HAVE_SDL3)
     if (!g_active) {
         return;
     }
@@ -3126,7 +3126,7 @@ void host_window_stop() {
         host_gpu_lock();
         host_gpu_queue_lock();
         vkDeviceWaitIdle(g_vk.device);
-        g_pass_timer.shutdown();                // bbhost-vk debug tooling
+        g_pass_timer.shutdown();                // heliasdream-vk debug tooling
         frame_capture::shutdown(g_vk.device);
         host_gpu_queue_unlock();
         host_gpu_unlock();
@@ -3167,7 +3167,7 @@ bool host_mouse_position(float& x, float& y) {
 }
 
 void host_mouse_describe(char* out, std::size_t n) {
-#if defined(BBHOST_HAVE_SDL3)
+#if defined(HELIAS_HAVE_SDL3)
     std::lock_guard<std::mutex> lock(g_mouse_mu);
     std::snprintf(out, n, "window %.0f,%.0f of %dx%d, display %.0f,%.0f of %ux%u%s", g_mouse_win_x, g_mouse_win_y, g_mouse_win_w,
                   g_mouse_win_h, g_mouse.x, g_mouse.y, g_display_w, g_display_h, g_mouse.in_window ? "" : " (outside)");
@@ -3177,7 +3177,7 @@ void host_mouse_describe(char* out, std::size_t n) {
 }
 
 bool host_mouse_stage_position(float& x, float& y) {
-#if defined(BBHOST_HAVE_SDL3)
+#if defined(HELIAS_HAVE_SDL3)
     float px = 0.0f, py = 0.0f;
     if (!host_mouse_position(px, py)) {
         return false;
@@ -3218,7 +3218,7 @@ void host_mouse_set_relative(bool on) { g_mouse_relative.store(on, std::memory_o
 bool host_mouse_relative() { return g_mouse_relative.load(std::memory_order_relaxed); }
 
 void host_mouse_set_visible(bool visible) {
-#if defined(BBHOST_HAVE_SDL3)
+#if defined(HELIAS_HAVE_SDL3)
     g_mouse_visible.store(visible, std::memory_order_relaxed);
     // Hide the window system's pointer when we draw our own, so there are not
     // two of them.
@@ -3234,14 +3234,14 @@ PadState host_pad_state() {
 }
 
 InputDevice host_input_device() {
-#if defined(BBHOST_HAVE_SDL3)
+#if defined(HELIAS_HAVE_SDL3)
     return static_cast<InputDevice>(g_input_device.load(std::memory_order_relaxed));
 #else
     return InputDevice::KeyboardMouse;
 #endif
 }
 std::uint64_t host_input_serial() {
-#if defined(BBHOST_HAVE_SDL3)
+#if defined(HELIAS_HAVE_SDL3)
     return g_input_serial.load(std::memory_order_relaxed);
 #else
     return 0;
@@ -3251,7 +3251,7 @@ std::uint64_t host_input_serial() {
 bool host_pad_playstation() { return g_pad_playstation.load(std::memory_order_relaxed) != 0; }
 
 bool host_pad_present() {
-#if defined(BBHOST_HAVE_SDL3)
+#if defined(HELIAS_HAVE_SDL3)
     std::lock_guard<std::mutex> lock(g_pads_mu);
     return !g_pads.empty();
 #else
@@ -3260,7 +3260,7 @@ bool host_pad_present() {
 }
 
 void host_pad_rumble(std::uint8_t small, std::uint8_t large) {
-#if defined(BBHOST_HAVE_SDL3)
+#if defined(HELIAS_HAVE_SDL3)
     // Haptics (host/haptics.h): Off feels nothing; HD on a wired DualSense
     // plays the rumble on its haptic motors instead - the controller's own
     // rumble report would turn those off.
@@ -3276,7 +3276,7 @@ void host_pad_rumble(std::uint8_t small, std::uint8_t large) {
 }
 
 void host_present(int buffer_index, std::uint64_t display_va, unsigned display_w, unsigned display_h, const PresentFlip& flip) {
-#if defined(BBHOST_HAVE_SDL3)
+#if defined(HELIAS_HAVE_SDL3)
     if (g_active) {
         std::unique_lock<std::mutex> lk(g_present_mu);
         if (!g_present_thread.joinable()) g_present_thread = std::thread(present_thread_main);
@@ -3325,7 +3325,7 @@ bool host_window_pixels(int* w, int* h) {
 }
 
 void host_window_request_quit() {
-#if defined(BBHOST_HAVE_SDL3)
+#if defined(HELIAS_HAVE_SDL3)
     // The event closing the window sends: the pump returns false and the
     // run ends the way it does then.
     SDL_Event e{};

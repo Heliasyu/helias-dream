@@ -1,4 +1,4 @@
-// bbhost-vk: DualSense / DualSense Edge HD haptics and adaptive triggers
+// heliasdream-vk: DualSense / DualSense Edge HD haptics and adaptive triggers
 // (host/haptics.h).
 #include "host/haptics.h"
 #include "core/host_clock.h"
@@ -21,7 +21,7 @@
 #include <unordered_map>
 #include <vector>
 
-#if defined(BBHOST_HAVE_SDL3)
+#if defined(HELIAS_HAVE_SDL3)
 #include <SDL3/SDL.h>
 #endif
 #if defined(__linux__)
@@ -67,7 +67,7 @@ struct Envelope {
 };
 
 // What can be tuned between test rounds without a build:
-// BBHOST_HAPTICS_TUNE="cutoff=160,sustain=0,floor=0.006,ratio=2,front=4,slow=800,expand=0.04,carrier=0.5,gain=3,rumble=0.8"
+// HELIAS_HAPTICS_TUNE="cutoff=160,sustain=0,floor=0.006,ratio=2,front=4,slow=800,expand=0.04,carrier=0.5,gain=3,rumble=0.8"
 //   cutoff   the effects' low-pass, Hz (what the motors are given of the sound)
 //   sustain  how much of a steady sound stays (0: only hits; 1: everything)
 //   floor    the level below which a sound is not felt at all
@@ -78,7 +78,7 @@ struct Envelope {
 //   carrier  0: the filtered sound itself; 1: a 150 Hz tone that follows it
 //   gain     the effects' level before the soft limit
 //   rumble   the converted rumble's level
-// BBHOST_HAPTICS_CHANNELS="2,3": the device channels of the left and right motors.
+// HELIAS_HAPTICS_CHANNELS="2,3": the device channels of the left and right motors.
 struct Tuning {
     // Round 7: with 15% of every steady sound kept, a 1.4x rise over 400 ms
     // counted as a hit and a floor of 0.003, wind and ambience were felt as a
@@ -89,7 +89,7 @@ struct Tuning {
 };
 Tuning read_tuning() {
     Tuning t;
-    if (const char* e = std::getenv("BBHOST_HAPTICS_TUNE")) {
+    if (const char* e = std::getenv("HELIAS_HAPTICS_TUNE")) {
         std::string s = e;
         std::size_t at = 0;
         while (at < s.size()) {
@@ -113,7 +113,7 @@ Tuning read_tuning() {
             at = end + 1;
         }
     }
-    if (const char* e = std::getenv("BBHOST_HAPTICS_CHANNELS")) {
+    if (const char* e = std::getenv("HELIAS_HAPTICS_CHANNELS")) {
         int l = 0, r = 0;
         if (std::sscanf(e, "%d,%d", &l, &r) == 2 && l >= 0 && l < 4 && r >= 0 && r < 4) {
             t.left = l;
@@ -157,7 +157,7 @@ struct Side {
     }
 };
 
-#if defined(BBHOST_HAVE_SDL3)
+#if defined(HELIAS_HAVE_SDL3)
 std::mutex g_mu;  // everything below, from the game's audio thread and the shutdown
 SDL_AudioStream* g_stream = nullptr;
 SDL_AudioDeviceID g_device = 0;
@@ -283,7 +283,7 @@ void max_controller_volume(bool quiet = false) {
 #endif
 }
 
-#if defined(BBHOST_HAVE_SDL3)
+#if defined(HELIAS_HAVE_SDL3)
 bool contains_nocase(const char* hay, const char* needle) {
     if (!hay) return false;
     const std::size_t n = std::strlen(needle);
@@ -373,8 +373,8 @@ void close_locked(const char* why) {
     host_log("haptics: HD output closed (%s)", why);
 }
 
-// The controller's sound card: a playback device named DualSense with at least
-// four channels. Only while plugged in by USB is there one.
+// The controller's sound card: a playback device named DualSense (or Wireless
+// Controller) with at least four channels. Only while plugged in by USB is there one.
 void scan_locked(bool want_hd) {
     g_last_scan = std::chrono::steady_clock::now();
     if (!want_hd) {
@@ -394,7 +394,9 @@ void scan_locked(bool want_hd) {
     const char* found_name = nullptr;
     for (int i = 0; ids && i < count && !found; ++i) {
         const char* name = SDL_GetAudioDeviceName(ids[i]);
-        if (!contains_nocase(name, "dualsense")) continue;
+        // Windows often names it "Speakers (Wireless Controller)"; the four
+        // channels below keep a DualShock 4's two-channel one out.
+        if (!contains_nocase(name, "dualsense") && !contains_nocase(name, "wireless controller")) continue;
         SDL_AudioSpec spec{};
         int frames = 0;
         if (SDL_GetAudioDeviceFormat(ids[i], &spec, &frames) && spec.channels >= 4) {
@@ -536,7 +538,7 @@ void haptics_devices_changed(bool dualsense_on_usb) {
 
 float haptics_r2_fire_point() {
     static const float fire = [] {
-        const char* e = std::getenv("BBHOST_R2_FIRE");
+        const char* e = std::getenv("HELIAS_R2_FIRE");
         const float v = e && *e ? std::strtof(e, nullptr) : 0.0f;
         return v > 0.05f && v < 1.0f ? v : 0.55f;  // just into the wall that starts at zone 4 of 10
     }();
@@ -558,7 +560,7 @@ bool gun_empty() {
 
 float haptics_l2_fire_point() {
     static const float fire = [] {
-        const char* e = std::getenv("BBHOST_L2_FIRE");
+        const char* e = std::getenv("HELIAS_L2_FIRE");
         const float v = e && *e ? std::strtof(e, nullptr) : 0.0f;
         return v > 0.05f && v < 1.0f ? v : 0.65f;  // the break (zone 6 of 10) gives way just before
     }();
@@ -582,7 +584,7 @@ bool haptics_rumble(std::uint8_t small, std::uint8_t large) {
 }
 
 void haptics_game_audio(const float* frames, unsigned count, float gain) {
-#if defined(BBHOST_HAVE_SDL3)
+#if defined(HELIAS_HAVE_SDL3)
     const Wanted w = wanted();
     std::lock_guard<std::mutex> lock(g_mu);
     if (g_shut) return;
@@ -598,7 +600,7 @@ void haptics_game_audio(const float* frames, unsigned count, float gain) {
             e.attack = follow(1.0f);
             e.release = follow(50.0f);
         }
-        if (std::getenv("BBHOST_HAPTICS_TUNE") || std::getenv("BBHOST_HAPTICS_CHANNELS")) {
+        if (std::getenv("HELIAS_HAPTICS_TUNE") || std::getenv("HELIAS_HAPTICS_CHANNELS")) {
             host_log("haptics: tuning cutoff %.0f Hz, sustain %.2f, floor %.4f, ratio %.2f (front %.2f), slow %.0f ms, expand %.3f, carrier %.2f, gain %.2f, "
                      "rumble %.2f; motors on channels %d,%d",
                      static_cast<double>(g_tune.cutoff), static_cast<double>(g_tune.sustain), static_cast<double>(g_tune.floor),
@@ -637,7 +639,7 @@ void haptics_game_audio(const float* frames, unsigned count, float gain) {
 }
 
 void haptics_shutdown() {
-#if defined(BBHOST_HAVE_SDL3)
+#if defined(HELIAS_HAVE_SDL3)
     std::lock_guard<std::mutex> lock(g_mu);
     g_shut = true;
     close_locked("shutting down");
@@ -734,7 +736,7 @@ TriggerEffects haptics_triggers(std::uint32_t id, float l2, float r2, bool relax
     const auto now = std::chrono::steady_clock::now();
     if (motion != st.motion || category != st.category) {
         static const bool log_anims = [] {
-            const char* e = std::getenv("BBHOST_HAPTICS_ANIM_LOG");
+            const char* e = std::getenv("HELIAS_HAPTICS_ANIM_LOG");
             return e && e[0] == '1';
         }();
         if (log_anims) host_log("haptics: animation %d (category %d, %06d)", anim, category, motion);

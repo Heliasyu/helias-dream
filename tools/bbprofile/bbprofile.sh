@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# bbprofile.sh - guided profiling session for bbhost-vk (profiling kit, after rc5b).
+# bbprofile.sh - guided profiling session for heliasdream-vk (profiling kit, after rc5b).
 #
 # Run it from the kit folder in a terminal (Konsole), with the game installed:
 #   bash bbprofile.sh                 the whole session (~30 min), step by step
@@ -9,46 +9,46 @@
 #   bash bbprofile.sh --skip pgo      all steps but these
 #   bash bbprofile.sh --bundle        (re)make the tarball of the last session
 #   bash bbprofile.sh --dry-run       check the kit, the game folder and the tools; runs nothing
-# Other options: --game DIR (default ~/BloodBorne PC/bbhost-linux-v0.2.18),
+# Other options: --game DIR (default ~/BloodBorne PC/heliasdream-linux-v0.2.18),
 #   --no-sudo (no perf scheduler traces, no dmidecode, sysctls left alone),
 #   --keep-data (put the big perf .data files in the tarball too).
 #
 # What it does: asks for sudo once; installs perf if it is missing
 # (sudo pacman -S --needed perf); sets kernel.perf_event_paranoid=1 and
 # kernel.kptr_restrict=0 for the session; puts the kit's binaries in the game
-# folder as bbhost.bin one step at a time (the original is kept as
-# bbhost.bin.bbprofile-orig); starts the game with each step's variables; tells
+# folder as heliasdream.bin one step at a time (the original is kept as
+# heliasdream.bin.bbprofile-orig); starts the game with each step's variables; tells
 # you what to do in the game; collects the logs, snapshots, perf data and
-# profiles; at the end (also on Ctrl-C) puts the original bbhost.bin and the
+# profiles; at the end (also on Ctrl-C) puts the original heliasdream.bin and the
 # sysctls back and writes ONE tarball, ~/bbprofile-<date>-<time>.tar.gz.
 # Nothing is installed besides perf; the game's files are not changed besides
-# bbhost.bin (restored) and a new pgo/ folder.
+# heliasdream.bin (restored) and a new pgo/ folder.
 set -uo pipefail
 shopt -s nullglob
 
 KIT=$(cd "$(dirname "$(readlink -f "$0")")" && pwd)
-GAME=${BBPROFILE_GAME:-"$HOME/BloodBorne PC/bbhost-linux-v0.2.18"}
+GAME=${BBPROFILE_GAME:-"$HOME/BloodBorne PC/heliasdream-linux-v0.2.18"}
 WORKROOT=${BBPROFILE_WORK:-"$HOME/bbprofile-work"}
 OUTDIR=${BBPROFILE_OUT:-"$HOME"}
 # Test hooks (box-side dry runs only): another launcher, auto-answers, short waits.
-LAUNCH=${BBPROFILE_LAUNCH:-./bbhost}
+LAUNCH=${BBPROFILE_LAUNCH:-./heliasdream}
 AUTO=${BBPROFILE_AUTO:-0}
 QUICK=${BBPROFILE_QUICK:-0}
 
-PROF_BIN=$KIT/bbhost-prof
-PGO_BIN=$KIT/bbhost-pgogen
-RC5B_SHA=f1a7d83a456b822fbbcb3ca2a8f588b24f08ff3b0dd3a1f9aa4f6f05c8f9b21b  # rc5b bbhost.bin (v0.2.18-vk.1-6-g7b65cd0)
+PROF_BIN=$KIT/heliasdream-prof
+PGO_BIN=$KIT/heliasdream-pgogen
+RC5B_SHA=f1a7d83a456b822fbbcb3ca2a8f588b24f08ff3b0dd3a1f9aa4f6f05c8f9b21b  # rc5b heliasdream.bin (v0.2.18-vk.1-6-g7b65cd0)
 
 ALL_STEPS=(sys a1 a2 a3 a4 m4 pgo a5 a6)
 declare -A TITLE=(
   [sys]="System facts (RAM speed/EXPO, power profile, governor/EPP, GPU, display)"
   [a1]="A1 plain + CPU profile (Old Yharnam spot)"
-  [a2]="A2 BBHOST_TABLES_VRAM=0 (Old Yharnam spot)"
-  [a3]="A3 BBHOST_PARAMS_WC=1 (Old Yharnam spot)"
-  [a4]="A4 BBHOST_PARAMS_VRAM=1 (Old Yharnam spot)"
+  [a2]="A2 HELIAS_TABLES_VRAM=0 (Old Yharnam spot)"
+  [a3]="A3 HELIAS_PARAMS_WC=1 (Old Yharnam spot)"
+  [a4]="A4 HELIAS_PARAMS_VRAM=1 (Old Yharnam spot)"
   [m4]="M4 the periodic ~12 ms frame: flip trace + perf sched (Old Yharnam spot)"
   [pgo]="PGO training run (instrumented binary: Old Yharnam, Hunter's Dream)"
-  [a5]="A5 BBHOST_PS_WAVE32=32 (Old Yharnam spot)"
+  [a5]="A5 HELIAS_PS_WAVE32=32 (Old Yharnam spot)"
   [a6]="A6 plain again: drift check (Old Yharnam spot, optional)"
 )
 # Estimated seconds a step takes (starting the game and loading in ~70 s included).
@@ -72,7 +72,7 @@ say() { printf '%s\n' "$*"; }
 hr() { printf '%s\n' "------------------------------------------------------------------------"; }
 bold() { if [ -t 1 ]; then printf '\033[1m%s\033[0m\n' "$*"; else printf '%s\n' "$*"; fi; }
 stamp() { date '+%H:%M:%S'; }
-# Wall and CLOCK_MONOTONIC (what bbhost's steady clock and perf -k CLOCK_MONOTONIC use).
+# Wall and CLOCK_MONOTONIC (what heliasdream's steady clock and perf -k CLOCK_MONOTONIC use).
 mono() { python3 -c 'import time; print("%.6f" % time.clock_gettime(time.CLOCK_MONOTONIC))' 2> /dev/null || echo "?"; }
 event() { [ -n "${SD:-}" ] && printf '%s %s %s\n' "$(date +%s.%N)" "$(mono)" "$*" >> "$SD/events.txt"; }
 chime() {
@@ -148,8 +148,8 @@ check_kit() {
 }
 check_game() {
   [ -d "$GAME" ] || { say "game folder not found: $GAME (use --game DIR)"; return 1; }
-  [ -f "$GAME/bbhost.bin" ] || [ -f "$GAME/bbhost.bin.bbprofile-orig" ] || { say "no bbhost.bin in $GAME"; return 1; }
-  [ -x "$GAME/bbhost" ] || [ "$LAUNCH" != ./bbhost ] || { say "no ./bbhost wrapper in $GAME"; return 1; }
+  [ -f "$GAME/heliasdream.bin" ] || [ -f "$GAME/heliasdream.bin.bbprofile-orig" ] || { say "no heliasdream.bin in $GAME"; return 1; }
+  [ -x "$GAME/heliasdream" ] || [ "$LAUNCH" != ./heliasdream ] || { say "no ./heliasdream wrapper in $GAME"; return 1; }
   say "game: $GAME"
 }
 check_tools() {
@@ -164,42 +164,42 @@ ORIG_SHA=""
 binary_state() {  # recover from an earlier session that died before restoring
   local cur prof pgo
   prof=$(sha "$PROF_BIN"); pgo=$(sha "$PGO_BIN")
-  if [ -f "$GAME/bbhost.bin.bbprofile-orig" ]; then
-    cur=$(sha "$GAME/bbhost.bin")
-    if [ ! -f "$GAME/bbhost.bin" ] || [ "$cur" = "$prof" ] || [ "$cur" = "$pgo" ]; then
+  if [ -f "$GAME/heliasdream.bin.bbprofile-orig" ]; then
+    cur=$(sha "$GAME/heliasdream.bin")
+    if [ ! -f "$GAME/heliasdream.bin" ] || [ "$cur" = "$prof" ] || [ "$cur" = "$pgo" ]; then
       say "an earlier session left a kit binary in place; putting the original back first"
-      mv -f "$GAME/bbhost.bin.bbprofile-orig" "$GAME/bbhost.bin" || return 1
+      mv -f "$GAME/heliasdream.bin.bbprofile-orig" "$GAME/heliasdream.bin" || return 1
     else
-      say "note: $GAME/bbhost.bin.bbprofile-orig is from an earlier session and bbhost.bin is not a kit binary;"
-      say "      keeping the current bbhost.bin as the original (the old backup becomes bbhost.bin.bbprofile-orig.old)"
-      mv -f "$GAME/bbhost.bin.bbprofile-orig" "$GAME/bbhost.bin.bbprofile-orig.old" || return 1
+      say "note: $GAME/heliasdream.bin.bbprofile-orig is from an earlier session and heliasdream.bin is not a kit binary;"
+      say "      keeping the current heliasdream.bin as the original (the old backup becomes heliasdream.bin.bbprofile-orig.old)"
+      mv -f "$GAME/heliasdream.bin.bbprofile-orig" "$GAME/heliasdream.bin.bbprofile-orig.old" || return 1
     fi
   fi
-  ORIG_SHA=$(sha "$GAME/bbhost.bin")
-  if [ "$ORIG_SHA" = "$RC5B_SHA" ]; then say "installed bbhost.bin: rc5b (v0.2.18-vk.1-6-g7b65cd0), as the kit expects"
-  else say "note: the installed bbhost.bin is not rc5b's (sha256 $ORIG_SHA); the kit's binaries are rc5b + instrumentation and use the folder's data as is"; fi
+  ORIG_SHA=$(sha "$GAME/heliasdream.bin")
+  if [ "$ORIG_SHA" = "$RC5B_SHA" ]; then say "installed heliasdream.bin: rc5b (v0.2.18-vk.1-6-g7b65cd0), as the kit expects"
+  else say "note: the installed heliasdream.bin is not rc5b's (sha256 $ORIG_SHA); the kit's binaries are rc5b + instrumentation and use the folder's data as is"; fi
 }
-install_bin() {  # install_bin SRC: SRC becomes the game's bbhost.bin (original kept once)
+install_bin() {  # install_bin SRC: SRC becomes the game's heliasdream.bin (original kept once)
   local src=$1
-  pgrep -x bbhost.bin > /dev/null && { say "bbhost.bin is running: close the game first"; return 1; }
-  if [ ! -f "$GAME/bbhost.bin.bbprofile-orig" ]; then
-    cp -p "$GAME/bbhost.bin" "$GAME/bbhost.bin.bbprofile-orig" || return 1
+  pgrep -x heliasdream.bin > /dev/null && { say "heliasdream.bin is running: close the game first"; return 1; }
+  if [ ! -f "$GAME/heliasdream.bin.bbprofile-orig" ]; then
+    cp -p "$GAME/heliasdream.bin" "$GAME/heliasdream.bin.bbprofile-orig" || return 1
   fi
-  cp "$src" "$GAME/.bbhost.bin.bbprofile-tmp" && chmod 755 "$GAME/.bbhost.bin.bbprofile-tmp" &&
-    mv -f "$GAME/.bbhost.bin.bbprofile-tmp" "$GAME/bbhost.bin" || return 1
-  [ "$(sha "$GAME/bbhost.bin")" = "$(sha "$src")" ] || { say "copying $src failed"; return 1; }
+  cp "$src" "$GAME/.heliasdream.bin.bbprofile-tmp" && chmod 755 "$GAME/.heliasdream.bin.bbprofile-tmp" &&
+    mv -f "$GAME/.heliasdream.bin.bbprofile-tmp" "$GAME/heliasdream.bin" || return 1
+  [ "$(sha "$GAME/heliasdream.bin")" = "$(sha "$src")" ] || { say "copying $src failed"; return 1; }
 }
 restore_bin() {
-  [ -f "$GAME/bbhost.bin.bbprofile-orig" ] || return 0
-  if mv -f "$GAME/bbhost.bin.bbprofile-orig" "$GAME/bbhost.bin"; then
-    if [ -n "$ORIG_SHA" ] && [ "$(sha "$GAME/bbhost.bin")" != "$ORIG_SHA" ]; then
-      say "WARNING: the restored bbhost.bin's sha256 differs from the one found at the start"
+  [ -f "$GAME/heliasdream.bin.bbprofile-orig" ] || return 0
+  if mv -f "$GAME/heliasdream.bin.bbprofile-orig" "$GAME/heliasdream.bin"; then
+    if [ -n "$ORIG_SHA" ] && [ "$(sha "$GAME/heliasdream.bin")" != "$ORIG_SHA" ]; then
+      say "WARNING: the restored heliasdream.bin's sha256 differs from the one found at the start"
     else
-      say "restored the original bbhost.bin"
+      say "restored the original heliasdream.bin"
     fi
   else
-    say "WARNING: could not restore $GAME/bbhost.bin from bbhost.bin.bbprofile-orig: do it by hand:"
-    say "  mv -f \"$GAME/bbhost.bin.bbprofile-orig\" \"$GAME/bbhost.bin\""
+    say "WARNING: could not restore $GAME/heliasdream.bin from heliasdream.bin.bbprofile-orig: do it by hand:"
+    say "  mv -f \"$GAME/heliasdream.bin.bbprofile-orig\" \"$GAME/heliasdream.bin\""
   fi
 }
 
@@ -252,8 +252,8 @@ launch() {  # launch BIN VAR=VALUE...: start the game with these variables, outp
   install_bin "$bin" || return 1
   mkdir -p "$SD/snaps"
   { echo "binary: $(basename "$bin") sha256 $(sha "$bin")"; printf 'env: %s\n' "$@"; } > "$SD/run.txt"
-  # As run-bbhost.sh: the game folder's bbhost.toml (or $BBHOST_CONFIG) on top of the per-user config.
-  local cfg=${BBHOST_CONFIG:-bbhost.toml} args=()
+  # As run-heliasdream.sh: the game folder's heliasdream.toml (or $HELIAS_CONFIG) on top of the per-user config.
+  local cfg=${HELIAS_CONFIG:-heliasdream.toml} args=()
   if [ -f "$GAME/$cfg" ] || { [ "${cfg:0:1}" = / ] && [ -f "$cfg" ]; }; then args=(--config "$cfg"); fi
   echo "args: ${args[*]}" >> "$SD/run.txt"
   event "launch $* ${args[*]}"
@@ -268,7 +268,7 @@ launch() {  # launch BIN VAR=VALUE...: start the game with these variables, outp
     rm -f "$SD/game.log"; ln -s "$LOGTMP" "$SD/game.log"; out=$LOGTMP
     echo "log: $LOGTMP while running" >> "$SD/run.txt"
   fi
-  ( cd "$GAME" && exec env BBHOST_SNAP_DIR="$SD/snaps" "$@" "$LAUNCH" "${args[@]}" ) > "$out" 2>&1 &
+  ( cd "$GAME" && exec env HELIAS_SNAP_DIR="$SD/snaps" "$@" "$LAUNCH" "${args[@]}" ) > "$out" 2>&1 &
   GAME_PID=$!
   sleep 3
   if ! game_alive; then
@@ -436,7 +436,7 @@ cpu_profile() {  # the A1 CPU profile (the game keeps running at the spot)
   cp "/proc/$GAME_PID/maps" "$P/maps.txt"; threads_dump > "$P/threads-start.txt"
   taskset -pc "$GAME_PID" > "$P/affinity.txt" 2>&1
   cp0=$(tids_of bb-cp0)
-  hot=$(tids_of bbhost.bin GXRenderThread bb-record bb-submit bb-present bb-cp1)
+  hot=$(tids_of heliasdream.bin GXRenderThread bb-record bb-submit bb-present bb-cp1)
   say "[$(stamp)] CPU profile: keep standing still (about $(( $(secs 15) + $(secs 30) + $(secs 20) + $(secs 12) + $(secs 8) + 10 )) s)"
   event "perf stat"
   d=$(secs 15); say "  1/5 perf stat per thread, $d s"
@@ -508,7 +508,7 @@ step_sys() {
   say "Collecting system facts (about 20 s)..."
   {
     echo "date: $(date)"; uname -a; cat /etc/os-release 2> /dev/null; echo "cmdline: $(cat /proc/cmdline)"
-    echo "kit: $(basename "$KIT")"; echo "game bbhost.bin sha256 (original): $ORIG_SHA"
+    echo "kit: $(basename "$KIT")"; echo "game heliasdream.bin sha256 (original): $ORIG_SHA"
   } > "$S/os.txt"
   lscpu > "$S/lscpu.txt" 2>&1
   {
@@ -563,8 +563,8 @@ step_sys() {
   vulkaninfo --summary > "$S/vulkaninfo-summary.txt" 2>&1 || true
   { kscreen-doctor -o 2> /dev/null | sed 's/\x1b\[[0-9;]*m//g'; echo "active output: $(qdbus6 org.kde.KWin /KWin activeOutputName 2> /dev/null)"; } > "$S/display.txt" 2>&1
   pacman -Q 2> /dev/null | grep -E '^(linux[^ ]*|mesa[^ ]*|vulkan-radeon|lib32-vulkan-radeon|kwin|plasma-workspace|perf|scx[^ ]*|ananicy[^ ]*|power-profiles-daemon|sdl3|ffmpeg|llvm-libs|glibc|pipewire|amd-ucode|linux-firmware[^ ]*) ' > "$S/packages.txt"
-  # bbhost's settings, the [account] section and anything that looks like a credential removed.
-  for c in "$HOME/.config/bbhost/bbhost.toml" "$GAME/bbhost.toml"; do
+  # heliasdream's settings, the [account] section and anything that looks like a credential removed.
+  for c in "$HOME/.config/HeliasDream/HeliasDream.toml" "$GAME/heliasdream.toml"; do
     [ -f "$c" ] || continue
     awk 'BEGIN{skip=0} /^\[/{skip=($0 ~ /^\[account/)} !skip && !/(token|password|secret|psn|email)/' "$c" > "$S/$(echo "$c" | sed "s|$HOME|home|; s|/|_|g")"
   done
@@ -597,9 +597,9 @@ step_m4() {
   ask "Press Enter to start the game (s = skip, q = stop for now): "
   case "$REPLY" in s|S) return 3 ;; q|Q) return 4 ;; esac
   mkdir -p "$SD/captures"
-  launch "$PROF_BIN" BBHOST_FLIP_TRACE=1 BBHOST_FLIP_TRACE_MS=11 BBHOST_FRAME_STATS=1 BBHOST_FRAME_DETAIL=1 \
-    BBHOST_FRAME_SLOW_MS=11 BBHOST_WAIT_LOG=GXRender BBHOST_WAIT_LOG_MS=8 BBHOST_HLE_COUNT=1 \
-    BBHOST_VK_CAPTURE=1 BBHOST_VK_CAPTURE_DIR="$SD/captures" || return 1
+  launch "$PROF_BIN" HELIAS_FLIP_TRACE=1 HELIAS_FLIP_TRACE_MS=11 HELIAS_FRAME_STATS=1 HELIAS_FRAME_DETAIL=1 \
+    HELIAS_FRAME_SLOW_MS=11 HELIAS_WAIT_LOG=GXRender HELIAS_WAIT_LOG_MS=8 HELIAS_HLE_COUNT=1 \
+    HELIAS_VK_CAPTURE=1 HELIAS_VK_CAPTURE_DIR="$SD/captures" || return 1
   wait_arrival || { wait_game_exit; return 1; }
   countdown "$(secs 35)" "first 30 s window" || { wait_game_exit; return 1; }
   snap_request "m4 window 1" || true
@@ -628,7 +628,7 @@ step_pgo() {
   case "$REPLY" in s|S) return 3 ;; q|Q) return 4 ;; esac
   local pdir="$GAME/pgo/$SESSION"
   mkdir -p "$pdir"
-  launch "$PGO_BIN" BBHOST_PGO_DIR="$pdir" BBHOST_PGO_DUMP_S=30 || return 1
+  launch "$PGO_BIN" HELIAS_PGO_DIR="$pdir" HELIAS_PGO_DUMP_S=30 || return 1
   wait_arrival "Load into Old Yharnam; press F11 (or Enter here) when you are in control there." || wait_game_exit
   if game_alive; then
     countdown "$(secs 120)" "Old Yharnam: play" || true
@@ -653,12 +653,12 @@ run_step() {  # run_step ID -> 0 done, 3 skipped, 4 quit, other failed
   case "$1" in
     sys) step_sys ;;
     a1) step_ab ;;
-    a2) step_ab BBHOST_TABLES_VRAM=0 ;;
-    a3) step_ab BBHOST_PARAMS_WC=1 ;;
-    a4) step_ab BBHOST_PARAMS_VRAM=1 ;;
+    a2) step_ab HELIAS_TABLES_VRAM=0 ;;
+    a3) step_ab HELIAS_PARAMS_WC=1 ;;
+    a4) step_ab HELIAS_PARAMS_VRAM=1 ;;
     m4) step_m4 ;;
     pgo) step_pgo ;;
-    a5) step_ab BBHOST_PS_WAVE32=32 ;;
+    a5) step_ab HELIAS_PS_WAVE32=32 ;;
     a6) step_ab ;;
   esac
   rc=$?
@@ -732,7 +732,7 @@ cleanup() {
   if [ -n "$GAME" ] && [ -d "$GAME" ]; then restore_bin; fi
   sysctl_restore
   [ -n "$KEEPALIVE_PID" ] && kill "$KEEPALIVE_PID" 2> /dev/null
-  rm -f "$GAME/.bbhost.bin.bbprofile-tmp" 2> /dev/null
+  rm -f "$GAME/.heliasdream.bin.bbprofile-tmp" 2> /dev/null
 }
 
 # ---------------------------------------------------------------- main
@@ -743,7 +743,7 @@ if [ "$MODE" = dry ]; then
   say "dry run: checking the kit, the game folder and the tools (nothing is changed)"
   ok=1
   check_kit || ok=0; check_game || ok=0; check_tools || ok=0
-  [ -d "$GAME" ] && say "installed bbhost.bin sha256: $(sha "$GAME/bbhost.bin") ($( [ "$(sha "$GAME/bbhost.bin")" = "$RC5B_SHA" ] && echo rc5b || echo 'not rc5b'))"
+  [ -d "$GAME" ] && say "installed heliasdream.bin sha256: $(sha "$GAME/heliasdream.bin") ($( [ "$(sha "$GAME/heliasdream.bin")" = "$RC5B_SHA" ] && echo rc5b || echo 'not rc5b'))"
   say "perf_event_paranoid=$(cat /proc/sys/kernel/perf_event_paranoid) kptr_restrict=$(cat /proc/sys/kernel/kptr_restrict) (the session sets 1 and 0, then restores these)"
   if find_gpu; then say "gpu sysfs: $GPUDEV"; else say "no amdgpu sysfs found (sysmon will log CPU only)"; fi
   say "session folder would be: $WORKROOT/<date>-<time>; tarball: $OUTDIR/bbprofile-<date>-<time>.tar.gz"
@@ -773,8 +773,8 @@ say "work folder: $WORK"
 check_kit || die "kit check failed"
 check_game || die "game check failed"
 check_tools || die "tool check failed"
-pgrep -x bbhost.bin > /dev/null && die "bbhost.bin is running: close the game first"
-binary_state || die "could not sort out bbhost.bin"
+pgrep -x heliasdream.bin > /dev/null && die "heliasdream.bin is running: close the game first"
+binary_state || die "could not sort out heliasdream.bin"
 todo=()
 for s in "${ALL_STEPS[@]}"; do
   wanted "$s" || continue

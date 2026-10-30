@@ -1,9 +1,9 @@
-# keep_focus.ps1 -Name bbhost -Seconds 120: brings the process's window to the
+# keep_focus.ps1 -Name heliasdream -Seconds 120: brings the process's window to the
 # foreground every second for the run (tools/perf_pass_win.sh with
 # PERF_FULLSCREEN=1). A test started from another program's console gets its
-# window behind that program, and bbhost then takes no input - and AMD's
+# window behind that program, and heliasdream then takes no input - and AMD's
 # driver resolves no occlusion query (KyoPS4x #220) - while it is unfocused.
-param([string]$Name = "bbhost", [int]$Seconds = 120)
+param([string]$Name = "heliasdream", [int]$Seconds = 120)
 Add-Type @"
 using System;
 using System.Runtime.InteropServices;

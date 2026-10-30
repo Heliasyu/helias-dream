@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
-"""Name the GPU time between profiled draws (BBHOST_GPU_PROFILE=2), or the
-command processor's in-place recording sites (BBHOST_CMD_CENSUS=1), or the
+"""Name the GPU time between profiled draws (HELIAS_GPU_PROFILE=2), or the
+command processor's in-place recording sites (HELIAS_CMD_CENSUS=1), or the
 GPU's idle time between command buffers (--idle, any run with the busy meter).
 
-    tools/gpu_gaps.py LOG [--exe build/bbhost] [--top 25] [--windows] [--census | --idle]
+    tools/gpu_gaps.py LOG [--exe build/heliasdream] [--top 25] [--windows] [--census | --idle]
 
 Each 300-flip report's "gpu gaps:" line charges the GPU time between two
 profiled draws or dispatches (and before the first and after the last of a
 command buffer) to the recording sites - g_cmd()'s and rec()'s callers, as
-offsets in bbhost's image - that recorded in that gap. This sums every line
+offsets in heliasdream's image - that recorded in that gap. This sums every line
 of LOG, names the sites with addr2line, and prints the gaps by total time.
 With --census it reads the "cmd census:" lines instead (the recorder's
 report: who still records in place, after waiting for the command stream,
@@ -18,7 +18,7 @@ submitted after the GPU ran dry; queued: between command buffers already
 queued; before present) and size, the submissions' latency, and the "late"
 gaps by what ended the command buffer before them (submit_locked's caller,
 or flush_locked's - a CPU wait for the GPU). A
-Windows log takes --exe build/win/bbhost-win-<rev>.debug.exe --windows (the
+Windows log takes --exe build/win/heliasdream-win-<rev>.debug.exe --windows (the
 offsets are added to the PE's link base).
 """
 import argparse
@@ -28,10 +28,10 @@ import subprocess
 
 ap = argparse.ArgumentParser()
 ap.add_argument('log')
-ap.add_argument('--exe', default='build/bbhost')
+ap.add_argument('--exe', default='build/heliasdream')
 ap.add_argument('--top', type=int, default=25)
 ap.add_argument('--windows', action='store_true', help='offsets are from a Windows run: add the PE link base')
-ap.add_argument('--census', action='store_true', help='the "cmd census:" lines (BBHOST_CMD_CENSUS=1) instead of the gaps')
+ap.add_argument('--census', action='store_true', help='the "cmd census:" lines (HELIAS_CMD_CENSUS=1) instead of the gaps')
 ap.add_argument('--idle', action='store_true', help='the "gpu idle:" lines (test7) instead of the gaps')
 a = ap.parse_args()
 
@@ -101,7 +101,7 @@ if a.idle:
         if m:
             kinds['waits'].append(tuple(float(x) for x in m.groups()))
         m = re.search(r'batched ([0-9.]+) jobs/s into ([0-9.]+) submits/s, held ([0-9.]+)/s for ([0-9.]+) ms/s', line)
-        if m:  # test7c, BBHOST_SUBMIT_BATCH
+        if m:  # test7c, HELIAS_SUBMIT_BATCH
             kinds['batch'].append(tuple(float(x) for x in m.groups()))
     if not lines:
         raise SystemExit('no "gpu idle:" lines (a build from test7 on, with the GPU busy meter on)')
@@ -158,8 +158,8 @@ for line in open(a.log, errors='replace'):
         total[m.group(1)] += float(m.group(2))
         count[m.group(1)] += int(m.group(3))
 if not reports:
-    raise SystemExit('no "cmd census:" lines (run with BBHOST_CMD_CENSUS=1)' if a.census else
-                     'no "gpu gaps:" lines (run with BBHOST_GPU_PROFILE=2)')
+    raise SystemExit('no "cmd census:" lines (run with HELIAS_CMD_CENSUS=1)' if a.census else
+                     'no "gpu gaps:" lines (run with HELIAS_GPU_PROFILE=2)')
 
 base = 0
 if a.windows:

@@ -20,7 +20,7 @@
 // The game's Advance, Clear, AddCondition, the conditions' own updates and the
 // behaviour digit run as they are; the heap, the event-sync broadcast, the
 // restart queue and DL_PANIC are fakes that record. Skips without the 1.09
-// eboot (BBHOST_EBOOT, or eboot-109-decrypted.bin in the checkout).
+// eboot (HELIAS_EBOOT, or eboot-109-decrypted.bin in the checkout).
 #include "decomp/events/interpreter.cpp"
 
 #include "eboot_kit.h"

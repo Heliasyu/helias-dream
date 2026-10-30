@@ -33,7 +33,7 @@ using Bytes = std::vector<std::uint8_t>;
 
 // Bumped whenever a generator or the recipe changes, so installs remake their
 // assets instead of keeping the last generation.
-constexpr int kGeneratorVersion = 9;  // 9: bbhost-vk's PC Upscaling and Upscaling Quality sections; 8: PC Enhancements' three rows; 7: the PC Enhancements section; 6: event text (group 30) for the altar's rebirth
+constexpr int kGeneratorVersion = 9;  // 9: heliasdream-vk's PC Upscaling and Upscaling Quality sections; 8: PC Enhancements' three rows; 7: the PC Enhancements section; 6: event text (group 30) for the altar's rebirth
 
 const char kMessagesTsv[] =
 #include "pc_option_messages.inc"
@@ -43,7 +43,7 @@ struct Fail {
     std::string why;
 };
 
-// Whether the last movie made has bbhost-vk's two sections (build_option_movie).
+// Whether the last movie made has heliasdream-vk's two sections (build_option_movie).
 bool g_vk_sections = false;
 
 std::uint16_t u16(const Bytes& b, std::size_t i) {
@@ -793,7 +793,7 @@ Bytes build_option_movie(const Bytes& src) {
     section("PCCamera", 121020, 388, 4, 0, {"Item_4_0", "Item_5_0"});
     section("PCDeck", 123020, 389, 2, 0, {"Item_2_0", "Item_3_0", "Item_4_0", "Item_5_0"});
     section("PCEnhance", 124020, 390, 3, 0, {"Item_3_0", "Item_4_0", "Item_5_0"});
-    // bbhost-vk (docs/vk/PLAN.md, Phase 0): PC Upscaling - two toggles and
+    // heliasdream-vk (docs/vk/PLAN.md, Phase 0): PC Upscaling - two toggles and
     // the upscaler's pick list, PC Enhancements' shape plus a list - and
     // Upscaling Quality - the sharpness slider and the quality's pick list,
     // Steam Deck's shape. Two sections because a section takes one pick list,
@@ -1174,7 +1174,7 @@ const char kMessageFile[] = "menu.msgbnd.dcx";
 bool menu_assets_ensure() {
     const std::string app0 = hle_fs_app0_root(), data = hle_fs_data_root();
     if (app0.empty() || data.empty()) return false;
-    const fs::path out = fs::path(data) / "bbhost" / "menu-assets";
+    const fs::path out = fs::path(data) / "heliasdream" / "menu-assets";
     const auto movie_src = read_file(hle_fs_game_file(kMovie));
     if (!movie_src) {
         host_log("menu assets: the dump has no %s", kMovie);
@@ -1221,7 +1221,7 @@ bool menu_assets_ensure() {
     bool fresh = have && std::string(have->begin(), have->end()) == stamp && fs::exists(out / kMovie);
     for (const auto& [rel, src] : langs) fresh = fresh && fs::exists(out / rel);
     for (const auto& [rel, src] : titles) fresh = fresh && fs::exists(out / rel);
-    // bbhost-vk: whether that movie has the PC Upscaling sections, beside the stamp.
+    // heliasdream-vk: whether that movie has the PC Upscaling sections, beside the stamp.
     const auto vk = read_file(out / "vk-sections");
     fresh = fresh && vk && !vk->empty();
     if (fresh) g_vk_sections = (*vk)[0] == '1';

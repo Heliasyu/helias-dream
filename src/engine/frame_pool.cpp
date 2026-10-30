@@ -108,14 +108,14 @@ GUEST_ABI std::int64_t frame_pool_borrow(std::int64_t ctx_a, std::int64_t arg2) 
         give_back(pool, ctx, entry);
         return 1;
     }
-    // BBHOST_POOL_WATCH=1 (reconnaissance): the region begin mapped
+    // HELIAS_POOL_WATCH=1 (reconnaissance): the region begin mapped
     // is where this frame's dynamic vertices go; a page watch on it, armed
     // once in the world, names the code that writes them (the watch report
     // at exit).
-    // BBHOST_POOL_WATCH=1 watches the region; =0x<address> watches that page
+    // HELIAS_POOL_WATCH=1 watches the region; =0x<address> watches that page
     // instead (the memcpy's source the first watch reported, for example).
     static const std::uint64_t watch = [] {
-        const char* e = std::getenv("BBHOST_POOL_WATCH");
+        const char* e = std::getenv("HELIAS_POOL_WATCH");
         return e && e[0] ? (e[0] == '1' && !e[1] ? 1ull : std::strtoull(e, nullptr, 0)) : 0ull;
     }();
     if (watch && out[0]) {
@@ -124,7 +124,7 @@ GUEST_ABI std::int64_t frame_pool_borrow(std::int64_t ctx_a, std::int64_t arg2) 
             armed = true;
             const std::uint64_t target = watch == 1 ? out[0] : watch;
             // Direct memory the game writes through its GPU alias, when it has one.
-            const std::uint64_t alias = std::getenv("BBHOST_POOL_WATCH_CPU") ? 0 : hle_kernel_gpu_alias(target);
+            const std::uint64_t alias = std::getenv("HELIAS_POOL_WATCH_CPU") ? 0 : hle_kernel_gpu_alias(target);
             const std::uint64_t at = alias ? alias : target;
             host_log("pool: watching the borrowed region at 0x%llx (first page%s)", static_cast<ull>(at), alias ? ", the GPU alias" : "");
             hle_watch_arm(at, at + 0x1000);
@@ -144,8 +144,8 @@ GUEST_ABI std::int64_t frame_pool_borrow(std::int64_t ctx_a, std::int64_t arg2) 
 void frame_pool_install(ElfImage* image) {
     g_installed = false;
     if (!image) return;
-    if (const char* e = std::getenv("BBHOST_POOL_FIX"); e && e[0] == '0') {
-        host_log("pool: the frame loop's borrow is the game's own (BBHOST_POOL_FIX=0)");
+    if (const char* e = std::getenv("HELIAS_POOL_FIX"); e && e[0] == '0') {
+        host_log("pool: the frame loop's borrow is the game's own (HELIAS_POOL_FIX=0)");
         return;
     }
     g_slide = image->mem.slide;

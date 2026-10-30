@@ -367,7 +367,7 @@ GUEST_ABI int hle_gnm_submit(unsigned count, void** dcb, unsigned* dcb_bytes, vo
 }
 GUEST_ABI int hle_gnm_submit_flip(unsigned count, void** dcb, unsigned* dcb_bytes, void** ccb, unsigned* ccb_bytes,
                                  int handle, int buffer, unsigned, std::int64_t arg) {
-    const std::uint64_t trace = fliptrace::submit_begin();  // BBHOST_FLIP_TRACE (0: off)
+    const std::uint64_t trace = fliptrace::submit_begin();  // HELIAS_FLIP_TRACE (0: off)
     hle_gnm_submit_async(0, collect_submit(count, dcb, dcb_bytes),
                          [handle, buffer, arg, trace] {
                              fliptrace::cp_flip(trace, false);
@@ -382,7 +382,7 @@ GUEST_ABI int hle_gnm_submit_flip(unsigned count, void** dcb, unsigned* dcb_byte
     // (byte at 0x5962878+0x32) across the first flips, to see whether the
     // menu-load step stops ticking or its loader goes null after ~7 menus.
     static const bool trace_menuload = [] {
-        const char* e = std::getenv("BBHOST_TRACE_MENULOAD");
+        const char* e = std::getenv("HELIAS_TRACE_MENULOAD");
         return e && e[0] == '1';
     }();
     if (trace_menuload) {
@@ -400,18 +400,18 @@ GUEST_ABI int hle_gnm_submit_flip(unsigned count, void** dcb, unsigned* dcb_byte
                      static_cast<unsigned long long>(sp), static_cast<unsigned long long>(loader), done);
         }
     }
-    hle_gnm_arena_flip();  // BBHOST_ARENA_MONITOR
-    frame_stats_on_flip();  // BBHOST_FRAME_STATS
+    hle_gnm_arena_flip();  // HELIAS_ARENA_MONITOR
+    frame_stats_on_flip();  // HELIAS_FRAME_STATS
     static std::atomic<int> flip_logs{0};
     const int n = flip_logs.fetch_add(1);
-    // A flip that came BBHOST_STALL_MS (100 by default; 0 turns this off) or
+    // A flip that came HELIAS_STALL_MS (100 by default; 0 turns this off) or
     // more after the previous one: what the command processor and the texture
     // cache spent in between, so a hitch (a new area loading) shows whether it
     // went to pipeline builds, dispatches, draws, texture uploads or waits. The
     // command processor runs behind the game, so work in the gap can belong to
     // the frames just before it.
     static const std::uint64_t stall_ms = [] {
-        const char* e = std::getenv("BBHOST_STALL_MS");
+        const char* e = std::getenv("HELIAS_STALL_MS");
         return e ? std::strtoull(e, nullptr, 10) : 100ull;
     }();
     if (stall_ms) {
@@ -491,7 +491,7 @@ GUEST_ABI int hle_gnm_submit_flip(unsigned count, void** dcb, unsigned* dcb_byte
                  static_cast<unsigned long long>(now.transfer_batches - last.transfer_batches), hle_gnm_flush_reasons().c_str());
         {
             // The window's draws by how their pixel shader ran: the share the
-            // lifter (BBHOST_DECOMP) carries.
+            // lifter (HELIAS_DECOMP) carries.
             std::uint64_t ps[kDrawPsCount];
             for (int i = 0; i < kDrawPsCount; ++i) ps[i] = now.draws_ps[i] - last.draws_ps[i];
             const std::uint64_t shaded = ps[kDrawPsLifted] + ps[kDrawPsTranslated] + ps[kDrawPsFallback];
@@ -556,7 +556,7 @@ GUEST_ABI int hle_gnm_submit_flip(unsigned count, void** dcb, unsigned* dcb_byte
         if (const std::string r = hle_fs_overlay_report(); !r.empty()) host_log("  %s", r.c_str());
         if (const std::string r = rebirth_report(); !r.empty()) host_log("  %s", r.c_str());
         if (const std::string r = graphics_glare_report(); !r.empty()) host_log("  %s", r.c_str());
-        static const bool count_calls = std::getenv("BBHOST_HLE_COUNT") != nullptr;
+        static const bool count_calls = std::getenv("HELIAS_HLE_COUNT") != nullptr;
         if (count_calls) hle_call_counts_report();
         last = now;
         last_t = t;

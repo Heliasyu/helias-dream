@@ -1,12 +1,12 @@
-// The command stream's self-test (recorder.cpp): bbhost --stream-selftest[=N]
-// or BBHOST_STREAM_SELFTEST=N, before the guest loads.
+// The command stream's self-test (recorder.cpp): heliasdream --stream-selftest[=N]
+// or HELIAS_STREAM_SELFTEST=N, before the guest loads.
 //
 // Vulkan comes up headless through host_gpu_init and the test runs on the
 // production stream - the real command pool and slots, bb-record, bb-submit,
 // the fences - not a model of it. Each round draws a seeded random sequence of
-// commands and runs it four ways: everything in place (BBHOST_RECORDER=0),
-// draws on the recorder and the rest in place (BBHOST_STREAM_SUBMIT=0), the
-// stream replayed on the producer (BBHOST_RECORDER_INLINE=1), and the stream
+// commands and runs it four ways: everything in place (HELIAS_RECORDER=0),
+// draws on the recorder and the rest in place (HELIAS_STREAM_SUBMIT=0), the
+// stream replayed on the producer (HELIAS_RECORDER_INLINE=1), and the stream
 // on bb-record. A CPU model applies the same sequence to arrays; after each
 // way the buffers and the image are read back and compared with it, so the
 // four agree with the model and with each other.
@@ -943,7 +943,7 @@ bool run_way(Resources& r, const Way& way, std::uint64_t seed, int round, RoundS
 // ---- the cost table ----
 
 struct Cost {
-    double ns[3] = {};  // in place; in place behind the recorder (BBHOST_STREAM_SUBMIT=0); streamed
+    double ns[3] = {};  // in place; in place behind the recorder (HELIAS_STREAM_SUBMIT=0); streamed
 };
 
 template <class F> double time_ns(std::uint32_t k, F f) {
@@ -1091,7 +1091,7 @@ int host_gpu_stream_selftest(int rounds) {
     }
     const std::uint64_t validation0 = g_validation_messages.load();
     std::uint64_t seed0 = host_clock_monotonic_ns();
-    if (const char* e = std::getenv("BBHOST_STREAM_SELFTEST_SEED"); e && *e) seed0 = std::strtoull(e, nullptr, 0);
+    if (const char* e = std::getenv("HELIAS_STREAM_SELFTEST_SEED"); e && *e) seed0 = std::strtoull(e, nullptr, 0);
     RoundStats total;
     std::uint64_t ops = 0;
     int failed_rounds = 0;
@@ -1148,7 +1148,7 @@ int host_gpu_stream_selftest(int rounds) {
     const std::uint64_t view_faults = g_pass_view_faults.load();
     if (view_faults) host_log("stream selftest: pass_view_locked faults %llu", static_cast<unsigned long long>(view_faults));
     {
-        const SubmitLatencyTotals lt = submit_latency_totals();  // BBHOST_SUBMIT_BATCH: what was merged
+        const SubmitLatencyTotals lt = submit_latency_totals();  // HELIAS_SUBMIT_BATCH: what was merged
         host_log("stream selftest: submit batching merged %llu jobs into %llu submissions; %llu holds, %.2f ms",
                  static_cast<unsigned long long>(lt.batch_jobs), static_cast<unsigned long long>(lt.batch_submits),
                  static_cast<unsigned long long>(lt.batch_holds), static_cast<double>(lt.batch_hold_ns) / 1e6);

@@ -1,5 +1,5 @@
 #version 450
-// bbhost-vk rc2, BBHOST_SHARPEN_AT_PRESENT=1 (debugging; off by default): the
+// heliasdream-vk rc2, HELIAS_SHARPEN_AT_PRESENT=1 (debugging; off by default): the
 // presenter's pass (present.frag) with FSR's sharpening folded in - AMD's RCAS
 // (fsr1/ffx_fsr1.h, MIT) cross of five taps, without its noise removal, on the
 // display image as it is shown. It saves FSR 4.1.1's own sharpening pass

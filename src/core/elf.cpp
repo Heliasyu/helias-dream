@@ -161,10 +161,10 @@ bool load_orbis_elf(const char* path, ElfImage* image) {
     image->tail_va = (max_va + 0xfff) & ~0xfffull;
     image->tail_size = kTail;
     const std::size_t span = static_cast<std::size_t>(image->tail_va + kTail);
-    // BBHOST_SLIDE=0x...: load at another slide (what a Windows boot does when
+    // HELIAS_SLIDE=0x...: load at another slide (what a Windows boot does when
     // 0x400000 is taken), to prove the address-based patches on Linux.
     std::uint64_t slide = kPreferredSlide;
-    if (const char* e = std::getenv("BBHOST_SLIDE")) slide = std::strtoull(e, nullptr, 0);
+    if (const char* e = std::getenv("HELIAS_SLIDE")) slide = std::strtoull(e, nullptr, 0);
     if (!guest_alloc(&image->mem, slide, span)) {
         return false;
     }

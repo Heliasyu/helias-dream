@@ -312,12 +312,12 @@ void note_unknown(const char* tag) {
     g_unknown.fetch_add(1, std::memory_order_relaxed);
 }
 
-// BBHOST_KEY_PROMPTS_TRACE=1: every format this formatter is handed, with its
+// HELIAS_KEY_PROMPTS_TRACE=1: every format this formatter is handed, with its
 // first argument, so a prompt that does not come through here shows itself.
 std::atomic<int> g_trace{0};
 bool tracing_messages() {
     static const bool on = [] {
-        const char* e = std::getenv("BBHOST_KEY_PROMPTS_TRACE");
+        const char* e = std::getenv("HELIAS_KEY_PROMPTS_TRACE");
         return e && e[0] == '1';
     }();
     return on;
@@ -464,7 +464,7 @@ GUEST_ABI std::int64_t settext_hook(std::uint64_t, std::uint64_t* saved) {
 GUEST_ABI std::int64_t formatter_hook(std::uint64_t, std::uint64_t* saved) {
     const auto* fmt = reinterpret_cast<const char16_t*>(static_cast<std::uintptr_t>(saved[4]));
     static const bool tracing = [] {
-        const char* e = std::getenv("BBHOST_KEY_PROMPTS_TRACE");
+        const char* e = std::getenv("HELIAS_KEY_PROMPTS_TRACE");
         return e && e[0] == '1';
     }();
     if (tracing && fmt) trace(fmt, saved[3], saved[6]);  // saved[6]: the return address, above the pushes
@@ -789,7 +789,7 @@ GUEST_ABI std::int64_t lookup_hook(std::uint64_t, const std::uint64_t* saved) {
     return 0;
 }
 
-// BBHOST_KEY_PROMPTS_TRACE=1: the rewrite over two lines of the game's own
+// HELIAS_KEY_PROMPTS_TRACE=1: the rewrite over two lines of the game's own
 // text, so a run says what it would do without having to reach the screen
 // that shows them.
 void self_check() {
@@ -811,7 +811,7 @@ void self_check() {
 }  // namespace
 
 void key_prompts_install(ElfImage* image) {
-    if (const char* e = std::getenv("BBHOST_KEY_PROMPTS"); e && e[0] == '0') {
+    if (const char* e = std::getenv("HELIAS_KEY_PROMPTS"); e && e[0] == '0') {
         host_log("key prompts: off, the pad's glyphs stay");
         return;
     }

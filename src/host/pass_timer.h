@@ -1,6 +1,6 @@
 #pragma once
 
-// bbhost-vk Phase 5: GPU time of the renderer's own passes, each on its own
+// heliasdream-vk Phase 5: GPU time of the renderer's own passes, each on its own
 // (Show Upscaler GPU Time): the motion-vector pass, the reactive mask, the
 // opaque snapshot, the upscaler's dispatch (FSR 3.1 or FSR 4.1.1) and the copy
 // of its output into the game's target. Timestamp pairs in a ring, read back

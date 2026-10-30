@@ -30,7 +30,7 @@
 // (gx_trace.cpp's snapshot) and travels with the draw. Ids name interned
 // descriptions: identical states share one, and none is ever reused.
 //
-// BBHOST_GX_STATE=0 leaves it off; =2 (compare) checks, at every draw that
+// HELIAS_GX_STATE=0 leaves it off; =2 (compare) checks, at every draw that
 // carries ids, the Vulkan state the descriptions give against what the
 // register path gives (render.cpp) and reports the differences at exit.
 #pragma once
@@ -63,7 +63,7 @@ struct GxRasterDesc {
 };
 
 void gx_state_install(ElfImage* image);
-// 0 off, 1 on, 2 compare (BBHOST_GX_STATE).
+// 0 off, 1 on, 2 compare (HELIAS_GX_STATE).
 int gx_state_mode();
 // A state object's id at the draw call, where the object is known to be
 // alive; 0 when the registry never saw it created.

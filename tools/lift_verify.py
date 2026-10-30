@@ -2,7 +2,7 @@
 """Check every lift against its translation, one captured draw at a time.
 
 For each draw capture under CAPTURES (a directory of capture directories, as
-`BBHOST_CAPTURE_DRAW='*'` writes them), runs
+`HELIAS_CAPTURE_DRAW='*'` writes them), runs
 
     gcnlift <capture> <out>/<name>/lift
     drawreplay <capture> --ps <out>/<name>/lift/lifted.spv --no-live --out <out>/<name>/replay
@@ -11,7 +11,7 @@ gcnlift rebuilds the pixel stage's translation options from the manifest,
 requires the retranslation to equal the captured SPIR-V, and lifts. drawreplay
 renders the draw with the captured modules and again with the lifted pixel
 shader, and compares the outputs byte for byte. A draw captured with its lift
-bound (BBHOST_DECOMP, on by default) is replayed against the translation
+bound (HELIAS_DECOMP, on by default) is replayed against the translation
 instead (--ps <out>/<name>/lift/reference.spv): either way one run has the
 lift and the other the translation.
 
@@ -143,7 +143,7 @@ def main():
             for why in r.get("detail", []):
                 reasons[why.split(": ", 1)[-1] if why[:1].isdigit() or why[:1] == "0" else why] += 1
     summary = {
-        "schema": "bbhost-lift-verify",
+        "schema": "heliasdream-lift-verify",
         "stage": args.stage,
         "captures": len(rows),
         "totals": dict(totals),

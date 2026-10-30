@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Drive the game's menus with the real mouse, headless, the way a player would.
 
-It reads what the game says rather than assuming: with BBHOST_POINTER_LOG=1
+It reads what the game says rather than assuming: with HELIAS_POINTER_LOG=1
 every list that gains focus logs its shape and each item's on-screen
 rectangle (engine/menu_pointer.cpp), and every step here acts on those - so a
 click lands on an item because the game said the item is there.
@@ -31,7 +31,7 @@ Steps (run in order):
     pan:DX,S       move the mouse DX pixels every 20 ms for S seconds (turns
                    the camera in the world)
     padplug / padunplug   a virtual controller arrives / leaves (uinput; run
-                   the game with BBHOST_GAMEPAD_MATCH=045e:02ea)
+                   the game with HELIAS_GAMEPAD_MATCH=045e:02ea)
     pad:BUTTON[,S] tap a pad button (a b x y lb rb back start ls rs)
     down:A+B       press X keys and keep them held (until up:)
     up:A+B         release X keys held by down:
@@ -51,7 +51,7 @@ Steps (run in order):
                    NAME-<frame>.jpg (frame n is n/20 s after it starts)
     title:online   the same, clicking Play Online - only against a server on
                    this machine: MENU_DRIVE_ONLINE_CONFIG must name the run's
-                   bbhost.toml and its [online] host (and auth_server, if
+                   heliasdream.toml and its [online] host (and auth_server, if
                    set) must be 127.0.0.1 / localhost, or the step refuses
                    and the script stops (tools/map_validation.sh)
     waitlog:REGEX  wait until the run log matches
@@ -121,7 +121,7 @@ def move(px, py):
     x('mousemove', str(ax), str(ay)); time.sleep(0.25); x('mousemove', str(bx), str(by))
 
 # A virtual controller (uinput, an Xbox One S pad's ids 045e:02ea), for the
-# pad steps: run the game with BBHOST_GAMEPAD_MATCH=045e:02ea so it opens this
+# pad steps: run the game with HELIAS_GAMEPAD_MATCH=045e:02ea so it opens this
 # one and not a controller on the desk. Plugged in on the first pad step.
 vpad = None
 PAD_BUTTONS = {'a': 'BTN_A', 'b': 'BTN_B', 'x': 'BTN_X', 'y': 'BTN_Y', 'lb': 'BTN_TL', 'rb': 'BTN_TR',
@@ -204,7 +204,7 @@ def screen_of(b):
     ys = [py for _, _, py in b['items']]
     if 'count 1 cells 2 lines 1' in h:
         return 'popup'
-    # The title movie has six lines since bbhost added Quit Game (five before),
+    # The title movie has six lines since heliasdream added Quit Game (five before),
     # and the main list five or six rows (Log In and Quit Game come and go).
     if re.search(r'count 2 cells 1 lines [56]\b', h) and len(ys) == 2:
         return 'online'
@@ -472,7 +472,7 @@ for step in sys.argv[2:]:
         # wheelto:N - scroll the focused list to row N one notch at a time,
         # reading the cursor back from the pointer log ("pad cursor a -> b")
         # after each notch, so a slow frame that swallows or doubles a notch
-        # is corrected instead of counted. Needs BBHOST_POINTER_LOG=1.
+        # is corrected instead of counted. Needs HELIAS_POINTER_LOG=1.
         target = int(arg)
         rx = re.compile(r'pad cursor (\d+) -> (\d+)')
         def cursor():

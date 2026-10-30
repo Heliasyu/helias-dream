@@ -37,7 +37,7 @@
 // Controller leaves every glyph alone. A switch with a screen open shows at
 // once: the key guide line is mended at the text field's SetText, so entries
 // the screen formatted when it opened change too.
-// `BBHOST_KEY_PROMPTS_TRACE=1` logs what each hook sees and self-checks the
+// `HELIAS_KEY_PROMPTS_TRACE=1` logs what each hook sees and self-checks the
 // rewrite at startup.
 
 #include <cstdint>

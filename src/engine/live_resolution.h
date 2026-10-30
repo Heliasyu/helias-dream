@@ -7,7 +7,7 @@
 // recorded or played. The display buffers are allocated once, at the largest
 // size, and the window shows the top-left of them at the render size.
 //
-// Off with BBHOST_LIVE_RESOLUTION=0 (the resolution then applies on the next
+// Off with HELIAS_LIVE_RESOLUTION=0 (the resolution then applies on the next
 // run, as before), or when a hook does not go in.
 
 #include <cstdint>
@@ -37,7 +37,7 @@ bool live_resolution_can(unsigned w, unsigned h);
 bool live_resolution_request(unsigned w, unsigned h, bool confirm = false);
 // 0 while nothing has been answered; then once 1 (keep) or 2 (go back).
 int live_resolution_take_answer();
-// bbhost-vk: on around the game's own System menu setting the resolution or
+// heliasdream-vk: on around the game's own System menu setting the resolution or
 // the upscaler (then off): a request made meanwhile waits (bounded) for that
 // menu's pick list to close before resizing. F10 and the setup window never
 // set it, so their changes go as upstream's.
@@ -46,7 +46,7 @@ void live_resolution_from_game_menu(bool on);
 // a "go back" whose old entry waits for the next start.
 void live_resolution_go_back();
 
-// bbhost-vk: the upscaler or its preset changed - the scene's size
+// heliasdream-vk: the upscaler or its preset changed - the scene's size
 // (engine/scene_split.h) follows at the next quiet point, the output staying.
 void live_resolution_scale_changed();
 // The scene's size now: the render size when split, else the output's.

@@ -1,6 +1,6 @@
 #pragma once
 
-// bbhost-vk Phase 2: the game's per-frame scene constants, the camera they
+// heliasdream-vk Phase 2: the game's per-frame scene constants, the camera they
 // hold, its history and camera cuts, and the camera motion vectors' math.
 // Pure (no Vulkan, no engine): tests/temporal_test.cpp takes it as it is, and
 // host/shaders/motion.comp is the same math on the GPU.

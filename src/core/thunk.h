@@ -106,10 +106,10 @@ R hle_call_guest(void* fn, A... a) {
     return static_cast<R>(r);
 }
 
-// The name of an HLE function and the image slide, for the BBHOST_HLE_FIRST
+// The name of an HLE function and the image slide, for the HELIAS_HLE_FIRST
 // log (set by the runtime; the thunk itself knows neither).
 void thunk_set_lookups(const char* (*name)(void*), std::uint64_t (*slide)());
-// BBHOST_HLE_COUNT=1: the HLE calls made since the last take, by thread name
+// HELIAS_HLE_COUNT=1: the HLE calls made since the last take, by thread name
 // and target (thunk.cpp).
 #include <string>
 #include <vector>

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Box-side analysis of a bbprofile.sh session tarball (profiling kit, after rc5b).
 
-  bbprofile_analyze.py ~/bbprofile-20261021-190000.tar.gz [--out DIR] [--symbols bbhost-prof.debug]
+  bbprofile_analyze.py ~/bbprofile-20261021-190000.tar.gz [--out DIR] [--symbols heliasdream-prof.debug]
   bbprofile_analyze.py DIR                        an extracted session folder
   bbprofile_analyze.py pgo-merge SESSION OUT.profdata [--llvm-profdata llvm-profdata-19]
 
@@ -17,7 +17,7 @@ import argparse, collections, glob, gzip, io, os, re, shutil, statistics as st, 
 STEPS = ["sys", "a1", "a2", "a3", "a4", "m4", "pgo", "a5", "a6"]
 LABEL = {"a1": "plain", "a2": "TABLES_VRAM=0", "a3": "PARAMS_WC=1", "a4": "PARAMS_VRAM=1", "m4": "M4 (traced)",
          "a5": "PS_WAVE32=32", "a6": "plain again", "pgo": "PGO (instrumented)"}
-HOT = ["main", "bbhost.bin", "GXRenderThread", "bb-cp0", "bb-record", "bb-submit", "bb-present", "bb-vblank"]
+HOT = ["main", "heliasdream.bin", "GXRenderThread", "bb-cp0", "bb-record", "bb-submit", "bb-present", "bb-vblank"]
 
 out_lines = []
 def p(s=""):
@@ -45,7 +45,7 @@ def parse_snap(path):
     sect = None
     for line in open(path, errors="replace"):
         line = line.rstrip("\n")
-        if line.startswith("[") and not line.startswith("[bbhost]"):
+        if line.startswith("[") and not line.startswith("[heliasdream]"):
             sect = line.split("]")[0][1:]
             continue
         if sect is None:
@@ -113,7 +113,7 @@ def snap_stats(d):
     s["cmd_ms_s"] = mean([x["cmd"] for x in secs])
     g = [x["cmd"] / fps_s[int(x["t"])] for x in secs if fps_s.get(int(x["t"]))]
     s["gpu_ms_frame"] = mean(g)
-    for t in ("bb-cp0", "bb-record", "bb-submit", "bbhost.bin", "GXRenderThread"):
+    for t in ("bb-cp0", "bb-record", "bb-submit", "heliasdream.bin", "GXRenderThread"):
         s["cpu_" + t] = mean([x["thr"].get(t, 0.0) for x in secs])
     q, late, busy = [], [], []
     for t, l in d["log"]:
@@ -238,7 +238,7 @@ def section_ab(root):
     cols = [("avg_fps", "fps", 1), ("low1", "1% low", 1), ("pct_over8.5", "%>8.5ms", 1), ("over11", ">11ms/30s", 1), ("p99_ms", "p99 ms", 2),
             ("gpu_busy", "GPU busy%", 1), ("gpu_ms_frame", "GPU ms/frame", 2), ("queued_idle_ms_s", "queued idle ms/s", 1),
             ("iwq_delta_ms_s", "queued idle (totals) ms/s", 1), ("late_idle_ms_s", "late idle ms/s", 1), ("exec_ns_draw", "CP ns/draw", 0),
-            ("draws_frame", "draws/frame", 0), ("cpu_bb-cp0", "bb-cp0 ms/s", 0), ("cpu_bb-record", "bb-record ms/s", 0), ("cpu_bbhost.bin", "game thr ms/s", 0)]
+            ("draws_frame", "draws/frame", 0), ("cpu_bb-cp0", "bb-cp0 ms/s", 0), ("cpu_bb-record", "bb-record ms/s", 0), ("cpu_heliasdream.bin", "game thr ms/s", 0)]
     p("| step | " + " | ".join(c[1] for c in cols) + " |")
     p("|" + "---|" * (len(cols) + 1))
     for sname, r in rows.items():
@@ -302,7 +302,7 @@ def section_m4(root):
     for s in meas:
         rows += s["flip"]
     if not rows:
-        p("no [flip_trace] rows (was BBHOST_FLIP_TRACE=1 picked up?)")
+        p("no [flip_trace] rows (was HELIAS_FLIP_TRACE=1 picked up?)")
     else:
         slow = [r for r in rows if r.get("interval_ms", 0) >= 11 and r.get("interval_ms", 0) < 250]
         norm = [r for r in rows if 0 < r.get("interval_ms", 0) < 9.5]
@@ -379,7 +379,7 @@ def section_m4(root):
         wl = re.findall(r"wait: (\S+) waited ([\d.]+) ms[^\n]*", txt)
         if wl:
             byt = collections.Counter(w[0] for w in wl)
-            p(f"- BBHOST_WAIT_LOG (>= 8 ms waits): {len(wl)} lines; by thread {dict(byt.most_common(5))}; longest {max(float(w[1]) for w in wl):.1f} ms")
+            p(f"- HELIAS_WAIT_LOG (>= 8 ms waits): {len(wl)} lines; by thread {dict(byt.most_common(5))}; longest {max(float(w[1]) for w in wl):.1f} ms")
     # perf sched around the slow frames
     th = os.path.join(sd, "perf", "sched-timehist.txt.gz")
     if os.path.exists(th) and slow_t:
@@ -488,7 +488,7 @@ def section_cpu(root, symbols):
         p("```"); p(open(summ, errors="replace").read()[:6000].rstrip()); p("```")
     st_ = os.path.join(sd, "stat-per-thread.txt")
     if os.path.exists(st_):
-        lines = [l for l in open(st_, errors="replace") if re.search(r"bb-cp0|bbhost.bin|GXRender|bb-record|bb-submit", l) and re.search(r"instructions|cycles|task-clock", l)]
+        lines = [l for l in open(st_, errors="replace") if re.search(r"bb-cp0|heliasdream.bin|GXRender|bb-record|bb-submit", l) and re.search(r"instructions|cycles|task-clock", l)]
         if lines:
             p("### perf stat (hot threads)"); p("```"); p("".join(lines[:40]).rstrip()); p("```")
     for name in ("cp0", "hot"):
@@ -537,10 +537,10 @@ def symbolize(sd, symbols, leaf_ip, n):
     base = None
     for l in open(maps):
         parts = l.split()
-        if len(parts) >= 6 and parts[5].endswith("bbhost.bin") and int(parts[2], 16) == 0:
+        if len(parts) >= 6 and parts[5].endswith("heliasdream.bin") and int(parts[2], 16) == 0:
             base = int(parts[0].split("-")[0], 16); break
     if base is None:
-        p("- (bbhost.bin not in maps.txt)"); return
+        p("- (heliasdream.bin not in maps.txt)"); return
     top = leaf_ip.most_common(60)
     addrs = "\n".join(hex(ip - base) for ip, _ in top)
     r = subprocess.run([tool, "--obj=" + symbols, "--inlining", "--functions=short", "--relative-address"], input=addrs, capture_output=True, text=True)
@@ -595,7 +595,7 @@ def section_pgo(root):
         w = re.findall(r"pgo: profile written[^\n]*", open(log, errors="replace").read())
         p(f"- {len(w)} `pgo: profile written` lines logged (first three and the final one are logged)")
     p("- merge here (llvm-profdata 19, the version of the clang that built the instrumented binary):")
-    p(f"  `python3 tools/bbprofile/bbprofile_analyze.py pgo-merge {root} bbhost.profdata`")
+    p(f"  `python3 tools/bbprofile/bbprofile_analyze.py pgo-merge {root} heliasdream.profdata`")
     p()
 
 def section_captures(root):
@@ -621,8 +621,8 @@ def pgo_merge(session, out, tool):
     print("\nbuild with it (same flags as the release build, from the source tree):")
     print(f"  cmake -S . -B build-ci/build-pgo -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_PREFIX_PATH=$PWD/build-ci/prefix "
           f"-DVulkan_INCLUDE_DIR=$PWD/build-ci/prefix/include -DCMAKE_EXE_LINKER_FLAGS='-static-libstdc++ -static-libgcc -fuse-ld=lld' "
-          f"-DCMAKE_MODULE_LINKER_FLAGS='-static-libgcc -fuse-ld=lld' -DBBHOST_RELEASE=ON -DBBHOST_PGO_USE={os.path.abspath(out)}")
-    print("  ninja -C build-ci/build-pgo bbhost && objcopy --strip-debug build-ci/build-pgo/bbhost bbhost.bin")
+          f"-DCMAKE_MODULE_LINKER_FLAGS='-static-libgcc -fuse-ld=lld' -DHELIAS_RELEASE=ON -DHELIAS_PGO_USE={os.path.abspath(out)}")
+    print("  ninja -C build-ci/build-pgo heliasdream && objcopy --strip-debug build-ci/build-pgo/heliasdream heliasdream.bin")
 
 def extract(tgz, out):
     os.makedirs(out, exist_ok=True)
@@ -647,7 +647,7 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("session", help="the tarball or an extracted session folder")
     ap.add_argument("--out", help="where to extract a tarball (default: beside it)")
-    ap.add_argument("--symbols", help="the unstripped bbhost-prof (symbols/bbhost-prof.debug) for bb-cp0's inline view")
+    ap.add_argument("--symbols", help="the unstripped heliasdream-prof (symbols/heliasdream-prof.debug) for bb-cp0's inline view")
     a = ap.parse_args()
     root = a.session
     if os.path.isfile(root):

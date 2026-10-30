@@ -13,7 +13,7 @@ public sealed class LauncherSettings
     /// Blur the game's own key art (sce_sys/pic1.png in the player's dump) behind the glass.
     public bool GameArtBackground { get; set; } = true;
     public bool CloseOnPlay { get; set; }
-    /// How frames reach the screen (BBHOST_PRESENT_MODE): auto follows V-Sync.
+    /// How frames reach the screen (HELIAS_PRESENT_MODE): auto follows V-Sync.
     public string PresentMode { get; set; } = "mailbox";
     /// The monitor the game opens on (a connector name, DP-1); empty: the primary one.
     public string Monitor { get; set; } = "";
@@ -21,7 +21,7 @@ public sealed class LauncherSettings
     public string Profile { get; set; } = "Default";
     /// The art Add to Steam uses (bbp.png, bb.png, bb_hero.jpg, bb_logo.png, bb_icon.png).
     public string? SteamArt { get; set; }
-    /// The controller the game takes input from (BBHOST_GAMEPAD, part of its name), or "auto":
+    /// The controller the game takes input from (HELIAS_GAMEPAD, part of its name), or "auto":
     /// every controller, Steam Input's own pad standing in for the ones it handles.
     public string Gamepad { get; set; } = "auto";
 

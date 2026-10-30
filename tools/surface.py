@@ -4,11 +4,11 @@ world run executes, and how many of them have names.
 
     tools/surface.py build/samples-surface [--flips 2500:5000] [--top 30] [--json out.json]
 
-Input is what BBHOST_SAMPLE wrote (host/sampler.h): one stack a line, guest
+Input is what HELIAS_SAMPLE wrote (host/sampler.h): one stack a line, guest
 frames as `g<Binary Ninja address>`. Function boundaries come from a local
 symbols/1.09-functions.txt.gz (every function start Binary Ninja found, one
 hex address a line) and names from symbols/1.09.json ({"functions":
-{"0x...": name}}); neither is distributed with bbhost. A sampled
+{"0x...": name}}); neither is distributed with heliasdream. A sampled
 address is attributed to the function whose start precedes it.
 
 Prints one row: functions in the
@@ -26,7 +26,7 @@ import re
 import sys
 
 ap = argparse.ArgumentParser()
-ap.add_argument('prefix', help='BBHOST_SAMPLE_OUT (without .txt)')
+ap.add_argument('prefix', help='HELIAS_SAMPLE_OUT (without .txt)')
 ap.add_argument('--flips', help='first:last flip to include')
 ap.add_argument('--top', type=int, default=25)
 ap.add_argument('--json', help='write the numbers and the seen set here')

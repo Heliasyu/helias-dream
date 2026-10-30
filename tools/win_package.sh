@@ -1,16 +1,19 @@
 #!/bin/bash
 # Packs the Windows cross build into the zip a Windows machine runs from
-# (docs/building.md), the release's Windows bundle: the exe without its DWARF,
-# a launcher that keeps a log (run-bbhost.bat), a config template with
+# (docs/building.md), the release's Windows bundle: the engine without its
+# DWARF as HeliasDream-engine.exe (Windows names ignore case, so it cannot be
+# heliasdream.exe beside the launcher), the launcher HeliasDream.exe (built
+# with dotnet when there is one, LAUNCHER_EXE to give one), a script that
+# starts the engine alone and keeps a log (run-engine.bat), a config template with
 # Windows paths, the player's README, and the empty data/, build/ and logs/
-# directories the run writes into. Nothing in it picks a server: bbhost's
+# directories the run writes into. Nothing in it picks a server: heliasdream's
 # defaults are the live server's (https://thehuntersdream.com). The
 # unstripped exe is kept beside the zip under the same revision name, for
 # symbolizing a crash report from that machine.
 #   tools/win_package.sh [EXE] [OUTDIR]     (cmake --build build-win --target package-win)
 set -eu
 cd "$(dirname "$0")/.."
-exe=${1:-build-win/bbhost.exe}
+exe=${1:-build-win/heliasdream.exe}
 out=${2:-build/win}
 rev=$(git -c core.excludesFile=/dev/null rev-parse --short HEAD 2>/dev/null || echo unknown)
 # A release (HEAD at a v* tag) is named for its version, anything else for its revision.
@@ -20,28 +23,43 @@ fi
 if [ -n "$(git -c core.excludesFile=/dev/null status --porcelain --untracked-files=no 2>/dev/null)" ]; then
     rev="$rev+"
 fi
-name=bbhost-win-$rev
+name=helias-dream-windows-$rev
 dir=$out/$name
 rm -rf "$dir"
 mkdir -p "$dir/data" "$dir/build"
 cp -r patches "$dir/patches"
 mkdir -p "$dir/plugins"
-cp include/bbhost_plugin.h "$dir/plugins/"
+cp include/heliasdream_plugin.h "$dir/plugins/"
 cp LICENSE "$dir/LICENSE.txt"
+mkdir -p "$dir/licenses/FSR-Vulkan"
+cp THIRD_PARTY_NOTICES.md "$dir/licenses/"
+if [ -f third_party/FSR-Vulkan/LICENSE.txt ]; then
+    cp third_party/FSR-Vulkan/LICENSE.txt third_party/FSR-Vulkan/NOTICE.md "$dir/licenses/FSR-Vulkan/"
+    cp third_party/FSR-Vulkan/upstream/ffx-1.1.4/sdk/LICENSE.txt "$dir/licenses/FSR-Vulkan/FidelityFX-SDK-LICENSE.txt"
+fi
 tools/package_plugins.sh "$(dirname "$exe")/plugins" "$dir/plugins"
-llvm-objcopy --strip-debug "$exe" "$dir/bbhost.exe"
+llvm-objcopy --strip-debug "$exe" "$dir/HeliasDream-engine.exe"
+# The launcher: the settings window that starts the engine.
+launcher=${LAUNCHER_EXE:-}
+if [ -z "$launcher" ] && command -v dotnet > /dev/null; then
+    dotnet publish launcher/HeliasDream/HeliasDream.csproj -c Release -r win-x64 --self-contained true \
+        -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o "$out/launcher" > "$out/launcher.log" 2>&1 \
+        && launcher=$out/launcher/HeliasDream.exe || echo "launcher: dotnet publish failed (log: $out/launcher.log)"
+fi
+if [ -n "$launcher" ] && [ -f "$launcher" ]; then cp "$launcher" "$dir/HeliasDream.exe"; else echo "launcher: none packed (no dotnet)"; fi
 cp "$exe" "$out/$name.debug.exe"
 sed -e 's#^app0 = .*#app0 = "C:/Games/CUSA00900"#' \
     -e 's#^eboot = .*#eboot = "./eboot-109-decrypted.bin"#' \
-    -e 's#^skip_intro = false#skip_intro = true#' bbhost.example.toml > "$dir/bbhost.example.toml"
+    -e 's#^skip_intro = false#skip_intro = true#' heliasdream.example.toml > "$dir/HeliasDream.example.toml"
 cat > "$dir/README.txt" <<EOF
-bbhost for Windows, build $name
-================================
+Helia's Dream for Windows, build $name
+======================================
 
-bbhost runs Bloodborne on PC: the game's own 1.09 executable, its calls into
-the PS4's system libraries answered by bbhost and its graphics recompiled for
+Helia's Dream runs Bloodborne on PC: the game's own 1.09 executable, its calls into
+the PS4's system libraries answered by Helia's Dream and its graphics recompiled for
 Vulkan. Free software under the GNU GPL, version 3 or later (LICENSE.txt); the
-source is at https://github.com/droogie/bbhost.
+source is at https://github.com/Heliasyu/helias-dream (based on
+https://github.com/droogie/bbhost).
 
 You need
   - Your own copy of Bloodborne, dumped from your own PS4 - nothing from the
@@ -50,37 +68,44 @@ You need
         it: the folder that contains dvdroot_ps4, whose sce_sys/param.sfo
         says APP_VER 01.09. Or the update kept beside it in a folder named
         after it with -UPDATE appended (CUSA00900-UPDATE), the way shadPS4
-        keeps a game library: bbhost reads the update's files from there;
+        keeps a game library: Helia's Dream reads the update's files from there;
       - the 1.09 update's eboot.bin, decrypted to an ELF. Its SHA-256 must be
         941f887a562aae054fac35af8cc8f27cf075f3d4cc2e029fb5ae2a663aaa5ae7;
-        bbhost stops at start and says why when it is another version (a
+        Helia's Dream stops at start and says why when it is another version (a
         dump without the update has the 1.00 eboot, which will not do).
   - Windows 10 or 11, 64-bit, and a graphics card with a Vulkan 1.3 driver
     (update the driver first).
   - A controller, or keyboard and mouse.
 
 Install
-  Unzip this folder somewhere of its own, for example C:\\Games\\bbhost, and
-  double-click run-bbhost.bat. The first time, the setup window opens: pick
-  the game folder and the decrypted eboot with the Browse buttons (each turns
-  green when it is right), then Play. run-bbhost.bat --setup opens it again.
+  Unzip this folder somewhere of its own, for example C:\\Games\\HeliasDream, and
+  double-click HeliasDream.exe, the launcher. Pick the game folder and the
+  decrypted eboot, set the display, upscaling and game options, then Play.
 
-  The settings are kept in %APPDATA%\\bbhost\\bbhost.toml, which every copy of
-  bbhost reads, so a new download or an update needs nothing set again. The
-  F10 settings and your account sign-in are kept beside it, saves and caches
-  in %LOCALAPPDATA%\\bbhost\\data. bbhost.example.toml lists every setting.
+  The settings are kept in %APPDATA%\\HeliasDream\\HeliasDream.toml, which every
+  copy of Helia's Dream reads, so a new download or an update needs nothing set
+  again. The F10 settings and your account sign-in are kept beside it, saves
+  and caches in %LOCALAPPDATA%\\HeliasDream\\data. HeliasDream.example.toml lists
+  every setting. A bbhost install's settings and saves are copied over the
+  first time.
 
 Start the game
-  Double-click run-bbhost.bat. A console window stays open while you play and
-  says where the log goes (logs\\bbhost-<date>-<time>.log); the game window
-  appears. The first time, Windows may say "Windows protected your PC": click
-  More info, then Run anyway.
+  Double-click HeliasDream.exe and press Play. Its Console page shows the
+  game's log, also written to logs\\HeliasDream-<date>-<time>.log. The first
+  time, Windows may say "Windows protected your PC": click More info, then
+  Run anyway. run-engine.bat starts the engine without the launcher (its
+  own setup window: run-engine.bat --setup) and keeps a log the same way.
 
-  When Windows Defender Firewall asks whether bbhost may communicate on
+  HD haptics: plug a DualSense or DualSense Edge in by USB and set Haptics to
+  HD. Windows must show its speaker as a 4-channel device (Sound settings >
+  the controller's speaker > Properties > Advanced: 4 channel); Bluetooth
+  plays the classic rumble.
+
+  When Windows Defender Firewall asks whether HeliasDream-engine may communicate on
   networks, tick Private and Public and click Allow access: other players
   reach you on UDP port 9307, and a blocked port is the most common reason
   summons fail. (If you clicked Cancel: Windows Security > Firewall & network
-  protection > Allow an app through firewall, and allow bbhost.exe.)
+  protection > Allow an app through firewall, and allow HeliasDream-engine.exe.)
 
   The first visit to an area stutters for a moment while its graphics are
   prepared for your card; later visits do not.
@@ -89,8 +114,8 @@ Start the game
   frame cap, mouse, key bindings and your account.
 
 Online
-  bbhost plays online on the community server, https://thehuntersdream.com,
-  with other bbhost players (not with PS4s). The game stays offline until this
+  Helia's Dream plays online on the community server, https://thehuntersdream.com,
+  with other players on PC (not with PS4s). The game stays offline until this
   PC is linked to an account, and the account's name is your name online.
   Link it once, in the setup window's Account section or with F10 > ACCOUNT
   at the title screen:
@@ -111,14 +136,13 @@ Online
 
   If summons keep failing with one person, forwarding UDP port 9307 to this
   PC on your router often fixes it. Two PCs in one house: set p2p_addr under
-  [online] in the per-user bbhost.toml to each PC's local address.
+  [online] in the per-user HeliasDream.toml to each PC's local address.
 
 Plugins
-  plugins/ holds the official ones, signed by the bbhost release key
-  (the .sig beside each). Turn them on and set them up in the setup
-  window's Plugins tab (run-bbhost.bat --setup), which can also fetch the
+  plugins/ holds the official ones. Turn them on and set them up in the
+  setup window's Plugins tab (run-engine.bat --setup), which can also fetch the
   latest official plugins; in the game, F9 opens the plugin menu (start the
-  boss rush there). Or in the per-user bbhost.toml:
+  boss rush there). Or in the per-user HeliasDream.toml:
       [plugins]
       randomizer = true    # every pickup and shop shuffled from a seed
       boss_rush = true     # the game's bosses back to back, timed
@@ -138,12 +162,12 @@ Reporting a problem
   module+offset; the release's $name.debug.exe symbolizes the host addresses:
       addr2line -f -C -e $name.debug.exe 0x<link address>
   If the log stops without that block, the process was ended from outside
-  bbhost (inside the GPU driver, or by Windows): Event Viewer, Windows Logs >
+  Helia's Dream (inside the GPU driver, or by Windows): Event Viewer, Windows Logs >
   Application, has an "Application Error" entry with the faulting module and
   exception code - send that with the log.
 
   A wrong picture (wrong colours, a green or black screen, missing parts):
-  press F12 in the game while it shows. bbhost writes that frame, the images
+  press F12 in the game while it shows. Helia's Dream writes that frame, the images
   the game drew it from and its list of draws into a folder of its own in
   logs (logs\\f12-<date>-<time>; the log names it). Zip that folder
   (right-click, Send to > Compressed (zipped) folder) and send it with the
@@ -151,25 +175,27 @@ Reporting a problem
 
 Switches (environment variables)
   Set one in a Command Prompt opened in this folder, then start from there:
-      set BBHOST_F12_PNG=1
-      run-bbhost.bat
-  BBHOST_GPU_DEVICE=N      the GPU to use, by the log's "gpu: device N"
+      set HELIAS_F12_PNG=1
+      run-engine.bat
+  HELIAS_GPU_DEVICE=N      the GPU to use, by the log's "gpu: device N"
                            index or part of its name; the default is a
                            discrete GPU over an on-board one
-  BBHOST_SKIP_INTRO=1      skip the company logos (bbhost.toml has it)
-  BBHOST_DUMP_FRAME=N      write the displayed frame N as build/frame-N.ppm
-  BBHOST_F12_PNG=1         F12 writes PNG files (any image viewer opens
+  HELIAS_SKIP_INTRO=1      skip the company logos (HeliasDream.toml has it)
+  HELIAS_DUMP_FRAME=N      write the displayed frame N as build/frame-N.ppm
+  HELIAS_F12_PNG=1         F12 writes PNG files (any image viewer opens
                            them, a fifth of the size) instead of PPM
-  BBHOST_F12_TEXTURES=1    F12 also writes every texture the frame used
+  HELIAS_F12_TEXTURES=1    F12 also writes every texture the frame used
                            (the game pauses while it writes them)
-  BBHOST_EXIT_FLIP=N       end the run at flip N with the exit reports
-  BBHOST_SAMPLE=main       the sampler: build/samples.txt + .maps
-  BBHOST_HEADLESS=1        no window
+  HELIAS_EXIT_FLIP=N       end the run at flip N with the exit reports
+  HELIAS_SAMPLE=main       the sampler: build/samples.txt + .maps
+  HELIAS_HEADLESS=1        no window
 EOF
-# The launcher that keeps a log (tools/win/run-bbhost.bat); CRLF for cmd and
+# The engine alone, with a log (tools/win/run-engine.bat); CRLF for cmd and
 # Notepad.
-sed 's/\r*$/\r/' tools/win/run-bbhost.bat > "$dir/run-bbhost.bat"
+sed 's/\r*$/\r/' tools/win/run-engine.bat > "$dir/run-engine.bat"
 sed -i 's/\r*$/\r/' "$dir/README.txt"
 mkdir -p "$dir/logs"
-(cd "$out" && rm -f "$name.zip" && zip -qr "$name.zip" "$name")
+rm -f "$out/$name.zip"
+if command -v zip > /dev/null; then (cd "$out" && zip -qr "$name.zip" "$name")
+else (cd "$out" && 7z a -tzip -bd -bso0 "$name.zip" "$name"); fi
 echo "package: $out/$name.zip ($(( $(stat -c %s "$out/$name.zip") / 1048576 )) MB); symbols: $out/$name.debug.exe"

@@ -27,7 +27,7 @@ VkFormat g_format = VK_FORMAT_UNDEFINED;  // the swapchain's, the pipeline's att
 VkDescriptorSetLayout g_dsl = VK_NULL_HANDLE;
 VkPipelineLayout g_layout = VK_NULL_HANDLE;
 VkPipeline g_pipeline = VK_NULL_HANDLE;
-VkPipeline g_sharpen_pipeline = VK_NULL_HANDLE;  // rc2: present_sharpen.frag (BBHOST_SHARPEN_AT_PRESENT=1)
+VkPipeline g_sharpen_pipeline = VK_NULL_HANDLE;  // rc2: present_sharpen.frag (HELIAS_SHARPEN_AT_PRESENT=1)
 std::atomic<float> g_sharpen_con{0.0f};          // the last request's, 0: none
 std::atomic<std::int64_t> g_sharpen_at{0};       // steady ns of that request (FSR's recording thread)
 std::int64_t steady_now_ns() { return std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now().time_since_epoch()).count(); }
@@ -39,7 +39,7 @@ VkDescriptorSet g_set = VK_NULL_HANDLE;
 // picture's size changes, and a view kept across frames could outlive its
 // image (a handle the driver then hands to the next image made).
 VkImageView g_source_view = VK_NULL_HANDLE;
-// bbhost-vk Phase 2: the motion-vector view's pipeline (the same vertex
+// heliasdream-vk Phase 2: the motion-vector view's pipeline (the same vertex
 // stage, its own fragment stage, blended over the picture), set and view.
 VkPipeline g_motion_pipeline = VK_NULL_HANDLE;
 VkDescriptorPool g_motion_pool = VK_NULL_HANDLE;
@@ -361,9 +361,9 @@ bool present_pass_ready() { return g_pipeline != VK_NULL_HANDLE; }
 
 bool present_sharpen_at_present() {
     static const bool on = [] {
-        const char* e = std::getenv("BBHOST_SHARPEN_AT_PRESENT");
+        const char* e = std::getenv("HELIAS_SHARPEN_AT_PRESENT");
         const bool v = e && e[0] == '1';
-        if (v) host_log("present: BBHOST_SHARPEN_AT_PRESENT=1: FSR's sharpening is done in the presenting pass (the HUD is sharpened too)");
+        if (v) host_log("present: HELIAS_SHARPEN_AT_PRESENT=1: FSR's sharpening is done in the presenting pass (the HUD is sharpened too)");
         return v;
     }();
     return on;

@@ -22,14 +22,14 @@ namespace {
 // initialization still sees the switches.
 bool native_on() {
     static const bool on = [] {
-        const char* e = std::getenv("BBHOST_FUTEX");
+        const char* e = std::getenv("HELIAS_FUTEX");
         return !(e && e[0] == '0');
     }();
     return on;
 }
 unsigned spin_budget() {
     static const unsigned n = [] {
-        const char* e = std::getenv("BBHOST_FUTEX_SPIN");
+        const char* e = std::getenv("HELIAS_FUTEX_SPIN");
         return e ? static_cast<unsigned>(std::strtoul(e, nullptr, 10)) : 0u;
     }();
     return n;
@@ -37,7 +37,7 @@ unsigned spin_budget() {
 
 std::atomic<std::uint64_t> g_sleeps{0}, g_timeouts{0}, g_wakes{0};
 
-// BBHOST_FUTEX=0: the words sleep on parked condition variables, one of 64
+// HELIAS_FUTEX=0: the words sleep on parked condition variables, one of 64
 // picked by the word's address. A waiter checks the word under the bucket's
 // mutex and a waker takes that mutex before it notifies, so a change between
 // the check and the sleep cannot be missed; every waiter of the bucket wakes

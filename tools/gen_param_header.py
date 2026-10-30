@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Writes include/bbhost/params.hpp: a C++ struct for every param row type,
+"""Writes include/heliasdream/params.hpp: a C++ struct for every param row type,
 from the game's own definitions (dvdroot_ps4/paramdef/paramdef.paramdefbnd.dcx,
 read with tools/bbparam.py), and one tag type per gameparam table.
 
-    tools/gen_param_header.py [--app0 DIR] [-o include/bbhost/params.hpp]
+    tools/gen_param_header.py [--app0 DIR] [-o include/heliasdream/params.hpp]
 
 Fields keep the game's internal names. Bitfields are C bitfields of the
 field's own type, each unit padded to its end with an unnamed bitfield (SysV
@@ -104,7 +104,7 @@ def emit_struct(ptype, fields):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--app0', default=bbparam.APP0)
-    ap.add_argument('-o', default=os.path.join(os.path.dirname(__file__), '..', 'include', 'bbhost', 'params.hpp'))
+    ap.add_argument('-o', default=os.path.join(os.path.dirname(__file__), '..', 'include', 'heliasdream', 'params.hpp'))
     a = ap.parse_args()
     defs = load_defs(a.app0)
     tables = {}
@@ -116,16 +116,16 @@ def main():
         '// (dvdroot_ps4/paramdef/paramdef.paramdefbnd.dcx, Bloodborne 1.09). Do not edit.',
         '//',
         '// One struct per row type in namespace bb (bb::EQUIP_PARAM_WEAPON_ST - the',
-        '// names bbhost/engine/param.hpp forward-declares), fields by the game\'s',
+        '// names heliasdream/engine/param.hpp forward-declares), fields by the game\'s',
         '// internal names and in its order (comments: the definition\'s display name',
         '// and enum type). One tag per gameparam table in bb::params:',
         '// bb::params::EquipParamWeapon::Row is its row type and',
-        '// ::name what BbHostApi::param_row takes, so a plugin writes',
+        '// ::name what HeliasApi::param_row takes, so a plugin writes',
         '//   auto* w = bb::param<bb::params::EquipParamWeapon>(api, 1000000);',
-        '// (bbhost/sdk.hpp) and gets an EQUIP_PARAM_WEAPON_ST* into the live table.',
+        '// (heliasdream/sdk.hpp) and gets an EQUIP_PARAM_WEAPON_ST* into the live table.',
         '#pragma once',
         '',
-        '#include "bbhost/engine/base.hpp"',
+        '#include "heliasdream/engine/base.hpp"',
         '',
         'namespace bb {',
         '',

@@ -3,7 +3,7 @@
 #include <cstdint>
 
 // Bloodborne 1.09 address spaces. Ghidra uses the
-// 0x800000000 image base; bbhost maps the ELF at GuestMemory::slide
+// 0x800000000 image base; heliasdream maps the ELF at GuestMemory::slide
 // (preferred 0x400000). ELF file VA = Ghidra VA - kGhidraBase.
 
 constexpr std::uint64_t kGhidraBase = 0x800000000ull;

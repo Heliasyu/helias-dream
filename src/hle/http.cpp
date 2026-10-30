@@ -9,7 +9,7 @@
 #include "hle/hle.h"
 #include "hle/modules.h"
 #include "core/config.h"
-#include "bbhost_version.h"
+#include "heliasdream_version.h"
 #include "host/plugins.h"
 #include "net/account.h"
 
@@ -31,7 +31,7 @@
 #include <unordered_set>
 #include <vector>
 
-#if defined(BBHOST_HAVE_CURL)
+#if defined(HELIAS_HAVE_CURL)
 #include <curl/curl.h>
 #endif
 
@@ -230,7 +230,7 @@ std::string rewrite_url(const std::string& url) {
     return scheme + "://" + host + rest;
 }
 
-#if defined(BBHOST_HAVE_CURL)
+#if defined(HELIAS_HAVE_CURL)
 std::once_flag g_curl_once;
 std::size_t write_cb(char* ptr, std::size_t size, std::size_t nmemb, void* user) {
     auto* body = static_cast<std::vector<std::uint8_t>*>(user);
@@ -250,19 +250,19 @@ std::string thread_name_now() {
 #endif
 }
 
-// BBHOST_HTTP_DELAY_MS (tests): every response held back that long before it
+// HELIAS_HTTP_DELAY_MS (tests): every response held back that long before it
 // counts as arrived - a server on this machine answers in a millisecond, the
 // real one 23 ms and a TLS handshake away, and a caller that waits for the
 // answer only shows against the second.
 const int g_http_delay_ms = [] {
-    const char* e = std::getenv("BBHOST_HTTP_DELAY_MS");
+    const char* e = std::getenv("HELIAS_HTTP_DELAY_MS");
     return e ? std::atoi(e) : 0;
 }();
 
 void perform(const std::string& url, int method, const Effective& eff, std::vector<std::uint8_t> post,
              std::uint64_t content_len, std::shared_ptr<Response> resp, bool rewritten) {
     const auto t0 = std::chrono::steady_clock::now();
-#if defined(BBHOST_HAVE_CURL)
+#if defined(HELIAS_HAVE_CURL)
     std::call_once(g_curl_once, [] { curl_global_init(CURL_GLOBAL_DEFAULT); });
     CURL* c = curl_easy_init();
     long status = 0;
@@ -296,11 +296,11 @@ void perform(const std::string& url, int method, const Effective& eff, std::vect
         // and name are still checked.
         curl_easy_setopt(c, CURLOPT_SSL_OPTIONS, static_cast<long>(CURLSSLOPT_REVOKE_BEST_EFFORT));
 #endif
-        // The game's own user agent with bbhost's name and version after it,
-        // so a server can tell bbhost clients and their versions apart. The
+        // The game's own user agent with heliasdream's name and version after it,
+        // so a server can tell heliasdream clients and their versions apart. The
         // game's text stays the prefix, which is what anything matching on
         // it looks at.
-        const std::string ua = (eff.ua.empty() ? std::string() : eff.ua + " ") + "bbhost/" + BBHOST_VERSION;
+        const std::string ua = (eff.ua.empty() ? std::string() : eff.ua + " ") + "bbhost/" + HELIAS_VERSION;
         curl_easy_setopt(c, CURLOPT_USERAGENT, ua.c_str());
         struct curl_slist* list = nullptr;
         for (const auto& h : eff.headers) {
@@ -308,7 +308,7 @@ void perform(const std::string& url, int method, const Effective& eff, std::vect
                                    return std::tolower(static_cast<unsigned char>(a)) == b;
                                });
             if (is_ua) {
-                list = curl_slist_append(list, (h + " bbhost/" + BBHOST_VERSION).c_str());  // one the game set itself
+                list = curl_slist_append(list, (h + " bbhost/" + HELIAS_VERSION).c_str());  // one the game set itself
                 continue;
             }
             list = curl_slist_append(list, h.c_str());

@@ -61,7 +61,7 @@ void five_players_install(ElfImage* image) {
         host_log("five players: off - no dump or data folder");
         return;
     }
-    const fs::path out = fs::path(data) / "bbhost" / "invasion-assets";
+    const fs::path out = fs::path(data) / "heliasdream" / "invasion-assets";
     const auto have = read_file(out / "stamp");
     bool fresh = have && std::string(have->begin(), have->end()) == kStamp;
     for (const MaidenEventMap& m : maiden_event_maps()) fresh = fresh && fs::exists(out / script_path(m.map));

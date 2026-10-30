@@ -19,9 +19,9 @@
 //   query each, begun and ended around the draw on the recorder's thread
 //   (DrawCall::query_pool), so a query never spans a render pass. 64 of them
 //   after a dump to the first half of a 16-byte cell (a Gnm block's begin;
-//   BBHOST_OCCLUSION_CAP), one after any other dump (an end, or a block that
+//   HELIAS_OCCLUSION_CAP), one after any other dump (an end, or a block that
 //   is not 16-aligned). A draw past those, or one that reached no query (a
-//   draw bbhost did not record, a full pool), is "unmeasured": it adds a
+//   draw heliasdream did not record, a full pool), is "unmeasured": it adds a
 //   large count, so a difference spanning it reads visible, never occluded.
 // - The dumps. The command processor records the stream as items - query,
 //   unmeasured, dump - and the GPU walks them (shaders/occlusion.comp) once
@@ -52,7 +52,7 @@
 // token draws, and counting a draw the game left uncounted only makes a
 // result more visible. PIXEL_PIPE_STAT_RESET is ignored, as by KyoPS4x.
 //
-// BBHOST_OCCLUSION=0: the old fake. BBHOST_PREDICATION=0: SET_PREDICATION
+// HELIAS_OCCLUSION=0: the old fake. HELIAS_PREDICATION=0: SET_PREDICATION
 // ignored (every predicated draw drawn). Counts in the 300-flip report and at
 // exit ("occlusion:").
 
@@ -95,26 +95,26 @@ struct Push {
 static_assert(sizeof(Push) == 40, "the shader's push-constant block");
 
 const bool g_wanted = [] {
-    const char* e = std::getenv("BBHOST_OCCLUSION");
+    const char* e = std::getenv("HELIAS_OCCLUSION");
     return !(e && e[0] == '0');
 }();
 const bool g_pred_wanted = [] {
-    const char* e = std::getenv("BBHOST_PREDICATION");
+    const char* e = std::getenv("HELIAS_PREDICATION");
     return !(e && e[0] == '0');
 }();
 // Queries after a block's begin dump: Bloodborne's windows are one draw.
 const std::uint32_t g_cap = [] {
-    const char* e = std::getenv("BBHOST_OCCLUSION_CAP");
+    const char* e = std::getenv("HELIAS_OCCLUSION_CAP");
     const long v = e && *e ? std::strtol(e, nullptr, 10) : 64;
     return static_cast<std::uint32_t>(v < 1 ? 1 : v > 1024 ? 1024 : v);
 }();
 
-// BBHOST_OCCLUSION_WAIT=1 (a diagnostic): the copy of the results waits on
+// HELIAS_OCCLUSION_WAIT=1 (a diagnostic): the copy of the results waits on
 // the GPU for each query. Off, a query not yet available when the copy runs
 // leaves its dump not ready; on, a query a driver never resolves (AMD's,
 // unfocused) would hang the GPU.
 const bool g_wait = [] {
-    const char* e = std::getenv("BBHOST_OCCLUSION_WAIT");
+    const char* e = std::getenv("HELIAS_OCCLUSION_WAIT");
     return e && e[0] == '1';
 }();
 
@@ -186,11 +186,11 @@ Counts g_counts;
 std::atomic<std::uint64_t> g_pred_skipped{0};
 // rc3: the resolves' GPU time (the end-of-submission one, each submission).
 std::atomic<std::uint64_t> g_resolve_ns{0}, g_resolve_n{0}, g_resolve_max_ns{0}, g_resolve_items{0}, g_resolve_serial{0};
-// BBHOST_OCCLUSION_STATS=1: the pair statistics (how a block's second dump
+// HELIAS_OCCLUSION_STATS=1: the pair statistics (how a block's second dump
 // reads - a read of guest memory per dump on the GPU; a diagnostic, rc2
 // always did it).
 const bool g_stats = [] {
-    const char* e = std::getenv("BBHOST_OCCLUSION_STATS");
+    const char* e = std::getenv("HELIAS_OCCLUSION_STATS");
     return e && e[0] == '1';
 }();
 constexpr std::uint32_t kFlagStats = 2u, kFlagSerial = 4u;
@@ -345,11 +345,11 @@ bool occlusion_on() { return g_on; }
 
 void occlusion_device_features(VkPhysicalDeviceFeatures& enable, std::vector<const char*>& exts, void** chain) {
     if (!g_wanted) {
-        host_log("occlusion: off (BBHOST_OCCLUSION=0): every query the game makes reads visible, and nothing is culled by it");
+        host_log("occlusion: off (HELIAS_OCCLUSION=0): every query the game makes reads visible, and nothing is culled by it");
         return;
     }
     if (glitch_on()) {
-        host_log("occlusion: off while the glitch hunt has a query around every draw (BBHOST_GLITCH)");
+        host_log("occlusion: off while the glitch hunt has a query around every draw (HELIAS_GLITCH)");
         return;
     }
     VkPhysicalDeviceFeatures sup{};
@@ -415,9 +415,9 @@ void occlusion_device_ready_locked() {
     g_on = true;
     host_log("occlusion: real sample counts - a query on each of the %u draws after a block's first dump (1 after any other), "
              "written into guest memory on the GPU's timeline before the labels%s; %s; SET_PREDICATION %s "
-             "(BBHOST_OCCLUSION=0: the old always-visible fake)",
-             g_cap, g_wait ? " (the copy waits for every query: BBHOST_OCCLUSION_WAIT=1)" : "", g_precise ? "precise" : "not precise (the device has no occlusionQueryPrecise: a nonzero count reads plainly visible)",
-             !g_pred_wanted ? "ignored (BBHOST_PREDICATION=0)"
+             "(HELIAS_OCCLUSION=0: the old always-visible fake)",
+             g_cap, g_wait ? " (the copy waits for every query: HELIAS_OCCLUSION_WAIT=1)" : "", g_precise ? "precise" : "not precise (the device has no occlusionQueryPrecise: a nonzero count reads plainly visible)",
+             !g_pred_wanted ? "ignored (HELIAS_PREDICATION=0)"
              : g_cond       ? "skips on the CPU when the result is known, else conditional rendering"
                             : "skips on the CPU when the result is known, else draws (no VK_EXT_conditional_rendering)");
 }
@@ -548,7 +548,7 @@ std::string occlusion_report(bool totals) {
                       dn ? static_cast<double>(dns) / 1e3 / static_cast<double>(dn) : 0.0, static_cast<unsigned long long>(dn),
                       static_cast<double>(g_resolve_max_ns.load()) / 1e3,
                       dn ? static_cast<double>(totals ? items : items - last_items) / static_cast<double>(dn) : 0.0,
-                      static_cast<unsigned long long>(totals ? ser : ser - last_serial), g_stats ? "" : " (pairs: BBHOST_OCCLUSION_STATS=1)");
+                      static_cast<unsigned long long>(totals ? ser : ser - last_serial), g_stats ? "" : " (pairs: HELIAS_OCCLUSION_STATS=1)");
         std::strncat(buf, t, sizeof(buf) - std::strlen(buf) - 1);
         if (!totals) {
             last_ns = ns;

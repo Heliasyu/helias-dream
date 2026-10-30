@@ -392,7 +392,7 @@ VgprWrite vgpr_write(const Inst& in) {
 
 bool spill_cells_on() {
     static const bool on = [] {
-        const char* e = std::getenv("BBHOST_SPILL_CELLS");
+        const char* e = std::getenv("HELIAS_SPILL_CELLS");
         return !(e && e[0] == '0');
     }();
     return on;

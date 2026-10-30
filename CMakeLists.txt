@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.20)
-project(bbhost LANGUAGES C CXX)
+project(heliasdream LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -7,7 +7,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 if(WIN32 AND NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   message(FATAL_ERROR
-    "bbhost must be built with Clang on Windows so guest SysV functions can be implemented with __attribute__((sysv_abi)).")
+    "heliasdream must be built with Clang on Windows so guest SysV functions can be implemented with __attribute__((sysv_abi)).")
 endif()
 
 # LibAtrac9 (MIT, https://github.com/Thealexbarney/LibAtrac9): ATRAC9 decoding for sceAjm.
@@ -37,7 +37,7 @@ if(SPIRV_TOOLS_LIB)
 endif()
 
 
-add_executable(bbhost
+add_executable(heliasdream
   src/main.cpp
   src/core/memory.cpp
   src/core/write_watch.cpp
@@ -145,44 +145,44 @@ add_executable(bbhost
   src/hle/system.cpp
 )
 
-target_include_directories(bbhost PRIVATE src include ${CMAKE_BINARY_DIR}/gen)
+target_include_directories(heliasdream PRIVATE src include ${CMAKE_BINARY_DIR}/gen)
 # The port's menu strings, built in (engine/menu_assets.cpp makes the message
 # bundle from them at start): tools/pc_option_messages.tsv as a string literal.
 set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${CMAKE_SOURCE_DIR}/tools/pc_option_messages.tsv)
-file(READ ${CMAKE_SOURCE_DIR}/tools/pc_option_messages.tsv BBHOST_PC_MESSAGES)
-file(WRITE ${CMAKE_BINARY_DIR}/gen/pc_option_messages.inc "R\"tsv(${BBHOST_PC_MESSAGES})tsv\"\n")
+file(READ ${CMAKE_SOURCE_DIR}/tools/pc_option_messages.tsv HELIAS_PC_MESSAGES)
+file(WRITE ${CMAKE_BINARY_DIR}/gen/pc_option_messages.inc "R\"tsv(${HELIAS_PC_MESSAGES})tsv\"\n")
 # Helia's Dream: the F10 menu's translations (src/host/menu_i18n.h), built in the same way.
 set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${CMAKE_SOURCE_DIR}/tools/menu_i18n.tsv)
-file(READ ${CMAKE_SOURCE_DIR}/tools/menu_i18n.tsv BBHOST_MENU_I18N)
-file(WRITE ${CMAKE_BINARY_DIR}/gen/menu_i18n.inc "R\"tsv(${BBHOST_MENU_I18N})tsv\"\n")
-target_link_libraries(bbhost PRIVATE ZLIB::ZLIB)
+file(READ ${CMAKE_SOURCE_DIR}/tools/menu_i18n.tsv HELIAS_MENU_I18N)
+file(WRITE ${CMAKE_BINARY_DIR}/gen/menu_i18n.inc "R\"tsv(${HELIAS_MENU_I18N})tsv\"\n")
+target_link_libraries(heliasdream PRIVATE ZLIB::ZLIB)
 
-# The git revision the binary logs on its first line (build/gen/bbhost_version.h,
+# The git revision the binary logs on its first line (build/gen/heliasdream_version.h,
 # rewritten by every build only when it changes): a crash report from a
 # machine names the build to symbolize it against.
-add_custom_target(bbhost_version
-  COMMAND ${CMAKE_COMMAND} -DSRC=${CMAKE_SOURCE_DIR} -DOUT=${CMAKE_BINARY_DIR}/gen/bbhost_version.h
+add_custom_target(heliasdream_version
+  COMMAND ${CMAKE_COMMAND} -DSRC=${CMAKE_SOURCE_DIR} -DOUT=${CMAKE_BINARY_DIR}/gen/heliasdream_version.h
           -P ${CMAKE_SOURCE_DIR}/cmake/version.cmake
-  BYPRODUCTS ${CMAKE_BINARY_DIR}/gen/bbhost_version.h)
-add_dependencies(bbhost bbhost_version)
+  BYPRODUCTS ${CMAKE_BINARY_DIR}/gen/heliasdream_version.h)
+add_dependencies(heliasdream heliasdream_version)
 # The translator's fingerprint (build/gen/translator_fingerprint.h): the
 # translation cache's key for "the same translator" - its sources and the
 # cache's own key and entry code.
-add_custom_target(bbhost_translator_fingerprint
+add_custom_target(heliasdream_translator_fingerprint
   COMMAND ${CMAKE_COMMAND} -DSRC=${CMAKE_SOURCE_DIR} -DOUT=${CMAKE_BINARY_DIR}/gen/translator_fingerprint.h
           -P ${CMAKE_SOURCE_DIR}/cmake/translator_fingerprint.cmake
   BYPRODUCTS ${CMAKE_BINARY_DIR}/gen/translator_fingerprint.h)
-add_dependencies(bbhost bbhost_translator_fingerprint)
+add_dependencies(heliasdream heliasdream_translator_fingerprint)
 
 # The Windows exe's icon and version details.
 if(WIN32)
   enable_language(RC)
-  target_sources(bbhost PRIVATE res/bbhost.rc)
-  set_source_files_properties(res/bbhost.rc PROPERTIES
-    OBJECT_DEPENDS "${CMAKE_SOURCE_DIR}/res/bbhost.ico;${CMAKE_BINARY_DIR}/gen/bbhost_version.h")
+  target_sources(heliasdream PRIVATE res/heliasdream.rc)
+  set_source_files_properties(res/heliasdream.rc PROPERTIES
+    OBJECT_DEPENDS "${CMAKE_SOURCE_DIR}/res/heliasdream.ico;${CMAKE_BINARY_DIR}/gen/heliasdream_version.h")
 endif()
 
-# The example plugin (include/bbhost_plugin.h, plugins/hello): build/plugins/hello.so
+# The example plugin (include/heliasdream_plugin.h, plugins/hello): build/plugins/hello.so
 # or .dll, which the host next to it loads.
 add_library(bb_plugin_hello MODULE plugins/hello/hello.c)
 target_include_directories(bb_plugin_hello PRIVATE include)
@@ -190,7 +190,7 @@ set_target_properties(bb_plugin_hello PROPERTIES OUTPUT_NAME hello PREFIX ""
   LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/plugins)
 
 # Official plugins (docs/plugins.md): C++ against
-# include/bbhost (sdk.hpp), built to build/plugins next to the example. On
+# include/heliasdream (sdk.hpp), built to build/plugins next to the example. On
 # Windows each carries its own C++ runtime, so a DLL needs nothing beside it.
 function(bb_plugin name)
   add_library(bb_plugin_${name} MODULE ${ARGN})
@@ -221,34 +221,34 @@ configure_file(${CMAKE_BINARY_DIR}/gen/debug_menu_strings_en.inc.new ${CMAKE_BIN
 bb_plugin(debug_menu plugins/debug_menu/debug_menu.cpp)
 target_include_directories(bb_plugin_debug_menu PRIVATE ${CMAKE_BINARY_DIR}/gen)
 
-target_link_libraries(bbhost PRIVATE atrac9 monocypher)
+target_link_libraries(heliasdream PRIVATE atrac9 monocypher)
 # A release build (the release workflow) looks for updates by default; one
 # built from source only when update.check says so.
-option(BBHOST_RELEASE "build a release: updates are checked for by default" OFF)
-if(BBHOST_RELEASE)
-  target_compile_definitions(bbhost PRIVATE BBHOST_RELEASE_BUILD=1)
+option(HELIAS_RELEASE "build a release: updates are checked for by default" OFF)
+if(HELIAS_RELEASE)
+  target_compile_definitions(heliasdream PRIVATE HELIAS_RELEASE_BUILD=1)
 endif()
 if(UNIX)
-  target_link_libraries(bbhost PRIVATE pthread dl m)
+  target_link_libraries(heliasdream PRIVATE pthread dl m)
 elseif(WIN32)
   # hle/net.cpp, net/session.cpp; timeBeginPeriod; WaitOnAddress (core/futex.cpp)
-  target_link_libraries(bbhost PRIVATE ws2_32 winmm synchronization)
+  target_link_libraries(heliasdream PRIVATE ws2_32 winmm synchronization)
   # The SysV convention our guest-facing functions follow lets a leaf keep
   # data in the 128 bytes below rsp, and on Windows an exception - a
   # write-watch fault in a decomp leaf's write, say - builds its frame right
   # there (decomp/sfx/ribbons.cpp). Clang leaves it out on this target today;
   # the flag makes sure no compiler does.
-  target_compile_options(bbhost PRIVATE -mno-red-zone)
+  target_compile_options(heliasdream PRIVATE -mno-red-zone)
   # The image must stay out of the guest's fixed windows (4-10 GiB CPU dmem,
   # 0xff00000000 GPU alias): a fixed base above them, no ASLR.
-  target_link_options(bbhost PRIVATE -Wl,--image-base=0x600000000 -Wl,--disable-dynamicbase)
+  target_link_options(heliasdream PRIVATE -Wl,--image-base=0x600000000 -Wl,--disable-dynamicbase)
 endif()
 
 find_package(CURL QUIET)
 if(CURL_FOUND)
-  message(STATUS "bbhost: libcurl ${CURL_VERSION_STRING} found; sceHttp is real")
-  target_compile_definitions(bbhost PRIVATE BBHOST_HAVE_CURL=1)
-  target_link_libraries(bbhost PRIVATE CURL::libcurl)
+  message(STATUS "heliasdream: libcurl ${CURL_VERSION_STRING} found; sceHttp is real")
+  target_compile_definitions(heliasdream PRIVATE HELIAS_HAVE_CURL=1)
+  target_link_libraries(heliasdream PRIVATE CURL::libcurl)
 endif()
 
 find_package(SDL3 CONFIG QUIET)
@@ -258,11 +258,11 @@ if(PkgConfig_FOUND)
   pkg_check_modules(FFMPEG IMPORTED_TARGET libavcodec libavformat libavutil libswscale libswresample)
 endif()
 if(FFMPEG_FOUND)
-  message(STATUS "bbhost: ffmpeg found; movies decode")
-  target_compile_definitions(bbhost PRIVATE BBHOST_HAVE_FFMPEG=1)
-  target_link_libraries(bbhost PRIVATE PkgConfig::FFMPEG)
+  message(STATUS "heliasdream: ffmpeg found; movies decode")
+  target_compile_definitions(heliasdream PRIVATE HELIAS_HAVE_FFMPEG=1)
+  target_link_libraries(heliasdream PRIVATE PkgConfig::FFMPEG)
 else()
-  message(STATUS "bbhost: ffmpeg not found; movies are skipped")
+  message(STATUS "heliasdream: ffmpeg not found; movies are skipped")
 endif()
 
 find_package(Vulkan QUIET)
@@ -271,19 +271,19 @@ if(Vulkan_FOUND)
   add_library(replay_common STATIC src/replay/json.cpp src/replay/compare.cpp)
   target_include_directories(replay_common PUBLIC src)
   target_link_libraries(replay_common PUBLIC Vulkan::Headers)
-  target_sources(bbhost PRIVATE src/host/gpu.cpp src/host/gpu_busy.cpp src/host/gpu_memtrack.cpp src/host/gpu_mutex.cpp src/host/buffer_shadow.cpp src/host/recorder.cpp src/host/bindless.cpp src/host/render.cpp src/host/textures.cpp src/host/gpu_untile.cpp src/host/depth_copy.cpp src/host/temporal_inputs.cpp src/host/fsr3_pass.cpp src/host/fsr4_pass.cpp src/host/fsr4v07_pass.cpp src/host/menu_i18n.cpp src/host/hdr_ui.cpp src/host/dlss_pass.cpp src/host/fsr_dump.cpp
+  target_sources(heliasdream PRIVATE src/host/gpu.cpp src/host/gpu_busy.cpp src/host/gpu_memtrack.cpp src/host/gpu_mutex.cpp src/host/buffer_shadow.cpp src/host/recorder.cpp src/host/bindless.cpp src/host/render.cpp src/host/textures.cpp src/host/gpu_untile.cpp src/host/depth_copy.cpp src/host/temporal_inputs.cpp src/host/fsr3_pass.cpp src/host/fsr4_pass.cpp src/host/fsr4v07_pass.cpp src/host/menu_i18n.cpp src/host/hdr_ui.cpp src/host/dlss_pass.cpp src/host/fsr_dump.cpp
     src/host/pass_timer.cpp src/host/perf_capture.cpp src/host/fsr411/fsr411.cpp src/host/fsr.cpp src/host/glitch.cpp src/host/occlusion.cpp src/host/draw_capture.cpp src/host/stream_selftest.cpp
                                 src/host/shader_patch.cpp src/host/translation_cache.cpp)
-  target_link_libraries(bbhost PRIVATE Vulkan::Vulkan gcn replay_common)
+  target_link_libraries(heliasdream PRIVATE Vulkan::Vulkan gcn replay_common)
   # Which user-data tables a no-fallback shader still reads, from the SPIRV-Tools
   # optimizer; without it every table is built.
-  target_sources(bbhost PRIVATE src/host/shader_liveness.cpp)
+  target_sources(heliasdream PRIVATE src/host/shader_liveness.cpp)
   find_library(SPIRV_TOOLS_OPT_LIB SPIRV-Tools-opt)
   if(SPIRV_TOOLS_LIB AND SPIRV_TOOLS_OPT_LIB)
-    target_compile_definitions(bbhost PRIVATE BBHOST_HAVE_SPIRV_OPT=1)
-    target_link_libraries(bbhost PRIVATE ${SPIRV_TOOLS_OPT_LIB} ${SPIRV_TOOLS_LIB})
+    target_compile_definitions(heliasdream PRIVATE HELIAS_HAVE_SPIRV_OPT=1)
+    target_link_libraries(heliasdream PRIVATE ${SPIRV_TOOLS_OPT_LIB} ${SPIRV_TOOLS_LIB})
   endif()
-  # Offline replay of BBHOST_CAPTURE_DRAW captures.
+  # Offline replay of HELIAS_CAPTURE_DRAW captures.
   add_executable(drawreplay tools/drawreplay.cpp src/core/sha256.cpp)
   target_include_directories(drawreplay PRIVATE src)
   target_link_libraries(drawreplay PRIVATE replay_common Vulkan::Vulkan)
@@ -295,12 +295,12 @@ if(Vulkan_FOUND)
     target_link_libraries(gcnlift PRIVATE gcn replay_common ${SPIRV_TOOLS_LIB})
   endif()
 else()
-  target_sources(bbhost PRIVATE src/host/gpu_stub.cpp)
+  target_sources(heliasdream PRIVATE src/host/gpu_stub.cpp)
 endif()
 if(SDL3_FOUND AND Vulkan_FOUND)
-  message(STATUS "bbhost: SDL3 ${SDL3_VERSION} + Vulkan found; building the window shell")
-  target_compile_definitions(bbhost PRIVATE BBHOST_HAVE_SDL3=1)
-  target_link_libraries(bbhost PRIVATE SDL3::SDL3 Vulkan::Vulkan)
+  message(STATUS "heliasdream: SDL3 ${SDL3_VERSION} + Vulkan found; building the window shell")
+  target_compile_definitions(heliasdream PRIVATE HELIAS_HAVE_SDL3=1)
+  target_link_libraries(heliasdream PRIVATE SDL3::SDL3 Vulkan::Vulkan)
   # The setup window (host/launcher.h): Dear ImGui (MIT,
   # https://github.com/ocornut/imgui, third_party/imgui/VERSION) on SDL3's 2D renderer.
   add_library(imgui STATIC third_party/imgui/imgui.cpp third_party/imgui/imgui_draw.cpp
@@ -310,11 +310,11 @@ if(SDL3_FOUND AND Vulkan_FOUND)
   target_include_directories(imgui PUBLIC third_party/imgui)
   target_link_libraries(imgui PUBLIC SDL3::SDL3 Vulkan::Vulkan)
   target_compile_options(imgui PRIVATE -w)
-  target_sources(bbhost PRIVATE src/host/launcher.cpp src/host/plugin_ui.cpp)
-  target_link_libraries(bbhost PRIVATE imgui)
-  # bbhost-vk debug tooling (docs/vk/PLAN.md, Phase 0): the presenter's
+  target_sources(heliasdream PRIVATE src/host/launcher.cpp src/host/plugin_ui.cpp)
+  target_link_libraries(heliasdream PRIVATE imgui)
+  # heliasdream-vk debug tooling (docs/vk/PLAN.md, Phase 0): the presenter's
   # per-pass GPU timer and the presented-frame capture.
-  target_sources(bbhost PRIVATE src/host/gpu_timer.cpp src/host/frame_capture.cpp)
+  target_sources(heliasdream PRIVATE src/host/gpu_timer.cpp src/host/frame_capture.cpp)
   set_source_files_properties(src/host/gpu_timer.cpp src/host/frame_capture.cpp PROPERTIES COMPILE_OPTIONS "-Wno-missing-field-initializers")
   set_source_files_properties(src/host/window.cpp PROPERTIES COMPILE_OPTIONS "-Wno-missing-field-initializers")
   set_source_files_properties(src/host/overlay.cpp src/host/present_pass.cpp PROPERTIES COMPILE_OPTIONS "-Wno-missing-field-initializers")
@@ -322,9 +322,9 @@ if(SDL3_FOUND AND Vulkan_FOUND)
   set_source_files_properties(src/host/buffer_shadow.cpp PROPERTIES COMPILE_OPTIONS "-Wno-missing-field-initializers")
   set_source_files_properties(src/host/gpu_untile.cpp src/host/depth_copy.cpp src/host/temporal_inputs.cpp src/host/fsr3_pass.cpp src/host/fsr4_pass.cpp src/host/fsr4v07_pass.cpp src/host/fsr_dump.cpp src/host/fsr411/fsr411.cpp src/host/fsr.cpp src/host/glitch.cpp src/host/occlusion.cpp PROPERTIES COMPILE_OPTIONS "-Wno-missing-field-initializers")
 else()
-  message(STATUS "bbhost: SDL3/Vulkan not found; headless only")
+  message(STATUS "heliasdream: SDL3/Vulkan not found; headless only")
 endif()
-# bbhost-vk: AMD FidelityFX FSR 3.1 for Vulkan (FireBurn/FSR-Vulkan, MIT,
+# heliasdream-vk: AMD FidelityFX FSR 3.1 for Vulkan (FireBurn/FSR-Vulkan, MIT,
 # third_party/FSR-Vulkan), compiled and linked but not yet called (Phase 0).
 if(Vulkan_FOUND)
   include(cmake/fsr_vulkan.cmake)
@@ -335,7 +335,7 @@ endif()
 # game's, so no decomp file reads the stack protector's canary through it; and
 # ours reproduces the game's floating point bit for bit, so nothing is fused
 # into a multiply-add.
-set(BBHOST_DECOMP_SOURCES
+set(HELIAS_DECOMP_SOURCES
   src/decomp/decomp.cpp
   src/decomp/insn.cpp
   src/decomp/areas.cpp
@@ -352,89 +352,89 @@ set(BBHOST_DECOMP_SOURCES
   src/decomp/memory/ez_copy.cpp
   src/decomp/sfx/ribbons.cpp
 )
-target_sources(bbhost PRIVATE ${BBHOST_DECOMP_SOURCES})
-set_source_files_properties(${BBHOST_DECOMP_SOURCES} PROPERTIES COMPILE_OPTIONS "-fno-stack-protector;-ffp-contract=off")
+target_sources(heliasdream PRIVATE ${HELIAS_DECOMP_SOURCES})
+set_source_files_properties(${HELIAS_DECOMP_SOURCES} PROPERTIES COMPILE_OPTIONS "-fno-stack-protector;-ffp-contract=off")
 # The follow camera's step is the game's own AVX, intrinsic for intrinsic
 # (every CPU that runs the eboot has AVX).
 set_property(SOURCE src/decomp/camera/follow_camera.cpp APPEND PROPERTY COMPILE_OPTIONS -mavx)
 
-# rc5: ThinLTO for bbhost's own sources (the command processor's draw path in
+# rc5: ThinLTO for heliasdream's own sources (the command processor's draw path in
 # render.cpp calls across gpu.cpp, recorder.cpp, buffer_shadow.cpp and
 # textures.cpp; LTO inlines across them). The decomp sources stay out of it
 # (-fno-lto): they are guest-facing, built without the stack protector and
 # with -ffp-contract=off for bit-exact floating point, and nothing from
 # another file may be inlined into them. No -march: the release stays
-# portable and its floating point unchanged. -DBBHOST_THINLTO=OFF builds as
+# portable and its floating point unchanged. -DHELIAS_THINLTO=OFF builds as
 # rc4 did.
 if(UNIX AND CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-  option(BBHOST_THINLTO "ThinLTO for the bbhost executable (clang + lld)" ON)
-  if(BBHOST_THINLTO)
-    target_compile_options(bbhost PRIVATE -flto=thin)
-    target_link_options(bbhost PRIVATE -flto=thin -Wl,--thinlto-jobs=all)
-    set_property(SOURCE ${BBHOST_DECOMP_SOURCES} APPEND PROPERTY COMPILE_OPTIONS -fno-lto)
-    message(STATUS "bbhost: ThinLTO on (BBHOST_THINLTO=OFF turns it off)")
+  option(HELIAS_THINLTO "ThinLTO for the heliasdream executable (clang + lld)" ON)
+  if(HELIAS_THINLTO)
+    target_compile_options(heliasdream PRIVATE -flto=thin)
+    target_link_options(heliasdream PRIVATE -flto=thin -Wl,--thinlto-jobs=all)
+    set_property(SOURCE ${HELIAS_DECOMP_SOURCES} APPEND PROPERTY COMPILE_OPTIONS -fno-lto)
+    message(STATUS "heliasdream: ThinLTO on (HELIAS_THINLTO=OFF turns it off)")
   endif()
 endif()
 
-# Profiling kit: profile-guided optimisation of the bbhost executable (IR PGO,
+# Profiling kit: profile-guided optimisation of the heliasdream executable (IR PGO,
 # which works with the ThinLTO above). Both off by default; a normal build is
 # unchanged.
-#   -DBBHOST_PGO_GENERATE=ON     an instrumented binary (-fprofile-generate) that
-#                                writes $BBHOST_PGO_DIR/bbhost-<pid>.profraw
+#   -DHELIAS_PGO_GENERATE=ON     an instrumented binary (-fprofile-generate) that
+#                                writes $HELIAS_PGO_DIR/heliasdream-<pid>.profraw
 #                                (default ./pgo) every 30 s and at exit
 #                                (src/host/pgo_dump.cpp). For a profiling session
 #                                only: the CPU side runs slower.
-#   -DBBHOST_PGO_USE=<.profdata> the optimised build from the merged profile
-#                                (llvm-profdata merge -o bbhost.profdata *.profraw,
+#   -DHELIAS_PGO_USE=<.profdata> the optimised build from the merged profile
+#                                (llvm-profdata merge -o heliasdream.profdata *.profraw,
 #                                with the llvm-profdata of the clang that built
 #                                the instrumented binary).
-#   -DBBHOST_PGO=OFF             rc6: ignore BBHOST_PGO_USE (the same commit
+#   -DHELIAS_PGO=OFF             rc6: ignore HELIAS_PGO_USE (the same commit
 #                                without the profile, for an A/B)
-#   -DBBHOST_PGO_WARN=ON         rc6: report the profile's mismatches (functions
+#   -DHELIAS_PGO_WARN=ON         rc6: report the profile's mismatches (functions
 #                                changed since it was gathered) instead of
 #                                silencing them
 # The decomp sources stay out of both, as they stay out of LTO (bit-exact,
 # guest-facing; nothing instrumented on the game's stacks).
 if(UNIX AND CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-  option(BBHOST_PGO_GENERATE "PGO-instrumented bbhost (-fprofile-generate; profiling sessions only)" OFF)
-  set(BBHOST_PGO_USE "" CACHE FILEPATH "a merged .profdata to build bbhost with (-fprofile-use)")
-  option(BBHOST_PGO "build with BBHOST_PGO_USE's profile when one is given (OFF: without it)" ON)
-  option(BBHOST_PGO_WARN "report PGO profile mismatches (-Wprofile-instr-out-of-date)" OFF)
-  if(NOT BBHOST_PGO AND BBHOST_PGO_USE)
-    message(STATUS "bbhost: PGO off (BBHOST_PGO=OFF; ${BBHOST_PGO_USE} not used)")
-    set(BBHOST_PGO_USE_EFFECTIVE "")
+  option(HELIAS_PGO_GENERATE "PGO-instrumented heliasdream (-fprofile-generate; profiling sessions only)" OFF)
+  set(HELIAS_PGO_USE "" CACHE FILEPATH "a merged .profdata to build heliasdream with (-fprofile-use)")
+  option(HELIAS_PGO "build with HELIAS_PGO_USE's profile when one is given (OFF: without it)" ON)
+  option(HELIAS_PGO_WARN "report PGO profile mismatches (-Wprofile-instr-out-of-date)" OFF)
+  if(NOT HELIAS_PGO AND HELIAS_PGO_USE)
+    message(STATUS "heliasdream: PGO off (HELIAS_PGO=OFF; ${HELIAS_PGO_USE} not used)")
+    set(HELIAS_PGO_USE_EFFECTIVE "")
   else()
-    set(BBHOST_PGO_USE_EFFECTIVE "${BBHOST_PGO_USE}")
+    set(HELIAS_PGO_USE_EFFECTIVE "${HELIAS_PGO_USE}")
   endif()
-  if(BBHOST_PGO_GENERATE AND BBHOST_PGO_USE)
-    message(FATAL_ERROR "BBHOST_PGO_GENERATE and BBHOST_PGO_USE are exclusive")
+  if(HELIAS_PGO_GENERATE AND HELIAS_PGO_USE)
+    message(FATAL_ERROR "HELIAS_PGO_GENERATE and HELIAS_PGO_USE are exclusive")
   endif()
-  if(BBHOST_PGO_GENERATE)
-    target_compile_options(bbhost PRIVATE -fprofile-generate)
-    target_link_options(bbhost PRIVATE -fprofile-generate)
-    target_compile_definitions(bbhost PRIVATE BBHOST_PGO_GEN=1)
-    target_sources(bbhost PRIVATE src/host/pgo_dump.cpp)
-    set_property(SOURCE ${BBHOST_DECOMP_SOURCES} APPEND PROPERTY COMPILE_OPTIONS -fno-profile-generate)
-    message(STATUS "bbhost: PGO instrumentation on (BBHOST_PGO_GENERATE; profiles to \$BBHOST_PGO_DIR or ./pgo)")
-  elseif(BBHOST_PGO_USE_EFFECTIVE)
-    if(NOT EXISTS "${BBHOST_PGO_USE}")
-      message(FATAL_ERROR "BBHOST_PGO_USE: no file ${BBHOST_PGO_USE}")
+  if(HELIAS_PGO_GENERATE)
+    target_compile_options(heliasdream PRIVATE -fprofile-generate)
+    target_link_options(heliasdream PRIVATE -fprofile-generate)
+    target_compile_definitions(heliasdream PRIVATE HELIAS_PGO_GEN=1)
+    target_sources(heliasdream PRIVATE src/host/pgo_dump.cpp)
+    set_property(SOURCE ${HELIAS_DECOMP_SOURCES} APPEND PROPERTY COMPILE_OPTIONS -fno-profile-generate)
+    message(STATUS "heliasdream: PGO instrumentation on (HELIAS_PGO_GENERATE; profiles to \$HELIAS_PGO_DIR or ./pgo)")
+  elseif(HELIAS_PGO_USE_EFFECTIVE)
+    if(NOT EXISTS "${HELIAS_PGO_USE}")
+      message(FATAL_ERROR "HELIAS_PGO_USE: no file ${HELIAS_PGO_USE}")
     endif()
-    if(BBHOST_PGO_WARN)
-      target_compile_options(bbhost PRIVATE -fprofile-use=${BBHOST_PGO_USE} -Wprofile-instr-unprofiled -Wprofile-instr-out-of-date
+    if(HELIAS_PGO_WARN)
+      target_compile_options(heliasdream PRIVATE -fprofile-use=${HELIAS_PGO_USE} -Wprofile-instr-unprofiled -Wprofile-instr-out-of-date
                                            -Wprofile-instr-missing)
     else()
-      target_compile_options(bbhost PRIVATE -fprofile-use=${BBHOST_PGO_USE} -Wno-profile-instr-unprofiled -Wno-profile-instr-out-of-date)
+      target_compile_options(heliasdream PRIVATE -fprofile-use=${HELIAS_PGO_USE} -Wno-profile-instr-unprofiled -Wno-profile-instr-out-of-date)
     endif()
-    set_property(SOURCE ${BBHOST_DECOMP_SOURCES} APPEND PROPERTY COMPILE_OPTIONS -fno-profile-instr-use)
-    message(STATUS "bbhost: PGO from ${BBHOST_PGO_USE}")
+    set_property(SOURCE ${HELIAS_DECOMP_SOURCES} APPEND PROPERTY COMPILE_OPTIONS -fno-profile-instr-use)
+    message(STATUS "heliasdream: PGO from ${HELIAS_PGO_USE}")
   endif()
 endif()
 
 if(MSVC)
-  target_compile_options(bbhost PRIVATE /W4)
+  target_compile_options(heliasdream PRIVATE /W4)
 else()
-  target_compile_options(bbhost PRIVATE -Wall -Wextra -Wno-unused-parameter)
+  target_compile_options(heliasdream PRIVATE -Wall -Wextra -Wno-unused-parameter)
 endif()
 
 if(UNIX)
@@ -445,12 +445,12 @@ if(UNIX)
     add_test(NAME area_check_test COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/area_check_test.py)
     add_test(NAME lift_verify_test COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/lift_verify_test.py)
     # The Debug Menu plugin's English against the 1.09 eboot: skipped without
-    # one (BBHOST_EBOOT, or eboot-109-decrypted.bin in the checkout).
+    # one (HELIAS_EBOOT, or eboot-109-decrypted.bin in the checkout).
     add_test(NAME debug_menu_strings_test COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tools/debug_menu_strings.py check)
     set_tests_properties(debug_menu_strings_test PROPERTIES SKIP_RETURN_CODE 77)
   endif()
   # The map-validation probe's tour steps (tools/area_check.py's) on a pretend
-  # host. Built beside the tests, never into plugins/, where bbhost would load it.
+  # host. Built beside the tests, never into plugins/, where heliasdream would load it.
   add_library(mapval_probe MODULE tools/mapval_plugin.c)
   target_include_directories(mapval_probe PRIVATE include)
   target_link_libraries(mapval_probe PRIVATE m)
@@ -487,7 +487,7 @@ if(UNIX)
   add_executable(stun_test tests/stun_test.cpp src/net/stun.cpp)
   target_include_directories(stun_test PRIVATE src)
   add_test(NAME stun_test COMMAND stun_test)
-  # bbhost-vk: the upscaler presets, and FSR-Vulkan's shader tables when it is linked.
+  # heliasdream-vk: the upscaler presets, and FSR-Vulkan's shader tables when it is linked.
   add_executable(upscaler_test tests/upscaler_test.cpp)
   target_include_directories(upscaler_test PRIVATE src)
   if(TARGET ffx-vulkan::fsr3-vk-backend-3.1.5)
@@ -496,7 +496,7 @@ if(UNIX)
     target_link_libraries(upscaler_test PRIVATE ffx-vulkan::portable ffx-vulkan::fsr3-vk-backend-3.1.5)
   endif()
   add_test(NAME upscaler_test COMMAND upscaler_test)
-  # bbhost-vk Phase 3: FSR 3.1.5 contexts, sizes and a reset on a software (or real) Vulkan device.
+  # heliasdream-vk Phase 3: FSR 3.1.5 contexts, sizes and a reset on a software (or real) Vulkan device.
   if(TARGET ffx-vulkan::fsr3-vk-backend-3.1.5)
     add_executable(fsr3_upscaler_test tests/fsr3_upscaler_test.cpp src/host/fsr3_upscaler.cpp)
     target_include_directories(fsr3_upscaler_test PRIVATE src)
@@ -504,7 +504,7 @@ if(UNIX)
     add_test(NAME fsr3_upscaler_test COMMAND fsr3_upscaler_test)
     set_tests_properties(fsr3_upscaler_test PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 600)
   endif()
-  # bbhost-vk Phase 1: the scene/UI split's sites against Kyo's Decoupled UI patches.
+  # heliasdream-vk Phase 1: the scene/UI split's sites against Kyo's Decoupled UI patches.
   add_executable(scene_split_test tests/scene_split_test.cpp)
   target_include_directories(scene_split_test PRIVATE src)
   add_test(NAME scene_split_test COMMAND scene_split_test)
@@ -530,7 +530,7 @@ if(UNIX)
     target_link_libraries(fsr4_sharpen_test PRIVATE Vulkan::Vulkan)
     add_test(NAME fsr4_sharpen_test COMMAND fsr4_sharpen_test)
     set_tests_properties(fsr4_sharpen_test PROPERTIES SKIP_RETURN_CODE 77)
-    # bbhost-vk: FSR 4.1.1's failure paths (no or broken assets) before the fallback to FSR 3.1.
+    # heliasdream-vk: FSR 4.1.1's failure paths (no or broken assets) before the fallback to FSR 3.1.
     add_executable(fsr411_fallback_test tests/fsr411_fallback_test.cpp src/host/fsr411/fsr411.cpp)
     target_include_directories(fsr411_fallback_test PRIVATE src)
     target_link_libraries(fsr411_fallback_test PRIVATE Vulkan::Vulkan)
@@ -550,7 +550,7 @@ if(UNIX)
   add_test(NAME image_file_test COMMAND image_file_test)
   add_executable(config_test tests/config_test.cpp src/core/config.cpp src/core/sfo.cpp)
   target_include_directories(config_test PRIVATE src ${CMAKE_BINARY_DIR}/gen)
-  add_dependencies(config_test bbhost_version)
+  add_dependencies(config_test heliasdream_version)
   add_test(NAME config_test COMMAND config_test)
   add_executable(text_entry_test tests/text_entry_test.cpp src/host/text_entry.cpp)
   target_include_directories(text_entry_test PRIVATE src)
@@ -563,16 +563,16 @@ if(UNIX)
   target_link_libraries(write_watch_test PRIVATE pthread)
   add_test(NAME write_watch_test COMMAND write_watch_test)
   # The decomp's tests (tests/decomp, docs/decomp.md "How one is checked"):
-  # the eboot kit loads the 1.09 eboot with bbhost's own loader, every import a
+  # the eboot kit loads the 1.09 eboot with heliasdream's own loader, every import a
   # trap, and a test runs the game's functions beside ours. They skip (77)
   # without the eboot.
   add_library(eboot_kit STATIC tests/decomp/eboot_kit.cpp src/core/elf.cpp src/core/memory.cpp src/core/sha256.cpp
               src/core/tls_rewrite.cpp)
   target_include_directories(eboot_kit PUBLIC src include tests tests/decomp)
-  target_compile_definitions(eboot_kit PRIVATE BBHOST_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
+  target_compile_definitions(eboot_kit PRIVATE HELIAS_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
   # decomp_<name>: tests/decomp/<name>_test.cpp, with SOURCES built beside it,
   # LIBS linked, and ARGS for its run.
-  function(bbhost_decomp_test name)
+  function(heliasdream_decomp_test name)
     cmake_parse_arguments(T "" "" "SOURCES;LIBS;ARGS" ${ARGN})
     add_executable(decomp_${name} tests/decomp/${name}_test.cpp ${T_SOURCES})
     target_compile_options(decomp_${name} PRIVATE -fno-stack-protector -ffp-contract=off)
@@ -580,24 +580,24 @@ if(UNIX)
     add_test(NAME decomp_${name} COMMAND decomp_${name} ${T_ARGS})
     set_tests_properties(decomp_${name} PROPERTIES SKIP_RETURN_CODE 77)
   endfunction()
-  bbhost_decomp_test(insn SOURCES src/decomp/insn.cpp)
-  bbhost_decomp_test(insn_eboot SOURCES src/decomp/insn.cpp)
-  bbhost_decomp_test(event_interpreter SOURCES src/decomp/events/flag_store.cpp)
-  bbhost_decomp_test(player_data)
-  bbhost_decomp_test(item_lots SOURCES src/core/thunk.cpp src/core/portable.cpp src/hle/sysv_va.cpp src/host/main_wait.cpp)
-  bbhost_decomp_test(talk_evaluator SOURCES src/engine/esd.cpp LIBS gcn)
-  bbhost_decomp_test(chalice_ritual)
-  bbhost_decomp_test(follow_camera SOURCES src/decomp/camera/follow_camera.cpp src/engine/mouse_camera_stubs.cpp ARGS 2000)
-  bbhost_decomp_test(sfx_ribbons SOURCES src/core/write_watch.cpp)
+  heliasdream_decomp_test(insn SOURCES src/decomp/insn.cpp)
+  heliasdream_decomp_test(insn_eboot SOURCES src/decomp/insn.cpp)
+  heliasdream_decomp_test(event_interpreter SOURCES src/decomp/events/flag_store.cpp)
+  heliasdream_decomp_test(player_data)
+  heliasdream_decomp_test(item_lots SOURCES src/core/thunk.cpp src/core/portable.cpp src/hle/sysv_va.cpp src/host/main_wait.cpp)
+  heliasdream_decomp_test(talk_evaluator SOURCES src/engine/esd.cpp LIBS gcn)
+  heliasdream_decomp_test(chalice_ritual)
+  heliasdream_decomp_test(follow_camera SOURCES src/decomp/camera/follow_camera.cpp src/engine/mouse_camera_stubs.cpp ARGS 2000)
+  heliasdream_decomp_test(sfx_ribbons SOURCES src/core/write_watch.cpp)
   # The engine's classes by the names they register (tools/class_catalog.cpp).
   add_executable(class_catalog tools/class_catalog.cpp src/decomp/insn.cpp)
   target_link_libraries(class_catalog PRIVATE eboot_kit)
-  # Profiling kit: the per-flip trace (BBHOST_FLIP_TRACE) on simulated flips.
+  # Profiling kit: the per-flip trace (HELIAS_FLIP_TRACE) on simulated flips.
   add_executable(flip_trace_test tests/flip_trace_test.cpp src/host/flip_trace.cpp)
   target_include_directories(flip_trace_test PRIVATE src)
   target_link_libraries(flip_trace_test PRIVATE pthread)
   add_test(NAME flip_trace_test COMMAND flip_trace_test)
-  set_tests_properties(flip_trace_test PROPERTIES ENVIRONMENT "BBHOST_FLIP_TRACE=1")
+  set_tests_properties(flip_trace_test PROPERTIES ENVIRONMENT "HELIAS_FLIP_TRACE=1")
   add_executable(sync_test tests/sync_test.cpp src/hle/sync.cpp src/host/main_wait.cpp src/core/futex.cpp)
   target_include_directories(sync_test PRIVATE src)
   target_link_libraries(sync_test PRIVATE pthread)
@@ -611,7 +611,7 @@ if(UNIX)
     # Audio output lifetimes under concurrent writes, on SDL's dummy driver.
     add_executable(host_audio_test tests/host_audio_test.cpp src/host/audio.cpp src/core/portable.cpp)
     target_include_directories(host_audio_test PRIVATE src)
-    target_compile_definitions(host_audio_test PRIVATE BBHOST_HAVE_SDL3=1)
+    target_compile_definitions(host_audio_test PRIVATE HELIAS_HAVE_SDL3=1)
     target_link_libraries(host_audio_test PRIVATE SDL3::SDL3 pthread)
     add_test(NAME host_audio_test COMMAND host_audio_test)
     set_tests_properties(host_audio_test PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 60)
@@ -660,7 +660,7 @@ if(UNIX)
   add_executable(translation_cache_test tests/translation_cache_test.cpp)
   target_include_directories(translation_cache_test PRIVATE src ${CMAKE_BINARY_DIR}/gen)
   target_link_libraries(translation_cache_test PRIVATE gcn ZLIB::ZLIB)
-  add_dependencies(translation_cache_test bbhost_translator_fingerprint)
+  add_dependencies(translation_cache_test heliasdream_translator_fingerprint)
   add_test(NAME translation_cache_test COMMAND translation_cache_test)
   set_tests_properties(translation_cache_test PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 300)
   add_executable(gcn_wave_test tests/gcn_wave_test.cpp)
@@ -698,26 +698,26 @@ endif()
 
 # `cmake --build build --target smoke`: 60 s run must time out (124) without a core dump.
 # For the Windows cross build (`cmake --build build-win --target smoke`) the
-# run is bbhost.exe under wine, ended by BBHOST_EXIT_FLIP (tools/win_smoke.sh).
+# run is heliasdream.exe under wine, ended by HELIAS_EXIT_FLIP (tools/win_smoke.sh).
 if(CMAKE_SYSTEM_NAME STREQUAL "Windows" AND CMAKE_CROSSCOMPILING)
   add_custom_target(smoke
-    COMMAND ${CMAKE_SOURCE_DIR}/tools/win_smoke.sh $<TARGET_FILE:bbhost> ${CMAKE_BINARY_DIR}/smoke-run.log ${CMAKE_SOURCE_DIR}
+    COMMAND ${CMAKE_SOURCE_DIR}/tools/win_smoke.sh $<TARGET_FILE:heliasdream> ${CMAKE_BINARY_DIR}/smoke-run.log ${CMAKE_SOURCE_DIR}
     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-    DEPENDS bbhost
+    DEPENDS heliasdream
     USES_TERMINAL)
   # `cmake --build build-win --target package-win`: the zip a Windows machine
   # runs from (tools/win_package.sh; docs/building.md).
   add_custom_target(package-win
-    COMMAND ${CMAKE_SOURCE_DIR}/tools/win_package.sh $<TARGET_FILE:bbhost> ${CMAKE_SOURCE_DIR}/build/win
+    COMMAND ${CMAKE_SOURCE_DIR}/tools/win_package.sh $<TARGET_FILE:heliasdream> ${CMAKE_SOURCE_DIR}/build/win
     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
     # The official plugins too: the package carries them, and a CI build makes
     # nothing it is not asked for (v0.2.0's Windows zip shipped without them).
-    DEPENDS bbhost bb_plugin_randomizer bb_plugin_boss_rush bb_plugin_mutators bb_plugin_debug_menu
+    DEPENDS heliasdream bb_plugin_randomizer bb_plugin_boss_rush bb_plugin_mutators bb_plugin_debug_menu
     USES_TERMINAL)
 else()
   add_custom_target(smoke
-    COMMAND ${CMAKE_SOURCE_DIR}/tools/smoke.sh $<TARGET_FILE:bbhost> ${CMAKE_BINARY_DIR}/smoke-run.log ${CMAKE_SOURCE_DIR}
+    COMMAND ${CMAKE_SOURCE_DIR}/tools/smoke.sh $<TARGET_FILE:heliasdream> ${CMAKE_BINARY_DIR}/smoke-run.log ${CMAKE_SOURCE_DIR}
     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-    DEPENDS bbhost
+    DEPENDS heliasdream
     USES_TERMINAL)
 endif()

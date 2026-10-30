@@ -32,7 +32,7 @@ spv::Id emit_unpack_half16(spv::Module& m, const SpvScalarTypes& t, spv::Id h) {
 
 bool export_rtz_on() {
     static const bool on = [] {
-        const char* e = std::getenv("BBHOST_EXPORT_RTZ");
+        const char* e = std::getenv("HELIAS_EXPORT_RTZ");
         return !(e && e[0] == '0');
     }();
     return on;
@@ -58,7 +58,7 @@ bool program_allows_native_half_rtz(const Program& prog) {
 
 bool legacy_mul_min_form() {
     static const bool on = [] {
-        const char* e = std::getenv("BBHOST_LEGACY_MUL");
+        const char* e = std::getenv("HELIAS_LEGACY_MUL");
         return !(e && std::strcmp(e, "select") == 0);
     }();
     return on;

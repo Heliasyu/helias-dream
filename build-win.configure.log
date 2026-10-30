@@ -1,0 +1,8 @@
+-- heliasdream: libcurl 8.22.0 found; sceHttp is real
+-- heliasdream: ffmpeg found; movies decode
+-- heliasdream: SDL3 3.4.16 + Vulkan found; building the window shell
+-- heliasdream: FSR-Vulkan patched in the build tree (cmake/patches/fsr-vulkan-recycle.patch)
+-- heliasdream: FSR-Vulkan linked (FSR 3.1.5 and 3.1.4 upscalers, shader tables embedded)
+-- Configuring done (0.2s)
+-- Generating done (0.0s)
+-- Build files have been written to: /home/helias/Projects/bbhost-vk/build-win

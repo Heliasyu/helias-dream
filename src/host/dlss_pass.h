@@ -4,7 +4,7 @@
 // NGX core the NVIDIA driver installs (libnvidia-ngx.so.1 on Linux,
 // _nvngx.dll on Windows), loaded at run time - no NVIDIA SDK at build time.
 // The DLSS model is NVIDIA's redistributable nvngx_dlss (libnvidia-ngx-dlss.so
-// / nvngx_dlss.dll), searched in BBHOST_DLSS_DIR and next to the executable.
+// / nvngx_dlss.dll), searched in HELIAS_DLSS_DIR and next to the executable.
 // Adapted from Lantern Engine's vk_dlss.cpp (Awakenchan, GPL-2.0-or-later).
 //
 // On a GPU or driver without DLSS (AMD, Intel, no NGX core) it says why once

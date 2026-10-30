@@ -61,21 +61,21 @@ bool take_marked_start(std::string& why);    // the same: a start after a lost d
 namespace {
 
 const bool g_enabled = [] {
-    const char* e = std::getenv("BBHOST_GPU");
+    const char* e = std::getenv("HELIAS_GPU");
     return !(e && e[0] == '0');
 }();
 const bool g_validate = [] {
-    const char* e = std::getenv("BBHOST_VK_VALIDATE");
+    const char* e = std::getenv("HELIAS_VK_VALIDATE");
     return e && e[0] == '1';
 }();
-// BBHOST_RENDER_MIN=1 (recorder.cpp has the draws): no dispatches either.
+// HELIAS_RENDER_MIN=1 (recorder.cpp has the draws): no dispatches either.
 const bool g_render_min = [] {
-    const char* e = std::getenv("BBHOST_RENDER_MIN");
+    const char* e = std::getenv("HELIAS_RENDER_MIN");
     return e && e[0] == '1';
 }();
 
 std::vector<std::string> g_instance_exts;
-PFN_vkCmdInsertDebugUtilsLabelEXT g_insert_label = nullptr;  // rc4: BBHOST_RGP_LABELS
+PFN_vkCmdInsertDebugUtilsLabelEXT g_insert_label = nullptr;  // rc4: HELIAS_RGP_LABELS
 bool g_want_present = false;
 
 VKAPI_ATTR VkBool32 VKAPI_CALL debug_callback(VkDebugUtilsMessageSeverityFlagBitsEXT severity,
@@ -92,13 +92,13 @@ VKAPI_ATTR VkBool32 VKAPI_CALL debug_callback(VkDebugUtilsMessageSeverityFlagBit
     return VK_FALSE;
 }
 
-// BBHOST_IMPORT_WINDOWS=1: direct memory imported a window at a time, on
+// HELIAS_IMPORT_WINDOWS=1: direct memory imported a window at a time, on
 // demand. Off by default: a tenth of the draws keep page-table walks through
 // V#s and pointers the host does not resolve (the exit report's "walk" lines),
 // and what they reach must already be imported or they read the sink. Off,
 // each chunk's GPU-visible span is imported whole when the mappings are made.
 const bool g_import_whole = [] {
-    const char* e = std::getenv("BBHOST_IMPORT_WINDOWS");
+    const char* e = std::getenv("HELIAS_IMPORT_WINDOWS");
     return !(e && e[0] == '1');
 }();
 std::atomic<std::uint64_t> g_imports_made{0}, g_imports_merged{0}, g_import_bytes{0}, g_import_us{0};
@@ -152,7 +152,7 @@ bool gpu_written_locked(std::uint64_t va, std::uint64_t bytes) {
     return false;
 }
 
-// ---- The submission thread (BBHOST_SUBMIT_THREAD, on unless 0) ----
+// ---- The submission thread (HELIAS_SUBMIT_THREAD, on unless 0) ----
 // vkQueueSubmit off the command processor. The kernel's half of a submission
 // grows with the buffers it has to make resident - all of them, since shaders
 // reach memory by address - and on a Steam Deck (RADV, ~60 imported dma-bufs
@@ -184,7 +184,7 @@ std::atomic<std::uint64_t> g_sub_submitted{0};  // the last ticket submitted
 std::atomic<int> g_sub_failed{0};  // the VkResult of a failed submission
 std::atomic<std::uint32_t> g_sub_failed_items{0};
 const bool g_submit_thread_on = [] {
-    const char* e = std::getenv("BBHOST_SUBMIT_THREAD");
+    const char* e = std::getenv("HELIAS_SUBMIT_THREAD");
     return !(e && e[0] == '0');
 }();
 
@@ -213,7 +213,7 @@ struct BlitRider {
 BlitRider g_rider;
 
 std::atomic<std::uint64_t> g_cp_flushes{0}, g_cp_flush_ns{0}, g_submit_splits{0};
-std::atomic<std::uint64_t> g_reset_first_cmdbufs{0};  // rc4: command buffers begun with their resets first (BBHOST_RESET_ORDER)
+std::atomic<std::uint64_t> g_reset_first_cmdbufs{0};  // rc4: command buffers begun with their resets first (HELIAS_RESET_ORDER)
 // ---- test7: where the GPU's idle time between command buffers comes from ----
 // Per game submission (by serial, kSubRing deep - slots are reused after 16):
 // when the command processor handed it over (submit_locked), when the
@@ -229,7 +229,7 @@ std::atomic<std::uint8_t> g_sub_starved[kSubRing];
 std::atomic<void*> g_sub_site[kSubRing];
 std::atomic<std::uint8_t> g_sub_occl[kSubRing];  // rc3: it ended with an occlusion resolve
 VkFence g_last_game_fence = VK_NULL_HANDLE;  // the previous game submission's (submit_job_now's callers run one at a time)
-// test7c, BBHOST_SUBMIT_BATCH: the serial whose fence covers this one's - its
+// test7c, HELIAS_SUBMIT_BATCH: the serial whose fence covers this one's - its
 // own, or the last of the vkQueueSubmit it was merged into (slot_fence).
 // Reset to its own at hand-over (submit_locked), set by bb-submit before the
 // submission is published (g_stream_submitted), so a reader that waited for
@@ -384,7 +384,7 @@ void submit_batch_now(const std::vector<SubmitJob>& jobs) {
     g_stream_submitted.store(last.serial + 1, std::memory_order_release);
 }
 
-// BBHOST_SUBMIT_BATCH (test7c): off, and stays off - rejected on hardware (t9,
+// HELIAS_SUBMIT_BATCH (test7c): off, and stays off - rejected on hardware (t9,
 // 2026-10-18: 1% low 99.6 -> 77.1, 521 frames over 12 ms; docs/vk/DEVLOG.md).
 // Kept for measurement only; nothing turns it on but the variable.
 // 1 merges the game's jobs that are waiting together, and holds a new one
@@ -392,15 +392,15 @@ void submit_batch_now(const std::vector<SubmitJob>& jobs) {
 // - one running and one queued behind it, so it never runs dry - letting the
 // jobs that arrive meanwhile join it. The queued gaps between command buffers
 // were ~0.5 ms a frame at ~11 submissions (t8, test7). Labels are not held
-// back the way BBHOST_SUBMIT_EVERY_JOB=0 held them: every job is still ended
+// back the way HELIAS_SUBMIT_EVERY_JOB=0 held them: every job is still ended
 // and handed over at once, and a held job could not have started before the
 // two ahead of it finished anyway. A hold ends after 2 ms regardless.
 int submit_batch_mode() {
     static const int mode = [] {
-        const char* e = std::getenv("BBHOST_SUBMIT_BATCH");
+        const char* e = std::getenv("HELIAS_SUBMIT_BATCH");
         const int m = e && *e ? std::atoi(e) : 0;
-        host_log("gpu: submit batching %s", m ? "on (BBHOST_SUBMIT_BATCH=1): waiting game jobs go in one vkQueueSubmit while the GPU has two ahead"
-                                              : "off (BBHOST_SUBMIT_BATCH=1 merges waiting game jobs)");
+        host_log("gpu: submit batching %s", m ? "on (HELIAS_SUBMIT_BATCH=1): waiting game jobs go in one vkQueueSubmit while the GPU has two ahead"
+                                              : "off (HELIAS_SUBMIT_BATCH=1 merges waiting game jobs)");
         return m;
     }();
     return mode;
@@ -500,7 +500,7 @@ void start_submit_thread() {
     if (!g_submit_thread_on || g_sub_running) return;
     g_sub_running = true;
     std::thread(submit_thread).detach();
-    host_log("gpu: submissions go to the queue from their own thread (BBHOST_SUBMIT_THREAD=0 submits in place)");
+    host_log("gpu: submissions go to the queue from their own thread (HELIAS_SUBMIT_THREAD=0 submits in place)");
 }
 
 // What a direct-memory import's buffer is used for: bindings, copies, and
@@ -568,7 +568,7 @@ VkResult host_span(Chunk& c, void* ptr, std::uint64_t size) {
 // default stays 64 MiB; `echo 1024 | sudo tee
 // /sys/module/udmabuf/parameters/size_limit_mb` before the game (or
 // `options udmabuf size_limit_mb=1024` in /etc/modprobe.d) gives 1 GiB pieces.
-// BBHOST_DMABUF_PIECE_MB caps it (64: as before).
+// HELIAS_DMABUF_PIECE_MB caps it (64: as before).
 std::uint64_t g_dmabuf_piece = 64ull << 20;
 void choose_dmabuf_piece() {
     long mb = 64;
@@ -577,7 +577,7 @@ void choose_dmabuf_piece() {
         std::fclose(f);
     }
     long cap = 1024;
-    if (const char* e = std::getenv("BBHOST_DMABUF_PIECE_MB"); e && *e) cap = std::strtol(e, nullptr, 10);
+    if (const char* e = std::getenv("HELIAS_DMABUF_PIECE_MB"); e && *e) cap = std::strtol(e, nullptr, 10);
     long piece = 64;
     while (piece * 2 <= std::min(mb, cap) && piece * 2 <= 1024) piece *= 2;
     g_dmabuf_piece = static_cast<std::uint64_t>(piece) << 20;
@@ -762,14 +762,14 @@ void choose_dmem_import() {
         free_import(c);
         if (d == VK_SUCCESS) {
             // rc6: the host's own GPU mappings (the GX table ring) as memfds
-            // too, imported the same way (import_anon). BBHOST_HOST_MAP_DMABUF=0:
+            // too, imported the same way (import_anon). HELIAS_HOST_MAP_DMABUF=0:
             // anonymous memory and a host-pointer import, as before.
             // Only once a memfd of its own has gone in that way (the probe),
             // and where the ring's 128 MiB fits a piece or sparse binding
             // joins several: a failed import would leave the ring unmapped.
-            const char* e = std::getenv("BBHOST_HOST_MAP_DMABUF");
+            const char* e = std::getenv("HELIAS_HOST_MAP_DMABUF");
             bool shared = !(e && e[0] == '0');
-            const char* why = "BBHOST_HOST_MAP_DMABUF=0";
+            const char* why = "HELIAS_HOST_MAP_DMABUF=0";
             if (shared && !g.dmabuf_sparse && g_dmabuf_piece < (128ull << 20)) {
                 shared = false;
                 why = "no sparse binding to join dma-bufs";
@@ -812,12 +812,12 @@ void choose_dmem_import() {
 // (write-combined, as before); the one read, page_in_gpu_table_locked, is the
 // draw capture's. The same bytes, so the picture is bit-identical.
 // Only with a host-visible video-memory heap over 1 GiB (ReBAR): a 256 MiB
-// BAR is left to the driver. BBHOST_TABLES_VRAM=0 puts them back in system
+// BAR is left to the driver. HELIAS_TABLES_VRAM=0 puts them back in system
 // memory. Log label `page tables:`, snapshot [gpu_memory] `page_tables:`.
 std::atomic<std::uint32_t> g_tables_vram{0}, g_tables_sys{0};
 std::uint32_t tables_vram_type(std::uint32_t type_bits) {
     static const bool off = [] {
-        const char* e = std::getenv("BBHOST_TABLES_VRAM");
+        const char* e = std::getenv("HELIAS_TABLES_VRAM");
         return e && e[0] == '0';
     }();
     if (off) return UINT32_MAX;
@@ -865,7 +865,7 @@ bool create_table_buffer(DevBuffer& b, std::uint64_t size) {
                     b.address = vkGetBufferDeviceAddress(g.device, &bai);
                     if (g_tables_vram.fetch_add(1, std::memory_order_relaxed) == 0) {
                         host_log("page tables: in video memory the CPU maps (memory type %u, heap %u of %llu MiB; rc5, "
-                                 "BBHOST_TABLES_VRAM=0 puts them in system memory)",
+                                 "HELIAS_TABLES_VRAM=0 puts them in system memory)",
                                  type, g.mem_props.memoryTypes[type].heapIndex,
                                  static_cast<unsigned long long>(g.mem_props.memoryHeaps[g.mem_props.memoryTypes[type].heapIndex].size >> 20));
                     }
@@ -877,7 +877,7 @@ bool create_table_buffer(DevBuffer& b, std::uint64_t size) {
         vkDestroyBuffer(g.device, buf, nullptr);
     }
     if (!create_dev_buffer(b, size, true)) return false;
-    if (g_tables_sys.fetch_add(1, std::memory_order_relaxed) == 0) host_log("page tables: in system memory (no ReBAR heap, or BBHOST_TABLES_VRAM=0)");
+    if (g_tables_sys.fetch_add(1, std::memory_order_relaxed) == 0) host_log("page tables: in system memory (no ReBAR heap, or HELIAS_TABLES_VRAM=0)");
     return true;
 }
 
@@ -946,7 +946,7 @@ void stream_submit_job(const VkCommandBuffer* cmds, std::uint32_t ncmds, VkSemap
     if (g_sub_running) {
         enqueue_submit(job);
     } else {
-        submit_job_now(job);  // BBHOST_SUBMIT_THREAD=0: on the recorder, under the queue's lock
+        submit_job_now(job);  // HELIAS_SUBMIT_THREAD=0: on the recorder, under the queue's lock
     }
 }
 
@@ -1005,7 +1005,7 @@ namespace {
 // The span of chunk `index` that GPU-visible direct-memory mappings cover
 // (SCE_KERNEL_PROT_GPU_READ/WRITE), in offsets of the chunk, 64 KiB-aligned;
 // false when none does. On the console the GPU cannot reach a mapping without
-// those bits, and an audit (BBHOST_IMPORT_AUDIT) found no GPU-side read of
+// those bits, and an audit (HELIAS_IMPORT_AUDIT) found no GPU-side read of
 // one: the main heap, Havok's, the runtime heap and the CPU-side GX heap -
 // 1.2 GiB - and the pool's never-allocated tail need no import.
 bool gpu_span(const std::vector<GuestMapInfo>& maps, std::uint32_t index, std::uint64_t& lo, std::uint64_t& hi) {
@@ -1044,7 +1044,7 @@ const Chunk* import_anon(std::uint64_t va, std::uint64_t len) {
                 bai.buffer = c.buffer;
                 c.address = vkGetBufferDeviceAddress(g.device, &bai);
                 c.size = len;
-                host_log("gpu: host mapping 0x%llx (%llu KiB) imported as %s in %.0f ms (rc6; BBHOST_HOST_MAP_DMABUF=0: as a host pointer)",
+                host_log("gpu: host mapping 0x%llx (%llu KiB) imported as %s in %.0f ms (rc6; HELIAS_HOST_MAP_DMABUF=0: as a host pointer)",
                          static_cast<unsigned long long>(va), static_cast<unsigned long long>(len >> 10),
                          c.pieces.empty() ? "a dma-buf" : "dma-bufs in a sparse buffer", ms);
                 return &(g.anon_imports[va] = c);
@@ -1322,10 +1322,10 @@ std::uint32_t find_memory_type(std::uint32_t type_bits, VkMemoryPropertyFlags wa
 
 // Whether what finds video memory full goes to host memory (images, device
 // buffers) and has the buffer shadow give its mirrors back.
-// BBHOST_VRAM_FALLBACK=0: it fails, as before, for comparison.
+// HELIAS_VRAM_FALLBACK=0: it fails, as before, for comparison.
 bool vram_fallback_on() {
     static const bool on = [] {
-        const char* e = std::getenv("BBHOST_VRAM_FALLBACK");
+        const char* e = std::getenv("HELIAS_VRAM_FALLBACK");
         return !(e && e[0] == '0');
     }();
     return on;
@@ -1394,26 +1394,26 @@ std::atomic<bool> g_cache_divert{false};             // PipelineCacheUse (gpu_in
 std::atomic<int> g_cache_users{0};
 std::atomic<std::uint64_t> g_cache_diverted{0};
 
-// <data root>/bbhost/vulkan-pipeline-cache.bin, or empty when there is no data
-// root or BBHOST_PIPELINE_CACHE=0.
+// <data root>/heliasdream/vulkan-pipeline-cache.bin, or empty when there is no data
+// root or HELIAS_PIPELINE_CACHE=0.
 std::string pipeline_cache_path() {
     static const bool enabled = [] {
-        const char* e = std::getenv("BBHOST_PIPELINE_CACHE");
+        const char* e = std::getenv("HELIAS_PIPELINE_CACHE");
         return !(e && e[0] == '0');
     }();
     const char* root = hle_fs_data_root();
     if (!enabled || !root || !*root) return {};
-    return std::string(root) + "/bbhost/vulkan-pipeline-cache.bin";
+    return std::string(root) + "/heliasdream/vulkan-pipeline-cache.bin";
 }
 
-// <data root>/bbhost/stage-manifest.bin, beside the pipeline cache and off with it.
+// <data root>/heliasdream/stage-manifest.bin, beside the pipeline cache and off with it.
 std::string stage_manifest_path() {
     std::string path = pipeline_cache_path();
     if (path.empty()) return path;
     return path.substr(0, path.rfind('/') + 1) + "stage-manifest.bin";
 }
 
-// <data root>/bbhost/translation-cache.bin (host/translation_cache.h), the same.
+// <data root>/heliasdream/translation-cache.bin (host/translation_cache.h), the same.
 std::string translation_cache_path() {
     std::string path = pipeline_cache_path();
     if (path.empty()) return path;
@@ -1425,14 +1425,14 @@ std::string translation_cache_path() {
 // translator's fingerprint - its sources and the cache's own key and entry
 // code - and a pipeline by the driver, by its shaders and state; so an update
 // that leaves the translator alone keeps both and starts with every shader
-// built. Another translator - <data root>/bbhost/shader-cache-build.txt names
+// built. Another translator - <data root>/heliasdream/shader-cache-build.txt names
 // the one that made them - starts both empty: its translations would not be
 // taken anyway, and the pipelines its shaders replace would stay in the
 // pipeline cache, which the driver keeps whole (one translator's are 25 MiB on
 // the Steam Deck to 100 MiB on NVIDIA; the file grew past 400 MiB over a few
 // weeks of builds). The stage manifest stays: it holds the guest's inputs,
 // which the running build translates again on the precompile workers.
-// BBHOST_KEEP_SHADER_CACHE=1 keeps them across translators.
+// HELIAS_KEEP_SHADER_CACHE=1 keeps them across translators.
 static void shader_caches_check_build() {
     const std::string pipelines = pipeline_cache_path();
     if (pipelines.empty()) return;
@@ -1449,8 +1449,8 @@ static void shader_caches_check_build() {
         return;
     }
     std::error_code ec;
-    if (const char* e = std::getenv("BBHOST_KEEP_SHADER_CACHE"); e && e[0] == '1') {
-        host_log("gpu: shader caches made by translator %s kept for translator %s (BBHOST_KEEP_SHADER_CACHE=1)",
+    if (const char* e = std::getenv("HELIAS_KEEP_SHADER_CACHE"); e && e[0] == '1') {
+        host_log("gpu: shader caches made by translator %s kept for translator %s (HELIAS_KEEP_SHADER_CACHE=1)",
                  theirs.empty() ? "of an earlier build" : theirs.c_str(), ours.c_str());
     } else {
         std::uintmax_t freed = 0;
@@ -1495,7 +1495,7 @@ bool rebuild_page_tables() {
     const std::uint64_t high = hle_kernel_dmem_high();
     std::size_t pages = 0, skipped = 0;
     // Each chunk's GPU-visible span: what may be imported (the whole of it
-    // now with BBHOST_IMPORT_WINDOWS=0, so the pages below find it).
+    // now with HELIAS_IMPORT_WINDOWS=0, so the pages below find it).
     for (std::uint32_t k = 0; k < gcn::kDmemChunks; ++k) {
         std::uint64_t lo = 0, hi = 0;
         DmemChunk& d = g.dmem[k];
@@ -1513,9 +1513,9 @@ bool rebuild_page_tables() {
             // walked the page table for every vertex: on the Deck, where the
             // smaller targets moved the heap, 16 G-buffer draws a frame cost
             // 2-6 times as much GPU time as their neighbours.
-            // BBHOST_CHUNK_OVERLAP=0: each import stops at its chunk's end.
+            // HELIAS_CHUNK_OVERLAP=0: each import stops at its chunk's end.
             static const bool overlap = [] {
-                const char* e = std::getenv("BBHOST_CHUNK_OVERLAP");
+                const char* e = std::getenv("HELIAS_CHUNK_OVERLAP");
                 return !(e && e[0] == '0');
             }();
             std::uint64_t ext = hi;
@@ -1577,13 +1577,13 @@ bool rebuild_page_tables() {
     return true;
 }
 
-// BBHOST_IMPORT_AUDIT=1: every guest range the GPU side resolves to imported
+// HELIAS_IMPORT_AUDIT=1: every guest range the GPU side resolves to imported
 // memory (bindings and copies through locate, device addresses for the GPU
 // untile, the vertex/index mirror's sources), counted per guest mapping and
 // printed with the 300-flip memory lines - which mappings the GPU really
 // reads, to decide what has to be imported at all.
 const bool g_import_audit = [] {
-    const char* e = std::getenv("BBHOST_IMPORT_AUDIT");
+    const char* e = std::getenv("HELIAS_IMPORT_AUDIT");
     return e && e[0] == '1';
 }();
 struct AuditEntry {
@@ -1696,7 +1696,7 @@ std::string audit_pages_report() {
         for (std::uint64_t q = p; q < p + kPer64; ++q) n += (all[q >> 6] >> (q & 63)) & 1;
         if (!uses.empty()) wins += " " + std::to_string(p / kPer64) + ":" + uses + ":" + std::to_string((n << gcn::kPageShift) >> 20);
     }
-    if (std::getenv("BBHOST_IMPORT_AUDIT_WINDOWS")) {
+    if (std::getenv("HELIAS_IMPORT_AUDIT_WINDOWS")) {
         for (std::size_t at = 0; at < wins.size(); at += 900) {
             host_log("import windows (64 MiB index:uses:MiB touched):%s", wins.substr(at, 900).c_str());
         }
@@ -1779,12 +1779,12 @@ Located locate(std::uint64_t va, std::uint64_t bytes) {
     return {};
 }
 
-// BBHOST_HANG_WATCHDOG=<seconds>: when the game stops flipping for that long,
+// HELIAS_HANG_WATCHDOG=<seconds>: when the game stops flipping for that long,
 // say once what the renderer is in the middle of. A frozen frame is otherwise
 // silent: the log stops with it.
 void start_hang_watchdog() {
     static const double after = [] {
-        const char* e = std::getenv("BBHOST_HANG_WATCHDOG");
+        const char* e = std::getenv("HELIAS_HANG_WATCHDOG");
         return e ? std::atof(e) : 0.0;
     }();
     if (after <= 0) return;
@@ -1842,7 +1842,7 @@ bool g_use_buffer_marker = false;  // VK_AMD_buffer_marker checkpoints (gpu_chec
 // Every device that can run the host, scored: a discrete GPU before an
 // integrated one (a laptop lists its on-board GPU first, and the first
 // usable device used to be taken), then the most device-local memory.
-// BBHOST_GPU_DEVICE=<index or part of the name> picks one instead.
+// HELIAS_GPU_DEVICE=<index or part of the name> picks one instead.
 struct Candidate {
     VkPhysicalDevice device = VK_NULL_HANDLE;
     std::uint32_t family = 0, queues = 0;
@@ -1861,7 +1861,7 @@ int choose_device(VkInstance instance, bool say, std::vector<Candidate>& usable)
     vkEnumeratePhysicalDevices(instance, &ndev, nullptr);
     std::vector<VkPhysicalDevice> devs(ndev);
     vkEnumeratePhysicalDevices(instance, &ndev, devs.data());
-    const char* want = std::getenv("BBHOST_GPU_DEVICE");
+    const char* want = std::getenv("HELIAS_GPU_DEVICE");
     int chosen = -1;
     for (std::uint32_t index = 0; index < devs.size(); ++index) {
         VkPhysicalDevice d = devs[index];
@@ -1932,7 +1932,7 @@ int choose_device(VkInstance instance, bool say, std::vector<Candidate>& usable)
     }
     if (usable.empty()) return -1;
     if (chosen < 0) {
-        if (want && *want && say) host_log("gpu: BBHOST_GPU_DEVICE=%s matches no usable device; choosing by type and memory", want);
+        if (want && *want && say) host_log("gpu: HELIAS_GPU_DEVICE=%s matches no usable device; choosing by type and memory", want);
         chosen = 0;
         for (std::size_t k = 1; k < usable.size(); ++k) {
             const Candidate& a = usable[k];
@@ -1947,10 +1947,10 @@ int choose_device(VkInstance instance, bool say, std::vector<Candidate>& usable)
 // in all its heaps together. Every buffer the host makes has to fit in them
 // at once (RADV keeps every allocation resident, for device addresses), and
 // direct memory's imports alone are ~4.7 GiB: a Steam Deck (1 GiB of VRAM,
-// 8 GiB of GTT) failed its submissions in the world. BBHOST_TIGHT_MEMORY=0/1
+// 8 GiB of GTT) failed its submissions in the world. HELIAS_TIGHT_MEMORY=0/1
 // says instead.
 bool memory_tight(const Candidate& c) {
-    const char* e = std::getenv("BBHOST_TIGHT_MEMORY");
+    const char* e = std::getenv("HELIAS_TIGHT_MEMORY");
     if (e && *e) return e[0] != '0';
     return c.heaps < (12ull << 30);
 }
@@ -1988,10 +1988,10 @@ void obs_capture_policy_once() {
     const bool off = mode == "off" || mode == "false" || mode == "0";
     std::uint32_t vendor = 0;
     if (!off) {
-        // "auto": the card bbhost will run on, from an instance the layer is
+        // "auto": the card heliasdream will run on, from an instance the layer is
         // kept out of.
         VkApplicationInfo app{VK_STRUCTURE_TYPE_APPLICATION_INFO};
-        app.pApplicationName = "bbhost";
+        app.pApplicationName = "heliasdream";
         app.apiVersion = VK_API_VERSION_1_3;
         VkInstanceCreateInfo ici{VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO};
         ici.pApplicationInfo = &app;
@@ -2013,7 +2013,7 @@ void obs_capture_policy_once() {
         }
     }
     host_log("gpu: OBS's game capture layer is kept out (%s): on an AMD card it hung the GPU at the online notice. "
-             "OBS's Window Capture records bbhost without it; video.obs_capture = \"on\" lets it in",
+             "OBS's Window Capture records heliasdream without it; video.obs_capture = \"on\" lets it in",
              off ? "video.obs_capture = \"off\"" : "an AMD card");
 #endif
 }
@@ -2024,21 +2024,21 @@ bool init_locked() {
     }
     g.tried = true;
     if (!g_enabled) {
-        host_log("gpu: disabled by BBHOST_GPU=0");
+        host_log("gpu: disabled by HELIAS_GPU=0");
         return false;
     }
     obs_capture_policy();
     VkApplicationInfo app{VK_STRUCTURE_TYPE_APPLICATION_INFO};
-    app.pApplicationName = "bbhost";
+    app.pApplicationName = "heliasdream";
     app.apiVersion = VK_API_VERSION_1_3;
-    // BBHOST_VK_APP_NAME / BBHOST_VK_ENGINE_NAME: the names the driver is
-    // told (bbhost, and no engine, otherwise). A driver may pick a profile of
+    // HELIAS_VK_APP_NAME / HELIAS_VK_ENGINE_NAME: the names the driver is
+    // told (heliasdream, and no engine, otherwise). A driver may pick a profile of
     // its own by them as well as by the executable's name; an A/B for what it
     // does differently with a name it knows.
-    if (const char* e = std::getenv("BBHOST_VK_APP_NAME"); e && *e) app.pApplicationName = e;
-    if (const char* e = std::getenv("BBHOST_VK_ENGINE_NAME"); e && *e) app.pEngineName = e;
-    if (std::getenv("BBHOST_VK_APP_NAME") || std::getenv("BBHOST_VK_ENGINE_NAME"))
-        host_log("gpu: the Vulkan instance says application \"%s\", engine \"%s\" (BBHOST_VK_APP_NAME, BBHOST_VK_ENGINE_NAME)",
+    if (const char* e = std::getenv("HELIAS_VK_APP_NAME"); e && *e) app.pApplicationName = e;
+    if (const char* e = std::getenv("HELIAS_VK_ENGINE_NAME"); e && *e) app.pEngineName = e;
+    if (std::getenv("HELIAS_VK_APP_NAME") || std::getenv("HELIAS_VK_ENGINE_NAME"))
+        host_log("gpu: the Vulkan instance says application \"%s\", engine \"%s\" (HELIAS_VK_APP_NAME, HELIAS_VK_ENGINE_NAME)",
                  app.pApplicationName, app.pEngineName ? app.pEngineName : "");
     std::vector<const char*> iext;
     for (const std::string& e : g_instance_exts) iext.push_back(e.c_str());
@@ -2061,10 +2061,10 @@ bool init_locked() {
         layers.push_back("VK_LAYER_KHRONOS_validation");
         iext.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
     }
-    // rc4, BBHOST_RGP_LABELS=1 (debugging only): the extension for the pass
+    // rc4, HELIAS_RGP_LABELS=1 (debugging only): the extension for the pass
     // labels (debug_label_locked), where the loader offers it.
     static const bool want_labels = [] {
-        const char* e = std::getenv("BBHOST_RGP_LABELS");
+        const char* e = std::getenv("HELIAS_RGP_LABELS");
         return e && e[0] == '1';
     }();
     bool labels_ext = g_validate;
@@ -2108,7 +2108,7 @@ bool init_locked() {
                                           vkGetInstanceProcAddr(g.instance, "vkCmdInsertDebugUtilsLabelEXT"))
                                     : nullptr;
         g.debug_labels = g_insert_label != nullptr;
-        host_log("gpu: render-pass labels for RGP %s (BBHOST_RGP_LABELS=1)", g.debug_labels ? "on" : "off: no VK_EXT_debug_utils");
+        host_log("gpu: render-pass labels for RGP %s (HELIAS_RGP_LABELS=1)", g.debug_labels ? "on" : "off: no VK_EXT_debug_utils");
     }
     bool has_swapchain = false;
     std::vector<Candidate> usable;
@@ -2130,7 +2130,7 @@ bool init_locked() {
         g.tight = memory_tight(c);
         if (g_tight.exchange(g.tight ? 1 : 0) == (g.tight ? 0 : 1))
             host_log("gpu: the device chosen has %s memory than the one the guest patches were sized for", g.tight ? "less" : "more");
-        if (g.tight) host_log("gpu: %llu MiB in all heaps: tight memory (BBHOST_TIGHT_MEMORY=0 says otherwise) - no buffer shadow, fewer spares during loads, live resolution up to 1080p's pixels",
+        if (g.tight) host_log("gpu: %llu MiB in all heaps: tight memory (HELIAS_TIGHT_MEMORY=0 says otherwise) - no buffer shadow, fewer spares during loads, live resolution up to 1080p's pixels",
                               static_cast<unsigned long long>(c.heaps >> 20));
 #if !defined(_WIN32)
         g.can_dmabuf = c.memory_fd && c.dma_buf;
@@ -2152,11 +2152,11 @@ bool init_locked() {
         // Other programs' hooks, loaded with the instance (most come in as an
         // implicit Vulkan layer): said now, and again if the device is lost.
         if (const std::string hooks = host_foreign_hooks(); !hooks.empty()) host_log("gpu: hooked into this process: %s", hooks.c_str());
-        // BBHOST_GPU_CHECKPOINTS=1: a checkpoint before every draw and
+        // HELIAS_GPU_CHECKPOINTS=1: a checkpoint before every draw and
         // dispatch, so a device-lost report says how far the GPU got. Off by
         // default: vkCmdSetCheckpointNV was ~160 ns of each draw's ~11 us on
         // the command processor.
-        const char* e = std::getenv("BBHOST_GPU_CHECKPOINTS");
+        const char* e = std::getenv("HELIAS_GPU_CHECKPOINTS");
         bool want_nv = c.checkpoints && e && e[0] == '1';
         // AMD's buffer markers name the draw or dispatch the GPU was in when
         // the device is lost (the first AMD run lost it at the title, and the
@@ -2164,16 +2164,16 @@ bool init_locked() {
         // new; off by default since they cost the Steam Deck ~2% - two marker
         // writes a draw, and a draw recorded with checkpoints cannot go to
         // the recorder thread, so the command processor recorded every one.
-        // BBHOST_GPU_CHECKPOINTS=amd turns them on.
+        // HELIAS_GPU_CHECKPOINTS=amd turns them on.
         bool want_amd = c.buffer_marker && e && std::strcmp(e, "amd") == 0;
         // Unset, and the last run lost the device (its note beside the
         // pipeline cache): these starts run with whichever this driver has.
-        // BBHOST_GPU_CHECKPOINTS=0 keeps them off.
+        // HELIAS_GPU_CHECKPOINTS=0 keeps them off.
         std::string why;
         if (!e && (c.checkpoints || c.buffer_marker) && take_marked_start(why)) {
             (c.checkpoints ? want_nv : want_amd) = true;
             host_log("gpu: the last run lost the device (%s): this start runs with the GPU's progress markers (%s), so another loss "
-                     "names the draw the GPU was in; BBHOST_GPU_CHECKPOINTS=0 turns them off",
+                     "names the draw the GPU was in; HELIAS_GPU_CHECKPOINTS=0 turns them off",
                      why.c_str(), c.checkpoints ? "NVIDIA's checkpoints" : "AMD's buffer markers");
         }
         g.has_checkpoints = want_nv || want_amd;
@@ -2184,12 +2184,12 @@ bool init_locked() {
     vkGetPhysicalDeviceMemoryProperties(g.phys, &g.mem_props);
     {
         // Video memory: the heap of the first device-local type, where images,
-        // targets and the mirrors go. BBHOST_TEST_VRAM_MB=<n>: its types hold
+        // targets and the mirrors go. HELIAS_TEST_VRAM_MB=<n>: its types hold
         // at most n MiB, as on a card with that much free (an 8 GB card's
         // budget is about 7171) - set before anything is allocated in them.
         const std::uint32_t t = find_memory_type(~0u, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
         g.local_heap = t == UINT32_MAX ? 0 : g.mem_props.memoryTypes[t].heapIndex;
-        if (const char* e = std::getenv("BBHOST_TEST_VRAM_MB"); e && std::strtoull(e, nullptr, 10)) {
+        if (const char* e = std::getenv("HELIAS_TEST_VRAM_MB"); e && std::strtoull(e, nullptr, 10)) {
             std::uint32_t types = 0;
             for (std::uint32_t i = 0; i < g.mem_props.memoryTypeCount; ++i) {
                 if (g.mem_props.memoryTypes[i].heapIndex == g.local_heap) types |= 1u << i;
@@ -2204,40 +2204,40 @@ bool init_locked() {
     g.max_anisotropy = props.limits.maxSamplerAnisotropy;
     g.ssbo_align = props.limits.minStorageBufferOffsetAlignment ? props.limits.minStorageBufferOffsetAlignment : 1;
     g.ssbo_max_range = props.limits.maxStorageBufferRange;
-    // BBHOST_CB_SSBO=0: constant buffers stay on the page-table path. =1: they
+    // HELIAS_CB_SSBO=0: constant buffers stay on the page-table path. =1: they
     // are bound, but every shader keeps the page-table fallback (no lean
     // variant for draws whose buffers all bind).
-    const char* cb_env = std::getenv("BBHOST_CB_SSBO");
+    const char* cb_env = std::getenv("HELIAS_CB_SSBO");
     g.cb_ssbo = !(cb_env && cb_env[0] == '0');
     g.cb_lean = g.cb_ssbo && !(cb_env && cb_env[0] == '1');
     {
-        const char* e = std::getenv("BBHOST_CS_CB");
+        const char* e = std::getenv("HELIAS_CS_CB");
         g_cs_cb = g.cb_ssbo && !(e && e[0] == '0');
     }
-    const char* exec_env = std::getenv("BBHOST_EXEC_KNOWN");
+    const char* exec_env = std::getenv("HELIAS_EXEC_KNOWN");
     g.exec_known = !(exec_env && exec_env[0] == '0');
     g.profile = [] {
-        const char* e = std::getenv("BBHOST_GPU_PROFILE");
+        const char* e = std::getenv("HELIAS_GPU_PROFILE");
         return e && (e[0] == '1' || e[0] == '2' || e[0] == '3');
     }() && props.limits.timestampComputeAndGraphics;
-    g.profile_gaps = g.profile && std::getenv("BBHOST_GPU_PROFILE")[0] == '2';
+    g.profile_gaps = g.profile && std::getenv("HELIAS_GPU_PROFILE")[0] == '2';
     // =3: a timestamp pair around each render pass, named by its first draw's
-    // pipeline. With BBHOST_PASS_BARRIERS=full a barrier ends every pass, so a
-    // pass's pair is its own GPU time; with lazy barriers (BBHOST_PASS_BARRIERS=lazy)
+    // pipeline. With HELIAS_PASS_BARRIERS=full a barrier ends every pass, so a
+    // pass's pair is its own GPU time; with lazy barriers (HELIAS_PASS_BARRIERS=lazy)
     // a pass may start before the one before it has finished, and pairs
     // can overlap - compare passes across samples, not as exact shares.
-    g.profile_passes = g.profile && std::getenv("BBHOST_GPU_PROFILE")[0] == '3';
+    g.profile_passes = g.profile && std::getenv("HELIAS_GPU_PROFILE")[0] == '3';
     // rc2: the GPU sampler (sampler_begin_recording_locked): the timestamp
-    // pools are made whatever BBHOST_GPU_PROFILE says. BBHOST_GPU_SAMPLE=0 off.
+    // pools are made whatever HELIAS_GPU_PROFILE says. HELIAS_GPU_SAMPLE=0 off.
     g.profile_env = g.profile;
     g.profile_pools = !g.profile && props.limits.timestampComputeAndGraphics && perf::enabled() && [] {
-        const char* e = std::getenv("BBHOST_GPU_SAMPLE");
+        const char* e = std::getenv("HELIAS_GPU_SAMPLE");
         return !(e && e[0] == '0');
     }();
-    // =3, or =1 with BBHOST_GPU_PROFILE_STATS=1: pipeline statistics beside
+    // =3, or =1 with HELIAS_GPU_PROFILE_STATS=1: pipeline statistics beside
     // the pairs (gpu_internal.h profile_stats).
-    if (g.profile_passes || (g.profile && !g.profile_gaps && std::getenv("BBHOST_GPU_PROFILE_STATS") &&
-                             std::getenv("BBHOST_GPU_PROFILE_STATS")[0] == '1')) {
+    if (g.profile_passes || (g.profile && !g.profile_gaps && std::getenv("HELIAS_GPU_PROFILE_STATS") &&
+                             std::getenv("HELIAS_GPU_PROFILE_STATS")[0] == '1')) {
         VkPhysicalDeviceFeatures have{};
         vkGetPhysicalDeviceFeatures(g.phys, &have);
         g.profile_stats = have.pipelineStatisticsQuery == VK_TRUE;
@@ -2245,9 +2245,9 @@ bool init_locked() {
     // rc4: pipeline statistics in the GPU sampler's frames too (one frame in
     // ten seconds or more, already timed pass by pass): vertex and fragment
     // invocations of each pass, so a snapshot tells a vertex-bound pass from
-    // a pixel-bound one ([pass_stats]). BBHOST_GPU_SAMPLE_STATS=0: off.
+    // a pixel-bound one ([pass_stats]). HELIAS_GPU_SAMPLE_STATS=0: off.
     if (g.profile_pools && !g.profile_stats && [] {
-            const char* e = std::getenv("BBHOST_GPU_SAMPLE_STATS");
+            const char* e = std::getenv("HELIAS_GPU_SAMPLE_STATS");
             return !(e && e[0] == '0');
         }()) {
         VkPhysicalDeviceFeatures have{};
@@ -2291,7 +2291,7 @@ bool init_locked() {
                  static_cast<int>(has("VK_EXT_shader_object")), static_cast<int>(gpl), static_cast<int>(gplp.graphicsPipelineLibraryFastLinking),
                  static_cast<int>(gplp.graphicsPipelineLibraryIndependentInterpolationDecoration),
                  static_cast<int>(has("VK_EXT_vertex_input_dynamic_state")), static_cast<int>(has("VK_EXT_extended_dynamic_state3")));
-        g.has_gpl = gpl && gplp.graphicsPipelineLibraryFastLinking;  // BBHOST_PIPELINE_LIBRARY (render.cpp)
+        g.has_gpl = gpl && gplp.graphicsPipelineLibraryFastLinking;  // HELIAS_PIPELINE_LIBRARY (render.cpp)
         // Depth clamp as the draw's state: the shadow casters draw with it, and
         // baked into their pre-rasterization library it made a second library
         // of a vertex shader already compiled without it - on the command
@@ -2301,20 +2301,20 @@ bool init_locked() {
             VkPhysicalDeviceFeatures2 qf{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2};
             qf.pNext = &q3;
             vkGetPhysicalDeviceFeatures2(g.phys, &qf);
-            const char* e = std::getenv("BBHOST_DYNAMIC_DEPTH_CLAMP");
+            const char* e = std::getenv("HELIAS_DYNAMIC_DEPTH_CLAMP");
             g.dynamic_depth_clamp = q3.extendedDynamicState3DepthClampEnable && !(e && e[0] == '0');
         }
         // VK_EXT_memory_budget: what the driver says this process holds per
         // heap - the number to compare with nvidia-smi when instances starve.
         g.has_memory_budget = has("VK_EXT_memory_budget");
-        // BBHOST_PIPELINE_STATS: the driver's statistics and disassembly of named pipelines (render.cpp).
-        g.pipeline_stats = std::getenv("BBHOST_PIPELINE_STATS") && has("VK_KHR_pipeline_executable_properties");
+        // HELIAS_PIPELINE_STATS: the driver's statistics and disassembly of named pipelines (render.cpp).
+        g.pipeline_stats = std::getenv("HELIAS_PIPELINE_STATS") && has("VK_KHR_pipeline_executable_properties");
         // rc2, bbtest profile only: every pipeline's statistics (render.cpp shader_stats_note).
-        if (const char* e = std::getenv("BBHOST_SHADER_STATS"); e && *e) {
+        if (const char* e = std::getenv("HELIAS_SHADER_STATS"); e && *e) {
             g.shader_stats = has("VK_KHR_pipeline_executable_properties");
             g.pipeline_stats = g.pipeline_stats || g.shader_stats;
-            host_log(g.shader_stats ? "gpu: shader statistics of every pipeline into %s (bbtest profile; pipelines built without bbhost's pipeline cache)"
-                                    : "gpu: BBHOST_SHADER_STATS=%s: the device lacks VK_KHR_pipeline_executable_properties; no shader statistics",
+            host_log(g.shader_stats ? "gpu: shader statistics of every pipeline into %s (bbtest profile; pipelines built without heliasdream's pipeline cache)"
+                                    : "gpu: HELIAS_SHADER_STATS=%s: the device lacks VK_KHR_pipeline_executable_properties; no shader statistics",
                      e);
         }
         g.hdr_metadata = g_want_present && has("VK_EXT_hdr_metadata");
@@ -2345,20 +2345,20 @@ bool init_locked() {
     // A second queue, when the family has one, is the presenter's: a present
     // can block (in the window system's copy, or on a full FIFO), and on the
     // renderer's queue it would have to hold the renderer's lock while it did.
-    // BBHOST_VK_QUEUES=1: the one queue only, the presents on the renderer's
+    // HELIAS_VK_QUEUES=1: the one queue only, the presents on the renderer's
     // queue under its lock - as shadPS4 and vkcube make their devices. An A/B
     // for what Windows' per-process GPU counters see of a program that
     // presents from a queue of its own; it costs the command processor the present's blocking.
     const float prio[2] = {1.0f, 1.0f};
     VkDeviceQueueCreateInfo qci{VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO};
     qci.queueFamilyIndex = g.family;
-    const char* one_queue = std::getenv("BBHOST_VK_QUEUES");
+    const char* one_queue = std::getenv("HELIAS_VK_QUEUES");
     if (one_queue && one_queue[0] == '1') g.family_queues = 1;
     qci.queueCount = g.family_queues >= 2 ? 2 : 1;
     qci.pQueuePriorities = prio;
     host_log("gpu: queue family %u (%u queues): %u queue%s, priority 1.0%s", g.family, usable[static_cast<std::size_t>(chosen)].queues,
              qci.queueCount, qci.queueCount == 2 ? "s - the second the presenter's" : ", the presents on it too",
-             one_queue && one_queue[0] == '1' ? " (BBHOST_VK_QUEUES=1)" : "");
+             one_queue && one_queue[0] == '1' ? " (HELIAS_VK_QUEUES=1)" : "");
     std::vector<const char*> dext = {"VK_EXT_external_memory_host"};
     if (g.has_maint8) dext.push_back("VK_KHR_maintenance8");
     if (g.has_push_descriptor) dext.push_back("VK_KHR_push_descriptor");
@@ -2438,7 +2438,7 @@ bool init_locked() {
     // KyoPS4x measured the forced wave64 at ~10% of a 4K frame on a Radeon
     // 8060S. Subgroup size control (core in 1.3) lets the fragment stage of a
     // program that computes the same in a 32-lane subgroup (gcn/wave.h) ask
-    // for 32. BBHOST_PS_WAVE32=0 keeps the device's size for all; =driver lets
+    // for 32. HELIAS_PS_WAVE32=0 keeps the device's size for all; =driver lets
     // the driver choose between 32 and its default, as SPIR-V 1.6 would.
     {
         VkPhysicalDeviceVulkan13Features q13{};
@@ -2464,12 +2464,12 @@ bool init_locked() {
         // driver's choice measured as 64 does (117.7/115.7 against 117.6):
         // RDNA 3's wave64 issues both halves at once. A device whose own
         // sizes are below 32 (driver choice not offered) gets 32 required, as
-        // BBHOST_PS_WAVE32=32 asks anywhere; =0 the device's size for all.
-        const char* e = std::getenv("BBHOST_PS_WAVE32");
+        // HELIAS_PS_WAVE32=32 asks anywhere; =0 the device's size for all.
+        const char* e = std::getenv("HELIAS_PS_WAVE32");
         const bool driver = !(e && (std::strcmp(e, "32") == 0 || std::strcmp(e, "1") == 0));
         const bool fragment = (sc.requiredSubgroupSizeStages & VK_SHADER_STAGE_FRAGMENT_BIT) != 0;
         const char* why = nullptr;
-        if (e && e[0] == '0') why = "BBHOST_PS_WAVE32=0";
+        if (e && e[0] == '0') why = "HELIAS_PS_WAVE32=0";
         else if (subp.subgroupSize <= 32) why = "the device's subgroups are 32 wide or narrower already";
         else if (!q13.subgroupSizeControl) why = "no subgroup size control";
         else if (sc.minSubgroupSize > 32 || sc.maxSubgroupSize < 32) why = "32 is not one of the device's subgroup sizes";
@@ -2481,11 +2481,11 @@ bool init_locked() {
         if (g.ps_wave) f13.subgroupSizeControl = VK_TRUE;
         if (g.ps_wave == 32) {
             host_log("gpu: pixel shaders at wave32: a required subgroup size of 32 for each program that computes the same in 32 lanes, "
-                     "the device's %u for the rest (sizes %u-%u, required-size stages 0x%x%s; BBHOST_PS_WAVE32=0 keeps %u for all)",
+                     "the device's %u for the rest (sizes %u-%u, required-size stages 0x%x%s; HELIAS_PS_WAVE32=0 keeps %u for all)",
                      subp.subgroupSize, sc.minSubgroupSize, sc.maxSubgroupSize, sc.requiredSubgroupSizeStages,
                      driver ? "; the driver's choice wanted, but the device has sizes below 32" : "", subp.subgroupSize);
         } else if (g.ps_wave == 1) {
-            host_log("gpu: pixel shaders at the driver's choice of subgroup size (sizes %u-%u; BBHOST_PS_WAVE32=32 requires 32, =0 the device's) for each program "
+            host_log("gpu: pixel shaders at the driver's choice of subgroup size (sizes %u-%u; HELIAS_PS_WAVE32=32 requires 32, =0 the device's) for each program "
                      "that computes the same in 32 lanes, the device's %u for the rest",
                      sc.minSubgroupSize, sc.maxSubgroupSize, subp.subgroupSize);
         } else {
@@ -2538,7 +2538,7 @@ bool init_locked() {
     {
         VkPhysicalDeviceFeatures sp{};
         vkGetPhysicalDeviceFeatures(g.phys, &sp);
-        // bbhost-vk Phase 3: FSR 3.1's shaders and the reactive mask (R8)
+        // heliasdream-vk Phase 3: FSR 3.1's shaders and the reactive mask (R8)
         // write storage images of the extended formats. Enabling a feature
         // changes no other draw.
         f2.features.shaderStorageImageExtendedFormats = sp.shaderStorageImageExtendedFormats;
@@ -2548,41 +2548,41 @@ bool init_locked() {
         // driver lost the device at the first binds, ~9 frames in, and the
         // title played on behind a white window (2026-09-28). Elsewhere the
         // mirrors are whole blocks, which costs VRAM, not correctness.
-        // BBHOST_SHADOW_SPARSE=1 turns them on anyway, =0 off everywhere.
+        // HELIAS_SHADOW_SPARSE=1 turns them on anyway, =0 off everywhere.
         VkPhysicalDeviceProperties dp{};
         vkGetPhysicalDeviceProperties(g.phys, &dp);
         g.vendor_id = dp.vendorID;
         const bool tested = dp.vendorID == 0x10de;  // NVIDIA
-        const char* e = std::getenv("BBHOST_SHADOW_SPARSE");
+        const char* e = std::getenv("HELIAS_SHADOW_SPARSE");
         if (e && e[0] == '0') g.has_sparse = false;
         else if (!(e && e[0] == '1') && !tested) g.has_sparse = false;
         f2.features.sparseBinding = g.has_sparse || g.dmabuf_sparse ? VK_TRUE : VK_FALSE;
         f2.features.sparseResidencyBuffer = g.has_sparse ? VK_TRUE : VK_FALSE;
         if (!buffer_shadow_on())
             host_log("gpu: buffer shadow off (%s): draws read vertex and index data from the imports",
-                     std::getenv("BBHOST_BUFFER_SHADOW") ? "BBHOST_BUFFER_SHADOW=0"
-                     : g.integrated ? "an integrated GPU: its device-local memory is the same RAM; BBHOST_BUFFER_SHADOW=1 turns it on"
-                                    : "tight memory; BBHOST_BUFFER_SHADOW=1 turns it on");
+                     std::getenv("HELIAS_BUFFER_SHADOW") ? "HELIAS_BUFFER_SHADOW=0"
+                     : g.integrated ? "an integrated GPU: its device-local memory is the same RAM; HELIAS_BUFFER_SHADOW=1 turns it on"
+                                    : "tight memory; HELIAS_BUFFER_SHADOW=1 turns it on");
         host_log("gpu: sparse mirrors %s", g.has_sparse ? "on"
-                                           : !tested && !(e && e[0] == '0') ? "off (not yet run on this vendor's driver; BBHOST_SHADOW_SPARSE=1 tries them)"
-                                                                           : "off (no sparse residency, or BBHOST_SHADOW_SPARSE=0)");
+                                           : !tested && !(e && e[0] == '0') ? "off (not yet run on this vendor's driver; HELIAS_SHADOW_SPARSE=1 tries them)"
+                                                                           : "off (no sparse residency, or HELIAS_SHADOW_SPARSE=0)");
     }
-    // BBHOST_ROBUST=1: bounds-check buffer reads. Off, an out-of-range read of
+    // HELIAS_ROBUST=1: bounds-check buffer reads. Off, an out-of-range read of
     // a storage buffer is undefined and in practice returns whatever lies past
     // the binding - and the guest's dynamic buffers rotate between addresses
     // every frame, so the same contents can be followed by different bytes.
     // That is the shape of the menu flash: identical data in, different
     // geometry out, one frame in a hundred.
-    if (const char* e = std::getenv("BBHOST_ROBUST"); e && e[0] == '1') {
+    if (const char* e = std::getenv("HELIAS_ROBUST"); e && e[0] == '1') {
         f2.features.robustBufferAccess = VK_TRUE;  // core since 1.0, always supported
-        host_log("gpu: robust buffer access on (BBHOST_ROBUST=1)");
+        host_log("gpu: robust buffer access on (HELIAS_ROBUST=1)");
     }
     f2.features.fragmentStoresAndAtomics = VK_TRUE;
     f2.features.vertexPipelineStoresAndAtomics = VK_TRUE;
     f2.features.pipelineStatisticsQuery = g.profile_stats ? VK_TRUE : VK_FALSE;
-    glitch_device_features(f2.features);  // BBHOST_GLITCH=1 only: precise occlusion queries
+    glitch_device_features(f2.features);  // HELIAS_GLITCH=1 only: precise occlusion queries
     occlusion_device_features(f2.features, dext, &f13.pNext);  // precise queries, conditional rendering
-    // bbhost-vk Phase 4: FSR 4.1.1's extensions, only with its assets built (host/fsr4_pass.h).
+    // heliasdream-vk Phase 4: FSR 4.1.1's extensions, only with its assets built (host/fsr4_pass.h).
     fsr4_device_features(f2.features, f12, f13, dext, &f13.pNext);
     // Helia's Dream: FSR 4 (INT8 v07), only with its assets downloaded (host/fsr4v07_pass.h).
     fsr4v07_device_features(f2.features, f12, f13, dext, &f13.pNext);
@@ -2592,14 +2592,14 @@ bool init_locked() {
     VkPhysicalDeviceFeatures supported{};
     vkGetPhysicalDeviceFeatures(g.phys, &supported);
     f2.features.shaderImageGatherExtended = supported.shaderImageGatherExtended;
-    // BBHOST_RUNTIME_OFFSETS=0: the coordinates move even with the feature, to
+    // HELIAS_RUNTIME_OFFSETS=0: the coordinates move even with the feature, to
     // compare the two.
-    const char* ro = std::getenv("BBHOST_RUNTIME_OFFSETS");
+    const char* ro = std::getenv("HELIAS_RUNTIME_OFFSETS");
     const bool runtime_offsets = fm8.maintenance8 == VK_TRUE && !(ro && ro[0] == '0');
     gcn::set_runtime_sample_offsets(runtime_offsets);
     host_log("gpu: run-time image offsets: maintenance8 %s, gather-extended %s",
              runtime_offsets   ? "on"
-             : fm8.maintenance8 ? "on, but a sample's offset moves its coordinates (BBHOST_RUNTIME_OFFSETS=0)"
+             : fm8.maintenance8 ? "on, but a sample's offset moves its coordinates (HELIAS_RUNTIME_OFFSETS=0)"
                                 : "unsupported (a sample's offset moves its coordinates instead)",
              supported.shaderImageGatherExtended ? "on" : "unsupported");
     g.has_depth_bounds = supported.depthBounds == VK_TRUE;
@@ -2624,7 +2624,7 @@ bool init_locked() {
     // and the packed colour exports that read it become two native conversions
     // a pair (gcn/half.h native_half_rtz), where the exact integer form was ~6
     // operations a component - a quarter of the hot G-buffer pixel shaders' ALU
-    // on a Steam Deck. BBHOST_HALF_NATIVE=0: the integer form.
+    // on a Steam Deck. HELIAS_HALF_NATIVE=0: the integer form.
     {
         VkPhysicalDeviceVulkan12Features q12{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES};
         VkPhysicalDeviceFeatures2 q2{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2};
@@ -2634,7 +2634,7 @@ bool init_locked() {
         VkPhysicalDeviceProperties2 pp{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2};
         pp.pNext = &p12;
         vkGetPhysicalDeviceProperties2(g.phys, &pp);
-        const char* e = std::getenv("BBHOST_HALF_NATIVE");
+        const char* e = std::getenv("HELIAS_HALF_NATIVE");
         const bool native = q12.shaderFloat16 && p12.shaderRoundingModeRTZFloat16 && p12.shaderDenormPreserveFloat16 && !(e && e[0] == '0');
         if (q12.shaderFloat16) f12.shaderFloat16 = VK_TRUE;
         if (supported.shaderInt16) f2.features.shaderInt16 = VK_TRUE;
@@ -2644,7 +2644,7 @@ bool init_locked() {
                  static_cast<int>(q12.shaderFloat16), static_cast<int>(p12.shaderRoundingModeRTZFloat16),
                  static_cast<int>(p12.shaderDenormPreserveFloat16));
     }
-    // BBHOST_BINDLESS=1: descriptor indexing for the global set
+    // HELIAS_BINDLESS=1: descriptor indexing for the global set
     // of views and samplers (bindless.cpp). It needs the constant buffers
     // pushed (set 2), so the global set can be set 3 of every layout.
     if (bindless_wanted()) {
@@ -2693,14 +2693,14 @@ bool init_locked() {
             vkGetPhysicalDeviceMemoryProperties2(g.phys, &mp);
             if (mb.heapBudget[g.local_heap]) budget = std::min(heap, mb.heapBudget[g.local_heap] - std::min(mb.heapBudget[g.local_heap], mb.heapUsage[g.local_heap]));
         }
-        const char* test = std::getenv("BBHOST_TEST_VRAM_MB");
+        const char* test = std::getenv("HELIAS_TEST_VRAM_MB");
         const std::uint64_t test_bytes = test ? std::strtoull(test, nullptr, 10) << 20 : 0;
         if (test_bytes) budget = std::min(budget, test_bytes);
         g.local_budget = budget;
         host_log("gpu: video memory: heap %u, %llu MiB, %llu MiB of it free for this process%s%s", g.local_heap,
                  static_cast<unsigned long long>(heap >> 20), static_cast<unsigned long long>(budget >> 20),
                  g.has_memory_budget ? " (the driver's budget)" : " (no budget from the driver: the heap's size)",
-                 test_bytes ? " - BBHOST_TEST_VRAM_MB, acted out" : "");
+                 test_bytes ? " - HELIAS_TEST_VRAM_MB, acted out" : "");
         shadow_budget_locked();
     }
     if (g.device && g_use_buffer_marker) {
@@ -2710,7 +2710,7 @@ bool init_locked() {
             g.has_checkpoints = false;
         } else {
             std::memset(g.marker_buf.map, 0, 256);
-            host_log("gpu: AMD buffer markers on each draw and dispatch (BBHOST_GPU_CHECKPOINTS=amd; a device loss names the work)");
+            host_log("gpu: AMD buffer markers on each draw and dispatch (HELIAS_GPU_CHECKPOINTS=amd; a device loss names the work)");
         }
     }
     if (g.device && g.has_checkpoints && !g_use_buffer_marker) {
@@ -2742,9 +2742,9 @@ bool init_locked() {
     pci.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
     pci.queueFamilyIndex = g.family;
     vkCreateCommandPool(g.device, &pci, nullptr, &g.pool);
-    if (const char* e = std::getenv("BBHOST_GPU_SLOTS"); e && *e) {
+    if (const char* e = std::getenv("HELIAS_GPU_SLOTS"); e && *e) {
         g.slot_count = std::clamp(std::atoi(e), 2, kSlots);
-        host_log("gpu: %d command buffers in flight at most (BBHOST_GPU_SLOTS)", g.slot_count);
+        host_log("gpu: %d command buffers in flight at most (HELIAS_GPU_SLOTS)", g.slot_count);
     }
     for (int k = 0; k < g.slot_count; ++k) {
         VkCommandBufferAllocateInfo cai{VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO};
@@ -2891,8 +2891,8 @@ bool init_locked() {
         }
     }
     host_log("gpu: compute cb: compute shaders' constant buffers %s",
-             g_cs_cb ? "bound as storage buffers where the walk would read the same bytes (BBHOST_CS_CB=0 walks them all)"
-                     : "on the page-table walk (BBHOST_CS_CB=0 or BBHOST_CB_SSBO=0)");
+             g_cs_cb ? "bound as storage buffers where the walk would read the same bytes (HELIAS_CS_CB=0 walks them all)"
+                     : "on the page-table walk (HELIAS_CS_CB=0 or HELIAS_CB_SSBO=0)");
     VkDescriptorSetLayout four[4] = {g.gfx_set_layout, g.gfx_set_layout, g.cb_push_layout, g.bindless_layout};
     plci.setLayoutCount = g.bindless ? 4 : cb_push_on() ? 3 : 2;
     plci.pSetLayouts = four;
@@ -2930,20 +2930,20 @@ bool init_locked() {
     mai.allocationSize = req.size;
     // Host-cached where there is such a type: the draws write two params
     // blocks each, and in write-combined memory the next locked instruction
-    // waited for them to drain (BBHOST_PARAMS_WC=1 keeps write-combined).
+    // waited for them to drain (HELIAS_PARAMS_WC=1 keeps write-combined).
     static const bool params_wc = [] {
-        const char* e = std::getenv("BBHOST_PARAMS_WC");
+        const char* e = std::getenv("HELIAS_PARAMS_WC");
         return e && e[0] == '1';
     }();
-    // Profiling kit (an A/B, off unless set): BBHOST_PARAMS_VRAM=1 puts the
+    // Profiling kit (an A/B, off unless set): HELIAS_PARAMS_VRAM=1 puts the
     // ring in video memory the CPU maps (ReBAR, the page tables' rule: a
     // host-visible device-local heap over 1 GiB), so every draw's params read
     // stays off PCIe. The CPU only writes the ring (alloc/rewrite_params_slot
     // memcpy into it, never a read), write-combined as with
-    // BBHOST_PARAMS_WC=1; the same bytes, so the same picture. Without such a
+    // HELIAS_PARAMS_WC=1; the same bytes, so the same picture. Without such a
     // heap it falls back to the default below.
     static const bool params_vram = [] {
-        const char* e = std::getenv("BBHOST_PARAMS_VRAM");
+        const char* e = std::getenv("HELIAS_PARAMS_VRAM");
         return e && e[0] == '1';
     }();
     mai.memoryTypeIndex = UINT32_MAX;
@@ -2958,7 +2958,7 @@ bool init_locked() {
             mai.memoryTypeIndex = i;
             break;
         }
-        host_log("gpu: params ring: BBHOST_PARAMS_VRAM=1 %s", mai.memoryTypeIndex != UINT32_MAX ? "- in video memory the CPU maps (ReBAR)"
+        host_log("gpu: params ring: HELIAS_PARAMS_VRAM=1 %s", mai.memoryTypeIndex != UINT32_MAX ? "- in video memory the CPU maps (ReBAR)"
                                                                                                  : "but no host-visible video-memory heap over 1 GiB; the default");
     }
     if (mai.memoryTypeIndex == UINT32_MAX && !params_wc) {
@@ -3071,7 +3071,7 @@ bool extract_program(std::uint64_t code_va, std::vector<std::uint32_t>& words, s
 }
 
 // rc2, the GPU sampler: one frame every ~10 s timed pass by pass with the
-// BBHOST_GPU_PROFILE=3 machinery (a timestamp pair a render pass, named by
+// HELIAS_GPU_PROFILE=3 machinery (a timestamp pair a render pass, named by
 // its first draw's program; each dispatch and host copy), for the
 // performance capture (host/perf_capture.h) and a `gpu sample:` log line.
 // Turned on and off only where a command buffer starts, so no pair spans a
@@ -3164,12 +3164,12 @@ void sampler_begin_recording_locked() {
     const auto now = std::chrono::steady_clock::now();
     switch (g_sampler.state) {
         case Sampler::kIdle: {
-            // bbhost-vk: BBHOST_GPU_SAMPLE_SLOW=1 samples the frame after a
+            // heliasdream-vk: HELIAS_GPU_SAMPLE_SLOW=1 samples the frame after a
             // slow one instead (every ~3 s while they come), so a snapshot
             // taken during frame drops shows the passes of the drops rather
             // than of the smooth frames between them.
             static const bool slow_frames = [] {
-                const char* e = std::getenv("BBHOST_GPU_SAMPLE_SLOW");
+                const char* e = std::getenv("HELIAS_GPU_SAMPLE_SLOW");
                 return e && e[0] == '1';
             }();
             if (now - g_sampler.last < std::chrono::seconds(slow_frames ? 3 : 10) || hle_video_loading()) return;
@@ -3228,12 +3228,12 @@ void begin_recording_locked() {
         // vkCmdResetQueryPool emits it, so the occlusion, coverage and
         // profile resets that followed the busy meter's TOP timestamp drained
         // the GPU and flushed L2 at the start of every command buffer.
-        // BBHOST_RESET_ORDER=0: the order before (for an A/B).
+        // HELIAS_RESET_ORDER=0: the order before (for an A/B).
         static const bool reset_first = [] {
-            const char* e = std::getenv("BBHOST_RESET_ORDER");
+            const char* e = std::getenv("HELIAS_RESET_ORDER");
             const bool on = !(e && e[0] == '0');
-            host_log("gpu: query resets %s", on ? "before the first timestamp of each command buffer (BBHOST_RESET_ORDER=0: after)"
-                                                : "after the busy meter's timestamp (BBHOST_RESET_ORDER=0)");
+            host_log("gpu: query resets %s", on ? "before the first timestamp of each command buffer (HELIAS_RESET_ORDER=0: after)"
+                                                : "after the busy meter's timestamp (HELIAS_RESET_ORDER=0)");
             return on;
         }();
         if (!reset_first) busy_begin_locked(g.slots[g.slot]);
@@ -3556,7 +3556,7 @@ struct CompilingScope {
     }
 };
 
-// ---- compute pipelines and the driver's optimizer (BBHOST_CS_OPTIMIZE) ----
+// ---- compute pipelines and the driver's optimizer (HELIAS_CS_OPTIMIZE) ----
 // 2026-09-28: AMD's Windows driver (amdvlk64, Radeon 8060S) was
 // still compiling four of the game's compute shaders minutes after GX created
 // them, its memory climbing, and the command processor waiting on one of them:
@@ -3576,17 +3576,17 @@ struct CompilingScope {
 //     its first dispatches, and a bb-cs-optimize thread builds the optimized
 //     one, which the shader's next dispatch swaps in (adopt_optimized_compute) -
 //     the graphics pipelines' optimized relink (render.cpp,
-//     BBHOST_LIBRARY_RELINK), for compute. Each optimized build goes to a
+//     HELIAS_LIBRARY_RELINK), for compute. Each optimized build goes to a
 //     pipeline cache of its own, merged when it is done into g.opt_cache and
 //     that into the main one when it is saved (merge_side_caches): the next
 //     start takes them at once, and a build that takes minutes holds no cache
 //     a save or the exit waits for.
 // Such a build costs one of those threads, not the game; one still running at
-// exit after a minute is written to <data>/bbhost/compute-unoptimized.txt, and
+// exit after a minute is written to <data>/heliasdream/compute-unoptimized.txt, and
 // later starts keep that shader unoptimized (delete the file to try again).
-// BBHOST_CS_OPTIMIZE=0: never optimized; =1: optimized and waited for (every
-// other vendor's default until now). BBHOST_CS_OPTIMIZE_THREADS=<n>: the
-// threads (default 2); BBHOST_CS_OPTIMIZE_DELAY_MS=<ms> (checks) holds each
+// HELIAS_CS_OPTIMIZE=0: never optimized; =1: optimized and waited for (every
+// other vendor's default until now). HELIAS_CS_OPTIMIZE_THREADS=<n>: the
+// threads (default 2); HELIAS_CS_OPTIMIZE_DELAY_MS=<ms> (checks) holds each
 // optimized build that long, to watch the stand-ins on a fast driver.
 enum class CsOptimize { kNever, kAlways, kBackground };
 enum class CsBuild { kOptimized, kUnoptimized, kOptimizedCached };
@@ -3631,7 +3631,7 @@ thread_local bool t_compute_worker = false;
 // load's slowest compute compiles were 13 s each.
 constexpr std::uint64_t kCsGiveUpS = 60;
 
-// <data root>/bbhost/compute-unoptimized.txt, beside the pipeline cache.
+// <data root>/heliasdream/compute-unoptimized.txt, beside the pipeline cache.
 std::string compute_unoptimized_path() {
     std::string path = pipeline_cache_path();
     if (path.empty()) return path;
@@ -3640,7 +3640,7 @@ std::string compute_unoptimized_path() {
 
 CsOptimize cs_optimize_mode() {
     static const CsOptimize mode = [] {
-        const char* e = std::getenv("BBHOST_CS_OPTIMIZE");
+        const char* e = std::getenv("HELIAS_CS_OPTIMIZE");
         const int v = e && e[0] ? std::atoi(e) : -1;
         const CsOptimize m = v == 0 ? CsOptimize::kNever : v == 1 ? CsOptimize::kAlways : CsOptimize::kBackground;
         if (m == CsOptimize::kBackground) {
@@ -3651,16 +3651,16 @@ CsOptimize cs_optimize_mode() {
                     if (!line.empty()) g_cs_opt.keep_unoptimized.insert(line);
                 }
             }
-            if (const char* t = std::getenv("BBHOST_CS_OPTIMIZE_THREADS")) g_cs_opt.threads = std::clamp(std::atoi(t), 1, 8);
+            if (const char* t = std::getenv("HELIAS_CS_OPTIMIZE_THREADS")) g_cs_opt.threads = std::clamp(std::atoi(t), 1, 8);
             host_log("gpu: compute pipelines: the driver's optimizer in the background - one the pipeline cache does not have optimized "
                      "is built unoptimized for its first dispatches and swapped for the optimized one, built on %d bb-cs-optimize "
-                     "thread%s (BBHOST_CS_OPTIMIZE=0 never optimizes, =1 waits for the optimizer)%s; %zu kept unoptimized "
+                     "thread%s (HELIAS_CS_OPTIMIZE=0 never optimizes, =1 waits for the optimizer)%s; %zu kept unoptimized "
                      "(compute-unoptimized.txt)",
                      g_cs_opt.threads, g_cs_opt.threads == 1 ? "" : "s",
                      g.cache_control ? "" : "; no pipeline creation cache control: each start builds the optimized ones again",
                      g_cs_opt.keep_unoptimized.size());
         } else {
-            host_log("gpu: compute pipelines built %s (BBHOST_CS_OPTIMIZE=%d; unset builds them in the background)",
+            host_log("gpu: compute pipelines built %s (HELIAS_CS_OPTIMIZE=%d; unset builds them in the background)",
                      m == CsOptimize::kNever ? "without the driver's optimizer" : "with the driver's optimizer, waited for", v);
         }
         return m;
@@ -3725,7 +3725,7 @@ void cs_optimize_thread(int index) {
     host_thread_set_name("bb-cs-optimize");
     host_thread_place(HostPlace::Cold, "bb-cs-optimize");  // rc5: off the hot chain's CPUs
     static const int delay_ms = [] {
-        const char* d = std::getenv("BBHOST_CS_OPTIMIZE_DELAY_MS");
+        const char* d = std::getenv("HELIAS_CS_OPTIMIZE_DELAY_MS");
         return d ? std::atoi(d) : 0;
     }();
     for (;;) {
@@ -3927,7 +3927,7 @@ namespace {
 // A dispatch's first build of a pipeline (under g.mu): take what a worker
 // compiled for the same key, waiting while it builds - but not for ever: a
 // driver can take minutes over one, and the command processor waiting on it
-// held the whole game (the AMD run behind BBHOST_CS_OPTIMIZE). After a couple
+// held the whole game (the AMD run behind HELIAS_CS_OPTIMIZE). After a couple
 // of seconds the dispatch goes without, and so do the ones after it, without
 // waiting, until the build is done. kBuildHere: build it here; the key is
 // claimed, so a worker that has not reached it skips it.
@@ -4078,7 +4078,7 @@ ComputePipeline& pipeline_for(const GpuDispatch& d, std::uint64_t key, const std
         pl.failed = true;
         return pl;
     }
-    if (const char* e = std::getenv("BBHOST_DUMP_SPIRV"); e && e[0] == '1') {
+    if (const char* e = std::getenv("HELIAS_DUMP_SPIRV"); e && e[0] == '1') {
         host_mkdir("build/spv");
         const std::string path = "build/spv/" + name + "-cs.spv";
         if (FILE* f = std::fopen(path.c_str(), "wb")) {
@@ -4104,7 +4104,7 @@ ComputePipeline& pipeline_for(const GpuDispatch& d, std::uint64_t key, const std
     }
     const auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - t0).count();
     g.translated.fetch_add(1);
-    static const char* trace_name = std::getenv("BBHOST_TRACE_DISPATCH");
+    static const char* trace_name = std::getenv("HELIAS_TRACE_DISPATCH");
     if (trace_name && name == trace_name) {
         for (const gcn::Inst& in : prog.insts) host_log("  cs: %s", gcn::format(in).c_str());
         for (const gcn::ImageBinding& b : pl.meta.images) host_log("  cs image: %s%s", b.path.str().c_str(), b.storage ? " (storage)" : "");
@@ -4139,7 +4139,7 @@ ComputePipeline& pipeline_for(const GpuDispatch& d, std::uint64_t key, const std
 
 bool compute_precompile_enabled() {
     static const bool on = [] {
-        const char* e = std::getenv("BBHOST_PRECOMPILE");
+        const char* e = std::getenv("HELIAS_PRECOMPILE");
         return !(e && e[0] == '0');
     }();
     return on;
@@ -4205,7 +4205,7 @@ void precompile_compute(const std::string& name, const std::vector<std::uint8_t>
     e.meta = translate_cached(prog, compute_options(rsrc1, rsrc2, threads, dims, modes));
     if (!e.meta.ok()) why = "translation: " + e.meta.errors[0];
     if (why.empty()) {
-        if (const char* env = std::getenv("BBHOST_DUMP_SPIRV"); env && env[0] == '1') {
+        if (const char* env = std::getenv("HELIAS_DUMP_SPIRV"); env && env[0] == '1') {
             host_mkdir("build/spv");
             const std::string path = "build/spv/" + name + "-cs.spv";
             if (FILE* f = std::fopen(path.c_str(), "wb")) {
@@ -4228,11 +4228,11 @@ void precompile_compute(const std::string& name, const std::vector<std::uint8_t>
         if (vkCreateShaderModule(g.device, &smci, nullptr, &e.module) != VK_SUCCESS) why = "shader module";
     }
     if (why.empty()) {
-        // BBHOST_CS_COMPILE_DELAY_MS=<ms> (checks): a compiler that takes that
+        // HELIAS_CS_COMPILE_DELAY_MS=<ms> (checks): a compiler that takes that
         // long over every compute pipeline built at creation - the dispatch's
         // bounded wait and the watchdog's line, tried on a fast driver.
         static const int delay_ms = [] {
-            const char* d = std::getenv("BBHOST_CS_COMPILE_DELAY_MS");
+            const char* d = std::getenv("HELIAS_CS_COMPILE_DELAY_MS");
             return d ? std::atoi(d) : 0;
         }();
         if (delay_ms > 0) std::this_thread::sleep_for(std::chrono::milliseconds(delay_ms));
@@ -4472,7 +4472,7 @@ constexpr int kMarkedRuns = 3;
 std::string device_lost_note_path() {
     const char* root = hle_fs_data_root();
     if (!root || !*root) return {};
-    return std::string(root) + "/bbhost/gpu-device-lost.txt";
+    return std::string(root) + "/heliasdream/gpu-device-lost.txt";
 }
 
 // The note's starts left: true (and one fewer left) when this start is to run
@@ -4624,7 +4624,7 @@ void retire_slot_locked(int k) {
     const auto t0 = std::chrono::steady_clock::now();
     g.wait_started_ns.store(static_cast<std::uint64_t>(t0.time_since_epoch().count()), std::memory_order_relaxed);
     g.waiting_slot.store(k, std::memory_order_relaxed);
-    const VkFence cover = slot_fence(sl);  // test7c: its own, or the batch's (BBHOST_SUBMIT_BATCH)
+    const VkFence cover = slot_fence(sl);  // test7c: its own, or the batch's (HELIAS_SUBMIT_BATCH)
     const VkResult r = cover ? vkWaitForFences(g.device, 1, &cover, VK_TRUE, 10000000000ull) : VK_SUCCESS;
     g.waiting_slot.store(-1, std::memory_order_relaxed);
     if (r == VK_SUCCESS) g_completed_atomic.store(std::max(g_completed_atomic.load(std::memory_order_relaxed), sl.serial + 1), std::memory_order_release);
@@ -4987,14 +4987,14 @@ std::string image_heap_report() {
 // holds less while the game plays and more while a loading screen is up
 // (engine/loading.cpp tells it, host_gpu_set_loading), when the coming area
 // will want it:
-//   image heap spare  BBHOST_IMAGE_HEAP_SPARE blocks of free room (1; 0 with
-//                     tight memory) in play, BBHOST_IMAGE_HEAP_SPARE_LOADING
+//   image heap spare  HELIAS_IMAGE_HEAP_SPARE blocks of free room (1; 0 with
+//                     tight memory) in play, HELIAS_IMAGE_HEAP_SPARE_LOADING
 //                     (4; 1) during a load; an empty block above that goes
 //                     back after 10 s in play
-//   upload staging    BBHOST_STAGING_FLOOR_MB (256) kept in play, chunks
-//                     over it freed after 30 s; BBHOST_STAGING_RESERVE_MB
+//   upload staging    HELIAS_STAGING_FLOOR_MB (256) kept in play, chunks
+//                     over it freed after 30 s; HELIAS_STAGING_RESERVE_MB
 //                     (768; 256) made ready during a load
-// BBHOST_MEMORY_KEEPER=0 restores the old fixed reserve (six blocks and
+// HELIAS_MEMORY_KEEPER=0 restores the old fixed reserve (six blocks and
 // 768 MiB at boot, never given back) for comparison.
 std::atomic<bool> g_loading_screen{false};
 std::mutex g_keeper_mu;
@@ -5007,11 +5007,11 @@ void start_memory_reserve() {
     };
     // With tight memory (memory_tight) only what is needed: the spares are
     // what a Steam Deck's world ran out of.
-    const std::uint64_t reserve = env("BBHOST_STAGING_RESERVE_MB", g.tight ? 256 : 768) << 20;
-    const std::uint64_t floor = std::min(env("BBHOST_STAGING_FLOOR_MB", 256) << 20, reserve);
-    const std::uint64_t spare_play = env("BBHOST_IMAGE_HEAP_SPARE", g.tight ? 0 : 1);
-    const std::uint64_t spare_load = std::max(env("BBHOST_IMAGE_HEAP_SPARE_LOADING", g.tight ? 1 : 4), spare_play);
-    const bool keeper = env("BBHOST_MEMORY_KEEPER", 1) != 0;
+    const std::uint64_t reserve = env("HELIAS_STAGING_RESERVE_MB", g.tight ? 256 : 768) << 20;
+    const std::uint64_t floor = std::min(env("HELIAS_STAGING_FLOOR_MB", 256) << 20, reserve);
+    const std::uint64_t spare_play = env("HELIAS_IMAGE_HEAP_SPARE", g.tight ? 0 : 1);
+    const std::uint64_t spare_load = std::max(env("HELIAS_IMAGE_HEAP_SPARE_LOADING", g.tight ? 1 : 4), spare_play);
+    const bool keeper = env("HELIAS_MEMORY_KEEPER", 1) != 0;
     std::thread([=] {
         host_thread_set_name("bb-reserve");
         host_thread_place(HostPlace::Any, "bb-reserve");  // rc5: not the hot mask of the thread that made it
@@ -5080,7 +5080,7 @@ void start_memory_reserve() {
                 added += make_blocks(heap_live_blocks_locked() + 1);
                 if (!added) break;
             }
-            host_log("gpu: memory made ahead in %.0f ms: %llu MiB of upload staging, %zu image heap blocks (BBHOST_MEMORY_KEEPER=0)",
+            host_log("gpu: memory made ahead in %.0f ms: %llu MiB of upload staging, %zu image heap blocks (HELIAS_MEMORY_KEEPER=0)",
                      std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count(),
                      static_cast<unsigned long long>(made >> 20), added);
             return;
@@ -5286,7 +5286,7 @@ bool page_in_gpu_table_locked(std::uint64_t va) {
 }
 
 namespace {
-// BBHOST_GPU_PROFILE=2: the distinct recording sites since the last pair
+// HELIAS_GPU_PROFILE=2: the distinct recording sites since the last pair
 // ended (the profiler's own calls left out), the first four.
 std::array<void*, 4> g_gap_sites{};
 bool g_in_profiler = false;
@@ -5351,7 +5351,7 @@ void profile_end_locked() {
 void collect_profile_locked(Gpu::Slot& sl) {
     std::uint64_t span[2] = {};
     bool have_span = false;
-    const bool sampled = sl.sampled;  // rc2: the GPU sampler's, not BBHOST_GPU_PROFILE's
+    const bool sampled = sl.sampled;  // rc2: the GPU sampler's, not HELIAS_GPU_PROFILE's
     if ((g.profile || sampled) && sl.span) {
         if (vkGetQueryPoolResults(g.device, sl.qpool, kQueriesPerSlot - 2, 2, sizeof(span), span, 8,
                                   VK_QUERY_RESULT_64_BIT | VK_QUERY_RESULT_WAIT_BIT) == VK_SUCCESS &&
@@ -5382,7 +5382,7 @@ void collect_profile_locked(Gpu::Slot& sl) {
         sl.qreset = false;
         return;
     }
-    // bbhost-vk: with availability, not waiting, as the statistics below.
+    // heliasdream-vk: with availability, not waiting, as the statistics below.
     // The slot's command buffer has finished, so every timestamp it wrote is
     // there; one it never wrote (a pair left open) would make a WAIT read
     // block for ever - it hung the game in its first loading screen with lazy
@@ -5421,11 +5421,11 @@ void collect_profile_locked(Gpu::Slot& sl) {
                 for (int k = 0; k < 6; ++k) e[k] += stats[i * 7 + k];
             }
         }
-        // BBHOST_GPU_SLOW_MS (8): a command buffer that ran that long on the
+        // HELIAS_GPU_SLOW_MS (8): a command buffer that ran that long on the
         // GPU, with what took its time - the frames where the command
         // processor waits for a slot and the game's render thread for it.
         static const double slow_ms = [] {
-            const char* e = std::getenv("BBHOST_GPU_SLOW_MS");
+            const char* e = std::getenv("HELIAS_GPU_SLOW_MS");
             return e ? std::atof(e) : 8.0;
         }();
         const double span_ms = have_span ? (span[1] - span[0]) * g.timestamp_period_ns / 1e6 : 0.0;
@@ -5527,14 +5527,14 @@ __attribute__((noinline)) void submit_locked() {
         t_flush_site = nullptr;
     }
     textures_before_submit();  // the staging spans its copies read are filled
-    // BBHOST_TEST_DEVICE_LOST=<flip>: from that flip on, act as if the device
+    // HELIAS_TEST_DEVICE_LOST=<flip>: from that flip on, act as if the device
     // were lost (it is not; the GPU only gets no more work) - the reports, the
     // note for the next starts and the window's ending, tested.
     static const std::uint64_t test_lost = [] {
-        const char* e = std::getenv("BBHOST_TEST_DEVICE_LOST");
+        const char* e = std::getenv("HELIAS_TEST_DEVICE_LOST");
         return e ? std::strtoull(e, nullptr, 10) : 0ull;
     }();
-    if (test_lost && g.ok && hle_video_flip_count() >= test_lost) device_lost_locked("BBHOST_TEST_DEVICE_LOST");
+    if (test_lost && g.ok && hle_video_flip_count() >= test_lost) device_lost_locked("HELIAS_TEST_DEVICE_LOST");
     take_submit_failure_locked();
     if (streamed) {
         stream::EndSubmit es{};
@@ -5590,7 +5590,7 @@ __attribute__((noinline)) void submit_locked() {
 }
 
 // Submits and waits for everything in flight (frame dumps, resource
-// re-purposing, BBHOST_SYNC_GNM).
+// re-purposing, HELIAS_SYNC_GNM).
 __attribute__((noinline)) void flush_locked() {
     t_flush_site = __builtin_return_address(0);  // test7: the gap after it is this wait's (gpu idle:)
     submit_locked();
@@ -5602,7 +5602,7 @@ __attribute__((noinline)) void flush_locked() {
 
 // test7c: the fence that signals once slot `sl`'s submission has run: its
 // own, or that of the later job whose vkQueueSubmit it went in with
-// (BBHOST_SUBMIT_BATCH); null when that one has retired already (done).
+// (HELIAS_SUBMIT_BATCH); null when that one has retired already (done).
 // Slots retire in order, so the later one is still in its slot while this
 // one is in flight. Under g.mu, after the submission was published.
 VkFence slot_fence(const Gpu::Slot& sl) {
@@ -5646,24 +5646,24 @@ SubmitLatencyTotals submit_latency_totals() {
     return t;
 }
 
-// test7, BBHOST_SUBMIT_SPLIT=<n> (off by default): every n-th draw, when the
+// test7, HELIAS_SUBMIT_SPLIT=<n> (off by default): every n-th draw, when the
 // GPU has run out of work (the last game submission's fence has signalled)
 // and the recording holds at least 16 items, submit what is recorded so far
 // instead of keeping the GPU idle until the job ends. A submission at a draw
-// boundary mid-job is what BBHOST_PASS_BREAK_SUBMIT and the renderer's own
+// boundary mid-job is what HELIAS_PASS_BREAK_SUBMIT and the renderer's own
 // flush_locked callers already do; the labels recorded so far land at its
 // end, after their work, as they would at the job's end. The launcher's
 // Submit split (More > Performance) sets it live; the env var, when set, wins.
 void submit_split_point() {
     static const long long forced = [] {
-        const char* e = std::getenv("BBHOST_SUBMIT_SPLIT");
+        const char* e = std::getenv("HELIAS_SUBMIT_SPLIT");
         return e && e[0] ? static_cast<long long>(std::strtoull(e, nullptr, 10)) : -1ll;
     }();
     const std::uint64_t every = forced >= 0 ? static_cast<std::uint64_t>(forced) : host_opt_submit_split();
     static std::atomic<std::uint64_t> logged{0};
     if (logged.load(std::memory_order_relaxed) != every + 1 && logged.exchange(every + 1, std::memory_order_relaxed) != every + 1 && every)
         host_log("gpu: submit split %llu%s: a recording is submitted mid-job when the GPU has run dry (checked every %llu draws)",
-                 static_cast<unsigned long long>(every), forced >= 0 ? " (BBHOST_SUBMIT_SPLIT)" : "",
+                 static_cast<unsigned long long>(every), forced >= 0 ? " (HELIAS_SUBMIT_SPLIT)" : "",
                  static_cast<unsigned long long>(every));
     if (!every) return;
     static thread_local std::uint64_t seen = 0;
@@ -5721,7 +5721,7 @@ bool host_gpu_memory_tight() {
         obs_capture_policy();  // before the first instance, this one
         // Before the device: an instance of its own, without extensions.
         VkApplicationInfo app{VK_STRUCTURE_TYPE_APPLICATION_INFO};
-        app.pApplicationName = "bbhost";
+        app.pApplicationName = "heliasdream";
         app.apiVersion = VK_API_VERSION_1_3;
         VkInstanceCreateInfo ici{VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO};
         ici.pApplicationInfo = &app;
@@ -5835,7 +5835,7 @@ bool host_gpu_wait_submitted_until(std::uint64_t ticket, std::int64_t deadline_n
 namespace {
 bool present_priority_env() {
     static const bool on = [] {
-        const char* e = std::getenv("BBHOST_PRESENT_PRIORITY");
+        const char* e = std::getenv("HELIAS_PRESENT_PRIORITY");
         return !(e && e[0] == '0');
     }();
     return on;
@@ -5863,20 +5863,20 @@ std::uint64_t host_gpu_submit_presenter_priority(void* cmd, void* wait, std::uin
     // The flip's frame on the queue first: submissions on one queue execute
     // in submission order, so what it rendered is ahead of the blit; only
     // the next frame's, recorded since, may come after it.
-    // rc4: bounded at BBHOST_PRESENT_PRIORITY_WAIT_MS (100 ms; it was 2 s)
+    // rc4: bounded at HELIAS_PRESENT_PRIORITY_WAIT_MS (100 ms; it was 2 s)
     // - past that, the stream path (behind the frame in the recorder's order,
-    // as with BBHOST_PRESENT_PRIORITY=0); a wait over 50 ms is logged. And the
+    // as with HELIAS_PRESENT_PRIORITY=0); a wait over 50 ms is logged. And the
     // blit rides the flip's last submission when that has not gone in yet
-    // (g_rider; BBHOST_BLIT_RIDE=0: never), with an empty vkQueueSubmit for
+    // (g_rider; HELIAS_BLIT_RIDE=0: never), with an empty vkQueueSubmit for
     // the presenter's fence after it (RADV: no GPU job, the fence takes the
     // queue's last submission's).
     static const std::uint64_t cap_ns = [] {
-        const char* e = std::getenv("BBHOST_PRESENT_PRIORITY_WAIT_MS");
+        const char* e = std::getenv("HELIAS_PRESENT_PRIORITY_WAIT_MS");
         const long v = e && *e ? std::atol(e) : 100;
         return static_cast<std::uint64_t>(std::clamp<long>(v, 5, 2000)) * 1000000ull;
     }();
     static const bool ride_on = [] {
-        const char* e = std::getenv("BBHOST_BLIT_RIDE");
+        const char* e = std::getenv("HELIAS_BLIT_RIDE");
         return !(e && e[0] == '0');
     }();
     VkCommandBuffer c = static_cast<VkCommandBuffer>(cmd);
@@ -5997,7 +5997,7 @@ void host_gpu_presenter_priority_stats(std::uint64_t* direct, std::uint64_t* str
 bool host_gpu_submit_for_flip(std::uint64_t need) {
     {
         // The command processor submits after every job (gnm_exec.cpp,
-        // BBHOST_SUBMIT_EVERY_JOB) and queues the flip after that, so the
+        // HELIAS_SUBMIT_EVERY_JOB) and queues the flip after that, so the
         // flip's frame is normally in a submission already, and whatever is
         // being recorded now is the next frame's.
         std::lock_guard<GpuMutex> lock(g.mu);
@@ -6036,12 +6036,12 @@ const CachedCompute* compute_program_at(std::uint64_t va) {
 
 }  // namespace
 
-// BBHOST_DISPATCH_COST=1: where a dispatch's time goes. DISPATCH_DIRECT is
+// HELIAS_DISPATCH_COST=1: where a dispatch's time goes. DISPATCH_DIRECT is
 // 119,319 packets a run at 25 us each by the per-opcode timing - the largest
 // item after the host-draw token - and nearly all of them are GX's copy and
 // clear passes.
 const bool g_dispatch_cost = [] {
-    const char* e = std::getenv("BBHOST_DISPATCH_COST");
+    const char* e = std::getenv("HELIAS_DISPATCH_COST");
     return e && e[0] == '1';
 }();
 enum DispatchPart { kDpLock, kDpProgram, kDpTables, kDpPaths, kDpPipeline, kDpWork, kDpParts };
@@ -6088,8 +6088,8 @@ void dispatch_cost_report() {
 
 namespace {
 std::atomic<std::uint64_t> g_unresolved_stores{0};
-// BBHOST_STORE_LOG=1: the first 400 buffer ranges compute stores are taken to write.
-const bool g_store_log = std::getenv("BBHOST_STORE_LOG") != nullptr;
+// HELIAS_STORE_LOG=1: the first 400 buffer ranges compute stores are taken to write.
+const bool g_store_log = std::getenv("HELIAS_STORE_LOG") != nullptr;
 std::atomic<std::uint64_t> g_store_logs{0};
 }
 
@@ -6432,7 +6432,7 @@ bool host_gpu_dispatch(const GpuDispatch& d) {
     profile_end_locked();
     // Buffers the shader writes: the buffer shadow's copies of them are stale
     // from here on. A store whose V# the host cannot find is logged; the
-    // shadow's verify mode (BBHOST_SHADOW_VERIFY) finds what it changed.
+    // shadow's verify mode (HELIAS_SHADOW_VERIFY) finds what it changed.
     for (const gcn::ResourcePath& path : pl.meta.store_buffers) {
         std::uint32_t v[4]{};
         if (!resolve_resource(path, d.user_data, 4, v)) {
@@ -6490,7 +6490,7 @@ void host_gpu_flush() {
     }
 }
 
-// BBHOST_GPU_PROFILE=1: the pipelines with the most GPU time since the
+// HELIAS_GPU_PROFILE=1: the pipelines with the most GPU time since the
 // last call, "name=ms(count)" for the top eight.
 std::string host_gpu_profile_report() {
     std::lock_guard<GpuMutex> lock(g.mu);
@@ -6515,9 +6515,9 @@ std::string host_gpu_profile_report() {
                   static_cast<unsigned long long>(graphics / 1000000),
                   static_cast<unsigned long long>(compute / 1000000));
     out += buf;
-    // BBHOST_GPU_PROFILE_TOP=<n>: the top n rather than eight.
+    // HELIAS_GPU_PROFILE_TOP=<n>: the top n rather than eight.
     static const std::size_t top = [] {
-        const char* e = std::getenv("BBHOST_GPU_PROFILE_TOP");
+        const char* e = std::getenv("HELIAS_GPU_PROFILE_TOP");
         return e && *e ? static_cast<std::size_t>(std::max(1, std::atoi(e))) : std::size_t{8};
     }();
     for (std::size_t i = 0; i < v.size(); ++i) {
@@ -6555,12 +6555,12 @@ std::string host_gpu_profile_report() {
     g.profile_ns.clear();
     if (g.profile_gaps) {
         // The gaps by what was recorded in them, the top twelve, as site
-        // addresses (bbhost's own; tools/gpu_gaps.py names them).
+        // addresses (heliasdream's own; tools/gpu_gaps.py names them).
         std::vector<std::pair<std::array<void*, 4>, std::pair<std::uint64_t, std::uint64_t>>> gv(g.profile_gap_ns.begin(), g.profile_gap_ns.end());
         std::sort(gv.begin(), gv.end(), [](const auto& a, const auto& b) { return a.second.first > b.second.first; });
         std::uint64_t gaps = 0;
         for (const auto& e : gv) gaps += e.second.first;
-        std::snprintf(buf, sizeof(buf), "\n[bbhost]   gpu gaps: %llums in all;", static_cast<unsigned long long>(gaps / 1000000));
+        std::snprintf(buf, sizeof(buf), "\n[heliasdream]   gpu gaps: %llums in all;", static_cast<unsigned long long>(gaps / 1000000));
         out += buf;
         for (std::size_t i = 0; i < gv.size() && i < 12; ++i) {
             out += " ";
@@ -6586,7 +6586,7 @@ namespace {
 // One save at a time: the periodic one's thread, or the one at exit.
 std::atomic<bool> g_cache_saving{false};
 std::size_t g_cache_size_hint = 0;  // the last serialized size; under g_cache_saving
-bool g_cache_save_every = false;     // BBHOST_PIPELINE_CACHE_SAVE_S set
+bool g_cache_save_every = false;     // HELIAS_PIPELINE_CACHE_SAVE_S set
 
 // Writes the file through a temporary one, 8 MiB at a time, each chunk on the
 // device before the next is written. Written at once, the cache (313 MB) was
@@ -6694,10 +6694,10 @@ void host_gpu_save_pipeline_cache() {
     const std::uint64_t pipelines = host_gpu_stats().pipelines + compute_optimized_built();
     if (pipelines == saved_pipelines) return;
     const auto now = std::chrono::steady_clock::now();
-    // BBHOST_PIPELINE_CACHE_SAVE_S: the interval, and every save that finds the
+    // HELIAS_PIPELINE_CACHE_SAVE_S: the interval, and every save that finds the
     // cache grown writes it - for testing saves under load.
     static const std::chrono::seconds interval{[] {
-        const char* e = std::getenv("BBHOST_PIPELINE_CACHE_SAVE_S");
+        const char* e = std::getenv("HELIAS_PIPELINE_CACHE_SAVE_S");
         g_cache_save_every = e && std::atoi(e) > 0;
         return g_cache_save_every ? std::atoi(e) : 180;
     }()};
@@ -6799,7 +6799,7 @@ void transfer_begin_locked() {
     begin_recording_locked();
     if (g.in_transfer) return;
     render_end_pass_locked();
-    copy_versions_flush_locked();  // copy-backs still in their copies (BBHOST_COPY_VERSIONS=2) land before this batch
+    copy_versions_flush_locked();  // copy-backs still in their copies (HELIAS_COPY_VERSIONS=2) land before this batch
     // Into the open packet when it can take it (a copy token's own).
     DrawCmds* c = DrawCmds::open();
     if (!c || !c->transfer_begin()) rec().transfer_barrier(true);
@@ -6837,7 +6837,7 @@ void transfer_end_locked() { g.transfers.fetch_add(1); }
 
 namespace gpu {
 
-// BBHOST_ARENA_WATCH: the last deferred writes replayed, with where each
+// HELIAS_ARENA_WATCH: the last deferred writes replayed, with where each
 // resolved, so a value that turns up somewhere it should not can be traced
 // back to the write that carried it.
 struct ReplayedWrite {
@@ -6848,7 +6848,7 @@ std::mutex g_replayed_mu;
 ReplayedWrite g_replayed[4096];
 std::uint64_t g_replayed_next = 0;
 const bool g_replay_watch = [] {
-    const char* e = std::getenv("BBHOST_ARENA_WATCH");
+    const char* e = std::getenv("HELIAS_ARENA_WATCH");
     return e && e[0] == '1';
 }();
 
@@ -7011,8 +7011,8 @@ std::string host_gpu_memory_budget_report() {
                       static_cast<unsigned long long>(budget.heapBudget[i] >> 20));
         out += buf;
     }
-    out += "\n[bbhost]   " + bb_memory_sites_report();
-    if (g_import_audit) out += "\n[bbhost]   " + import_audit_report() + "\n[bbhost]   " + audit_pages_report();
+    out += "\n[heliasdream]   " + bb_memory_sites_report();
+    if (g_import_audit) out += "\n[heliasdream]   " + import_audit_report() + "\n[heliasdream]   " + audit_pages_report();
     return out;
 }
 std::uint64_t host_gpu_texture_uploads() { return textures_upload_count(); }
@@ -7024,7 +7024,7 @@ void host_gpu_note_shader_created(int stage, const std::uint8_t* container, std:
     note_shader_created(stage, container, size, flip);
 }
 
-// For BBHOST_ARENA_WATCH: where va resolves, and the replayed deferred writes
+// For HELIAS_ARENA_WATCH: where va resolves, and the replayed deferred writes
 // that carried `value` (logged).
 void host_gpu_explain_value(std::uint64_t va, std::uint64_t value) {
     std::uint64_t buf = 0, off = 0;
@@ -7059,7 +7059,7 @@ std::uint64_t host_gpu_completed_submits() {
 
 
 // A host-GPU write whose destination covers a command-arena chunk's marker
-// (BBHOST_ARENA_MONITOR): nothing the renderer does should, so the first few
+// (HELIAS_ARENA_MONITOR): nothing the renderer does should, so the first few
 // are logged with where they came from.
 void note_gpu_write_over_marker(const char* what, std::uint64_t dst, std::uint64_t src, std::size_t bytes) {
     if (!hle_gnm_arena_monitor() || !hle_gx_arena_covers_marker(dst, bytes)) return;
@@ -7263,7 +7263,7 @@ struct CopyVersion {
 };
 std::vector<CopyVersion> g_copy_versions;  // under g.mu: the pending ones, oldest first
 // The same by destination, for lookups at every binding: a scan of the list
-// was a tenth of the command processor (BBHOST_COPY_VERSIONS=2, ~80 pending).
+// was a tenth of the command processor (HELIAS_COPY_VERSIONS=2, ~80 pending).
 struct CopyVersionKey {
     std::uint64_t dst, end;
     std::uint32_t index;  // into g_copy_versions: the larger, the newer
@@ -7281,7 +7281,7 @@ std::atomic<std::uint64_t> g_cv_refused_why[kCvReasons] = {};
 // draws of later passes read them, from their copies (1.6M bindings in a
 // soak). 1: at the pass's end. 0: GPU copies at the token.
 const int g_copy_versions_mode = [] {
-    const char* e = std::getenv("BBHOST_COPY_VERSIONS");
+    const char* e = std::getenv("HELIAS_COPY_VERSIONS");
     return e && *e ? std::atoi(e) : 2;
 }();
 

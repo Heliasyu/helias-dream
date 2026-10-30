@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Sum the stacks BBHOST_SAMPLE wrote (src/host/sampler.h).
+"""Sum the stacks HELIAS_SAMPLE wrote (src/host/sampler.h).
 
     tools/wallprof.py build/samples [--flips 1300:1600] [--thread bb-cp0] [--top 40]
 
@@ -10,11 +10,11 @@ not only its CPU. Printed per thread:
   inclusive  functions on the stack, by share of samples
   self       the innermost function
   blocked    for samples whose innermost frame is a wait (futex, ioctl,
-             poll, nanosleep...), the first bbhost frame that led there
+             poll, nanosleep...), the first heliasdream frame that led there
 
 Addresses are symbolized with addr2line against the modules in <out>.maps;
 a module without symbols prints as module+offset. A Windows run's maps (the
-sampler under wine) name PE modules; bbhost.exe carries DWARF, addr2line reads
+sampler under wine) name PE modules; heliasdream.exe carries DWARF, addr2line reads
 it at the link addresses the maps' offsets give.
 """
 import argparse
@@ -26,7 +26,7 @@ import subprocess
 import sys
 
 ap = argparse.ArgumentParser()
-ap.add_argument('prefix', help='BBHOST_SAMPLE_OUT (without .txt/.maps)')
+ap.add_argument('prefix', help='HELIAS_SAMPLE_OUT (without .txt/.maps)')
 ap.add_argument('--flips', help='first:last flip to include')
 ap.add_argument('--thread', help='only threads whose name starts with this')
 ap.add_argument('--tid', type=int, help='only this thread id')
@@ -72,7 +72,7 @@ for line in open(a.prefix + '.maps'):
     start, end, perm, off, path = int(m[1], 16), int(m[2], 16), m[3], int(m[4], 16), m[5].strip()
     # A Windows run (the sampler under wine) lists PE modules by their wine
     # paths, with the module's link base as the offset: Z: is this machine's
-    # root, so bbhost.exe is found and addr2line takes its link addresses.
+    # root, so heliasdream.exe is found and addr2line takes its link addresses.
     if re.match(r'^[Zz]:[\\/]', path):
         path = '/' + path[3:].replace('\\', '/')
     maps.append((start, end, perm, off, path))
@@ -116,7 +116,7 @@ for path, addrs in wanted.items():
         fn = out[2 * i] if 2 * i < len(out) else '??'
         if fn == '??':
             fn = '%s+%x' % (short, rel[i])
-        elif not short.startswith('bbhost'):
+        elif not short.startswith('heliasdream'):
             fn = '%s!%s' % (short.split('.so')[0], fn)
         sym[x] = fn
 

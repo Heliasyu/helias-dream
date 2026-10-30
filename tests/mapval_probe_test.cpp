@@ -7,7 +7,7 @@
 //   mapval_probe_test <mapval.so> [tour file]
 //
 // With a tour file it only checks that every line of it parses.
-#include "bbhost_plugin.h"
+#include "heliasdream_plugin.h"
 
 #include <dlfcn.h>
 #include <sys/mman.h>
@@ -223,20 +223,20 @@ int main(int argc, char** argv) {
                                "mark moonside-lake:arrived\n"
                                "wait 0.05\n";
     }
-    setenv("BBHOST_MAPVAL_TOUR", tour.c_str(), 1);
-    setenv("BBHOST_MAPVAL_START", "0", 1);
-    setenv("BBHOST_TEST_REQUESTS", (dir / "requests").c_str(), 1);
-    setenv("BBHOST_MAPVAL_DUMPS", (dir / "frames").c_str(), 1);
-    setenv("BBHOST_MAPVAL_CAPTURES", (dir / "captures").c_str(), 1);
+    setenv("HELIAS_MAPVAL_TOUR", tour.c_str(), 1);
+    setenv("HELIAS_MAPVAL_START", "0", 1);
+    setenv("HELIAS_TEST_REQUESTS", (dir / "requests").c_str(), 1);
+    setenv("HELIAS_MAPVAL_DUMPS", (dir / "frames").c_str(), 1);
+    setenv("HELIAS_MAPVAL_CAPTURES", (dir / "captures").c_str(), 1);
 
     void* h = dlopen(argv[1], RTLD_NOW | RTLD_LOCAL);
     if (!h) {
         std::fprintf(stderr, "dlopen: %s\n", dlerror());
         return 2;
     }
-    auto init = reinterpret_cast<int (*)(const BbHostApi*)>(dlsym(h, "bb_plugin_init"));
-    auto image = reinterpret_cast<int (*)(const BbHostApi*)>(dlsym(h, "bb_plugin_image"));
-    static BbHostApi api;
+    auto init = reinterpret_cast<int (*)(const HeliasApi*)>(dlsym(h, "bb_plugin_init"));
+    auto image = reinterpret_cast<int (*)(const HeliasApi*)>(dlsym(h, "bb_plugin_image"));
+    static HeliasApi api;
     std::memset(&api, 0, sizeof api);
     api.version = BB_PLUGIN_API_VERSION;
     api.size = sizeof api;

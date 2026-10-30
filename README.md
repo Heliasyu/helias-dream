@@ -1,6 +1,6 @@
 # Helia's Dream
 
-**Helia's Dream** runs Bloodborne (CUSA03173, game version 1.09) natively on Linux, with
+**Helia's Dream** runs Bloodborne (CUSA03173, game version 1.09) natively on Linux and Windows, with
 modern upscaling, high frame rates, online play, and DualSense HD haptics and adaptive
 triggers.
 
@@ -33,17 +33,28 @@ triggers.
 - A new launcher with a Bloodborne look.
 
 ## Install
-You need your own Bloodborne game files (CUSA03173 with the 1.09 update) and a working
-[bbhost](https://github.com/droogie/bbhost) setup. None are included here.
+You need your own Bloodborne game files (CUSA03173 with the 1.09 update, and its decrypted
+eboot). None are included here.
 
-1. Download the latest release from
-   [Releases](https://github.com/Heliasyu/helias-dream/releases).
-2. Unpack it and copy `bbhost` over the `bbhost.bin` in your bbhost folder (keep a backup).
-3. Start the game as usual.
+**Windows 10/11:** download `helias-dream-windows-<version>.zip` from
+[Releases](https://github.com/Heliasyu/helias-dream/releases), unzip it to a folder of its
+own and run `HeliasDream.exe`. Pick the game folder and eboot, then Play. A bbhost install's
+settings and saves are copied over the first time.
 
-For FSR 4.1.1, build its assets once from your own copy of AMD's DLL with
-`./build-fsr4.sh` in the release folder. For HD haptics, connect the DualSense by USB with
-Bluetooth off.
+**Linux:** download the `helias-dream-linux-<version>.tar.gz`, unpack it and run
+`./HeliasDream` (the launcher; `./run-heliasdream.sh` starts the engine alone). To update an existing install, copy the new `heliasdream` engine over
+`HeliasDream.bin` (keep a backup).
+
+FSR 3.1 works out of the box. FSR 4.1.1 needs its assets built once from your own copy of
+AMD's DLL (`./build-fsr4.sh` in the Linux release, see `tools/fsr4cap`). They go in
+`~/.local/share/HeliasDream/fsr4_411` on Linux and `%LOCALAPPDATA%\HeliasDream\fsr4_411` on Windows.
+For HD haptics, connect the DualSense by USB with Bluetooth off. On Windows, its speaker must
+be set to 4 channels in Sound settings.
+
+## Building
+- Linux: `tools/ci_build.sh` (Clang, CMake, Ninja; on Ubuntu 24.04 it installs the packages).
+- Windows, cross-built from Linux: `tools/ci_windows.sh` (Clang, lld, mingw-w64, and dotnet
+  for the launcher). The result is `build/win/helias-dream-windows-<rev>.zip`.
 
 ## Documentation
 [CHANGELOG](CHANGELOG.md) · [Known issues](docs/vk/KNOWN_ISSUES.md) ·
@@ -51,7 +62,7 @@ Bluetooth off.
 
 ## Credits
 - [droogie/bbhost](https://github.com/droogie/bbhost): the native Bloodborne host this
-  project is built on. Its original README: [README.upstream.md](README.upstream.md).
+  project grew from; its networking backend is used as it is. Its original README: [README.upstream.md](README.upstream.md).
 - [bbport](https://github.com/deadinside28/bloodborne_pc) (GPL-2.0-or-later): the FSR 4.1.1
   replay and asset build, and findings behind the motion vectors.
 - [FireBurn/FSR-Vulkan](https://github.com/FireBurn/FSR-Vulkan) (MIT): FSR 3.1 on Vulkan,

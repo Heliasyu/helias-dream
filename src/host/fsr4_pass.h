@@ -1,10 +1,10 @@
 #pragma once
 
-// bbhost-vk Phase 4: FSR 4.1.1 at the scale pass, replaying AMD's 4.1.1
+// heliasdream-vk Phase 4: FSR 4.1.1 at the scale pass, replaying AMD's 4.1.1
 // upscaler DLL's passes on Vulkan (host/fsr411/fsr411.h, adapted from
 // bbport). FSR 4.1.1 cannot be shipped: its SPIR-V and weights are built once
 // from the user's own amd_fidelityfx_upscaler_dx12.dll (tools/fsr4cap) into
-// the asset folder (BBHOST_FSR411_DIR, default
+// the asset folder (HELIAS_FSR411_DIR, default
 // ~/.local/share/HeliasDream/fsr4_411). Without them, or on a GPU without the
 // features its passes need, FSR 4.1.1 is FSR 3.1 (host/fsr3_pass.h), and the
 // log says why once.
@@ -21,7 +21,7 @@ namespace gpu {
 
 
 // Before vkCreateDevice: only when the FSR 4.1.1 assets are there (or
-// BBHOST_FSR4_FEATURES=1), the extensions and features its passes need, where
+// HELIAS_FSR4_FEATURES=1), the extensions and features its passes need, where
 // the GPU has them. Nothing otherwise: a device without assets is stock.
 void fsr4_device_features(VkPhysicalDeviceFeatures& f, VkPhysicalDeviceVulkan12Features& f12,
                           VkPhysicalDeviceVulkan13Features& f13, std::vector<const char*>& exts, void** chain);

@@ -5,7 +5,7 @@
 
 // The PC port's own options screen, drawn by the host overlay.
 //
-// These settings configure *bbhost*, not the game: resolution, pacing, what
+// These settings configure *heliasdream*, not the game: resolution, pacing, what
 // the pointer does. The PS4 build has nowhere to put them and the dump is
 // never written, so the host draws the screen and owns the file it saves to.
 // Coordinates are display-buffer pixels, the space
@@ -48,13 +48,13 @@ void host_options_frame(float display_w, float display_h);
 // typed fields; the calls below are the front ends' way in, by name.
 // Read one by the same name host_opt_set() takes. Unknown names read false.
 bool host_opt_get(const char* key);
-// The render resolution the player chose, or what BBHOST_RES says. False when
+// The render resolution the player chose, or what HELIAS_RES says. False when
 // neither parses. Read once by the loader - it is a patch on the image.
 bool host_opt_resolution(int* w, int* h);
 // Texture detail: the LOD bias every sampler adds to the game's own (cheap: an atomic).
 float host_opt_mip_bias();
 // Submit split (More > Performance, experimental): check every n-th draw
-// whether the GPU has run dry; 0 off. Live, an atomic. BBHOST_SUBMIT_SPLIT wins.
+// whether the GPU has run dry; 0 off. Live, an atomic. HELIAS_SUBMIT_SPLIT wins.
 unsigned host_opt_submit_split();
 // Sharper motion (FSR 4) (More > Performance, experimental): FSR 4's balanced
 // model at Performance and Ultra Performance. Live, an atomic.
@@ -69,7 +69,7 @@ void host_opt_set_frame_cap(int fps);
 // Set one by name, from the rows the port adds to the game's own System menu
 // (engine/option_menu.h). The two front ends drive the same settings and the
 // same file, so a change made in game is the change the F10 screen shows and
-// bbhost-options.toml keeps. Unknown names are ignored.
+// HeliasDream-options.toml keeps. Unknown names are ignored.
 void host_opt_set(const char* key, bool on);
 // A setting as the index of its value (mouse_sens: 0..10), and setting it;
 // -1 for an unknown name. Saved at once, like host_opt_set.
@@ -85,7 +85,7 @@ std::string host_options_dump();
 
 // A Steam Deck - Valve's Jupiter or Galileo, from /sys/devices/virtual/dmi/id
 // on Linux and the BIOS registry key on Windows - where the System menu has a
-// Steam Deck section (engine/option_menu.cpp). BBHOST_STEAM_DECK=1 or 0 says
+// Steam Deck section (engine/option_menu.cpp). HELIAS_STEAM_DECK=1 or 0 says
 // so instead.
 bool host_steam_deck();
 // Its two configurations as one choice: 0 is 30 fps at the screen's own

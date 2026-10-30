@@ -1,8 +1,8 @@
 #!/bin/bash
-# bbhost-vk CPU profile of a running game (proposed `bbtest cpuprofile`).
-# Run it from a second terminal while bbhost is in gameplay at the spot to
+# heliasdream-vk CPU profile of a running game (proposed `bbtest cpuprofile`).
+# Run it from a second terminal while heliasdream is in gameplay at the spot to
 # measure (Old Yharnam outside, then the Hunter's Dream). It only reads:
-# perf samples of the bbhost process, its /proc maps and thread names.
+# perf samples of the heliasdream process, its /proc maps and thread names.
 #
 #   cpuprofile.sh [OUTDIR]          ~3 minutes; prints where the results are
 #   CPUPROF_SCHED=0 cpuprofile.sh   skip the system-wide scheduler/GPU-scheduler trace (needs sudo)
@@ -11,8 +11,8 @@
 #   sudo sysctl kernel.perf_event_paranoid=1     (2 = no kernel samples of our own process)
 # Put it back afterwards: sudo sysctl kernel.perf_event_paranoid=2
 set -eu
-PID=$(pgrep -x bbhost.bin | head -1 || true)
-[ -n "$PID" ] || { echo "bbhost.bin is not running"; exit 1; }
+PID=$(pgrep -x heliasdream.bin | head -1 || true)
+[ -n "$PID" ] || { echo "heliasdream.bin is not running"; exit 1; }
 OUT=${1:-$HOME/.local/share/bbtest/cpuprofile-$(date +%Y%m%d-%H%M%S)}
 mkdir -p "$OUT"
 cd "$OUT"
@@ -41,7 +41,7 @@ perf stat --per-thread -p "$PID" \
 echo "2/4 flat profile, 60 s at 1999 Hz"
 perf record -q -F 1999 -p "$PID" -o cpu-flat.data -- sleep 60 2> record-flat.log || true
 
-echo "3/4 call graphs (DWARF unwinding: bbhost has no frame pointers), 15 s at 499 Hz"
+echo "3/4 call graphs (DWARF unwinding: heliasdream has no frame pointers), 15 s at 499 Hz"
 perf record -q -F 499 --call-graph dwarf,12288 -p "$PID" -o cpu-dwarf.data -- sleep 15 2> record-dwarf.log || true
 
 if [ "${CPUPROF_SCHED:-1}" = 1 ]; then

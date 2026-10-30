@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Copy a bbhost save folder into shadPS4's portable layout, with the
+"""Copy a heliasdream save folder into shadPS4's portable layout, with the
 param.sfo shadPS4 wants, so both can load the same character (side-by-side
 runs):
 
@@ -19,7 +19,7 @@ name = os.path.basename(src.rstrip('/'))
 dst = os.path.join(user, 'home', '1000', 'savedata', 'CUSA00900', name)
 os.makedirs(os.path.join(dst, 'sce_sys'), exist_ok=True)
 for f in os.listdir(src):
-    if f == 'sce_param.bin':  # bbhost's own record of the save's titles
+    if f == 'sce_param.bin':  # heliasdream's own record of the save's titles
         continue
     shutil.copy2(os.path.join(src, f), os.path.join(dst, 'sce_sys', f) if f == 'icon0.png' else os.path.join(dst, f))
 BINARY, STRING, INT = 0x0004, 0x0204, 0x0404

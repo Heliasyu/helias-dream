@@ -1,4 +1,4 @@
-// The glitch hunt (BBHOST_GLITCH=1): find the frames that flash or stretch,
+// The glitch hunt (HELIAS_GLITCH=1): find the frames that flash or stretch,
 // with nobody watching, and name the draws behind them.
 //
 // Two detectors, each blind where the other sees:
@@ -28,15 +28,15 @@
 // (`glitch: flip ...`); exit prints a summary with the pipelines that jumped.
 // tools/glitch_hunt.sh drives a run through menus and combat and collects it.
 //
-//   BBHOST_GLITCH=1           on (the queries and the readbacks cost a few ms
+//   HELIAS_GLITCH=1           on (the queries and the readbacks cost a few ms
 //                             of GPU time a frame; off, none of this runs)
-//   BBHOST_GLITCH_DIR=path    where catches go (build/glitch)
-//   BBHOST_GLITCH_MAX=n       catches written in full (40); all are logged
-//   BBHOST_GLITCH_CELL=x      a cell's change, 0..1, that counts (0.10)
-//   BBHOST_GLITCH_CELLS=n     changed cells that make a frame a catch (6)
-//   BBHOST_GLITCH_COV_RATIO=x coverage jump that makes a draw a spike (8; the same
+//   HELIAS_GLITCH_DIR=path    where catches go (build/glitch)
+//   HELIAS_GLITCH_MAX=n       catches written in full (40); all are logged
+//   HELIAS_GLITCH_CELL=x      a cell's change, 0..1, that counts (0.10)
+//   HELIAS_GLITCH_CELLS=n     changed cells that make a frame a catch (6)
+//   HELIAS_GLITCH_COV_RATIO=x coverage jump that makes a draw a spike (8; the same
 //                             draw only)
-//   BBHOST_GLITCH_COV_MIN=x   and the least of its viewport it must cover (0.02)
+//   HELIAS_GLITCH_COV_MIN=x   and the least of its viewport it must cover (0.02)
 //
 // The readbacks are not waited for (the frame watcher in render.cpp waits
 // for the GPU at every flip, which keeps it in step with the CPU - and a race
@@ -72,7 +72,7 @@ struct Config {
     bool on = false;
     std::string dir = "build/glitch";
     unsigned max_catches = 40;
-    unsigned max_big = 100;  // BBHOST_GLITCH_MAX_BIG: catches written on a budget of their own
+    unsigned max_big = 100;  // HELIAS_GLITCH_MAX_BIG: catches written on a budget of their own
     double cell = 0.10;
     unsigned cells = 6;
     double ratio = 8.0;
@@ -82,15 +82,15 @@ struct Config {
 const Config& cfg() {
     static const Config c = [] {
         Config k;
-        const char* e = std::getenv("BBHOST_GLITCH");
+        const char* e = std::getenv("HELIAS_GLITCH");
         k.on = e && e[0] == '1';
-        if (const char* v = std::getenv("BBHOST_GLITCH_DIR"); v && v[0]) k.dir = v;
-        if (const char* v = std::getenv("BBHOST_GLITCH_MAX")) k.max_catches = static_cast<unsigned>(std::strtoul(v, nullptr, 10));
-        if (const char* v = std::getenv("BBHOST_GLITCH_MAX_BIG")) k.max_big = static_cast<unsigned>(std::strtoul(v, nullptr, 10));
-        if (const char* v = std::getenv("BBHOST_GLITCH_CELL")) k.cell = std::atof(v);
-        if (const char* v = std::getenv("BBHOST_GLITCH_CELLS")) k.cells = static_cast<unsigned>(std::strtoul(v, nullptr, 10));
-        if (const char* v = std::getenv("BBHOST_GLITCH_COV_RATIO")) k.ratio = std::atof(v);
-        if (const char* v = std::getenv("BBHOST_GLITCH_COV_MIN")) k.cov_min = std::atof(v);
+        if (const char* v = std::getenv("HELIAS_GLITCH_DIR"); v && v[0]) k.dir = v;
+        if (const char* v = std::getenv("HELIAS_GLITCH_MAX")) k.max_catches = static_cast<unsigned>(std::strtoul(v, nullptr, 10));
+        if (const char* v = std::getenv("HELIAS_GLITCH_MAX_BIG")) k.max_big = static_cast<unsigned>(std::strtoul(v, nullptr, 10));
+        if (const char* v = std::getenv("HELIAS_GLITCH_CELL")) k.cell = std::atof(v);
+        if (const char* v = std::getenv("HELIAS_GLITCH_CELLS")) k.cells = static_cast<unsigned>(std::strtoul(v, nullptr, 10));
+        if (const char* v = std::getenv("HELIAS_GLITCH_COV_RATIO")) k.ratio = std::atof(v);
+        if (const char* v = std::getenv("HELIAS_GLITCH_COV_MIN")) k.cov_min = std::atof(v);
         return k;
     }();
     return c;
@@ -113,11 +113,11 @@ Cov g_cov[kDrawRecs];
 
 std::uint64_t g_measured = 0, g_unmeasured = 0, g_pool_full = 0;
 
-// ---- the race watch (BBHOST_GLITCH_WATCH) ------------------------------------
+// ---- the race watch (HELIAS_GLITCH_WATCH) ------------------------------------
 
 std::vector<std::string> watch_prefixes() {
     std::vector<std::string> out;
-    const char* e = std::getenv("BBHOST_GLITCH_WATCH");
+    const char* e = std::getenv("HELIAS_GLITCH_WATCH");
     for (const char* p = e; p && *p;) {
         const char* end = std::strchr(p, ',');
         const std::size_t n = end ? static_cast<std::size_t>(end - p) : std::strlen(p);
@@ -129,7 +129,7 @@ std::vector<std::string> watch_prefixes() {
 }
 const std::vector<std::string> g_watch_prefixes = watch_prefixes();
 const bool g_watch_snapshot = [] {
-    const char* e = std::getenv("BBHOST_GLITCH_SNAPSHOT");
+    const char* e = std::getenv("HELIAS_GLITCH_SNAPSHOT");
     return e && e[0] == '1';
 }();
 bool g_watch_now = false;  // the draw being resolved is watched (under g.mu)
@@ -665,7 +665,7 @@ void evaluate_locked(const Frame& before, const Frame& x, const Frame* x2, const
         *text += l + draw_line(s.rec) + "\n";
     }
     // A watched draw's inputs, against the same draw's in the frames either
-    // side (BBHOST_GLITCH_WATCH): every spike, and every watched draw whose
+    // side (HELIAS_GLITCH_WATCH): every spike, and every watched draw whose
     // coverage is less than half of what it was both before and after (a
     // quad collapsed rather than stretched).
     if (with_draws) {
@@ -939,7 +939,7 @@ void glitch_device_features(VkPhysicalDeviceFeatures& enable) {
     vkGetPhysicalDeviceFeatures(g.phys, &sup);
     g_precise = sup.occlusionQueryPrecise == VK_TRUE;
     enable.occlusionQueryPrecise = sup.occlusionQueryPrecise;
-    host_log("glitch: on (BBHOST_GLITCH=1): every frame compared with its neighbours, every draw's coverage counted%s; catches "
+    host_log("glitch: on (HELIAS_GLITCH=1): every frame compared with its neighbours, every draw's coverage counted%s; catches "
              "go to %s",
              g_precise ? "" : " (not precisely: the device has no occlusionQueryPrecise)", cfg().dir.c_str());
 }

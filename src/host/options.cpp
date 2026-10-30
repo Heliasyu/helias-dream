@@ -41,7 +41,7 @@
 #include <windows.h>
 #endif
 
-#if defined(BBHOST_HAVE_SDL3)
+#if defined(HELIAS_HAVE_SDL3)
 #include <SDL3/SDL.h>
 #endif
 
@@ -106,7 +106,7 @@ enum SettingId {
     kChangeAppearance,
     kRebirth,
     kFivePlayers,
-    // bbhost-vk (docs/vk/PLAN.md): the upscaler and its debug views. Phase 0
+    // heliasdream-vk (docs/vk/PLAN.md): the upscaler and its debug views. Phase 0
     // saves and shows them; nothing renders differently yet (host/upscaler.h).
     kUpscaler,
     kUpscaleQuality,
@@ -152,7 +152,7 @@ enum SettingId {
     kGameLanguage,
     kMenuLanguage,
     kHdrUi,
-    // More > Performance (experimental): BBHOST_SUBMIT_SPLIT as a setting.
+    // More > Performance (experimental): HELIAS_SUBMIT_SPLIT as a setting.
     kSubmitSplit,
     // More > Performance (experimental): Lantern Engine's "Graphics threads
     // first" and "Sharper motion (FSR 4)", as ours (core/host_clock.h,
@@ -298,7 +298,7 @@ Setting g_set[kSettingCount] = {
      "The three logos before the title screen, and the warning that the last session did not end with Exit Game.", true},
     // The old switch for the developers' debug menu, which the Debug Menu
     // plugin replaced (engine/debug_menu.h): no row shows it, and an "On" an
-    // older bbhost saved turns the plugin on once (main.cpp).
+    // older heliasdream saved turns the plugin on once (main.cpp).
     {"debug_menu", "Debug menu", {"Off", "On"}, 0, "Replaced by the Debug Menu plugin.", true},
     // Lance McDonald's "Restore Debug Camera" (patches/debug-camera.toml). Its
     // code takes the place of a debug-only load-test step, so the debug menu's
@@ -307,7 +307,7 @@ Setting g_set[kSettingCount] = {
      "Hold Interact (E) and press L3 (Left Ctrl) to cycle the free camera's modes.", true},
     // The PC enhancements: additions to the game itself, each read once at
     // start (main.cpp hands them to config_set_enhancements), all on unless
-    // bbhost.toml's [world] says otherwise. Off, all three, is the game as it
+    // HeliasDream.toml's [world] says otherwise. Off, all three, is the game as it
     // shipped. (The Old Hunters, a fourth in v0.2.9, is the patch old-hunters.)
     {"change_appearance", "Hunter's Dream mirror", {"On", "Off"}, 0,
      "The Dream's mirror opens the appearance editor (the unused \"Put on Disguise\").", true},
@@ -315,7 +315,7 @@ Setting g_set[kSettingCount] = {
      "With the Yharnam Stone, the Altar of Despair resets level and attributes.", true},
     {"five_players", "Five players", {"On", "Off"}, 0,
      "Two invaders in Mensis, Mergo's Loft, the Frontier and the DLC; all players need it.", true},
-    // bbhost-vk's upscaler (host/upscaler.h). FSR 1 is what bbhost always did:
+    // heliasdream-vk's upscaler (host/upscaler.h). FSR 1 is what heliasdream always did:
     // the presenter's EASU + RCAS when the game renders smaller than the
     // window (host/fsr.cpp). Phase 1: with an upscaler on, the quality renders the
     // scene smaller than the output (engine/scene_split.h).
@@ -331,11 +331,11 @@ Setting g_set[kSettingCount] = {
     // 0..1 like FSR 3's sharpness; 0.8 is RCAS at 0.2 stops, what FSR 1 uses.
     {"upscale_sharpness", "Upscaling sharpness", {"0.0", "0.1", "0.2", "0.3", "0.4", "0.5", "0.6", "0.7", "0.8", "0.9", "1.0"}, 8,
      "How much the temporal upscalers sharpen (0 turns it off). 0.8 matches FSR 1's own.", false},
-    // bbhost-vk Phase 3: the reactive mask (host/temporal_inputs.h).
+    // heliasdream-vk Phase 3: the reactive mask (host/temporal_inputs.h).
     {"upscale_reactive", "Upscaler reactive mask", {"Off", "On"}, 1,
      "FSR 3.1: marks particles, fog, Blood Echoes, the lantern's glow and other transparent effects so they do not smear or ghost. Off for comparison.",
      false},
-    // bbhost-vk: the scene's sub-pixel jitter (host/temporal_inputs.h), for testers.
+    // heliasdream-vk: the scene's sub-pixel jitter (host/temporal_inputs.h), for testers.
     {"upscale_jitter", "Upscaler jitter", {"Off", "On"}, 1,
      "The 3D scene shifts by a fraction of a pixel each frame so a temporal upscaler can rebuild detail. Off for comparison: a softer, more aliased picture.",
      false},
@@ -437,7 +437,7 @@ Setting g_set[kSettingCount] = {
     {"hdr_ui_brightness", "UI brightness",
      {"Like the picture", "50%", "60%", "70%", "80%", "90%", "100%", "110%", "120%", "130%", "140%", "150%", "160%", "170%", "180%", "190%", "200%"}, 0,
      "HDR: the HUD, menus and subtitles at this share of paper white, kept out of the highlight boost. Like the picture: they are boosted as the rest.", false},
-    // test7's BBHOST_SUBMIT_SPLIT (host/gpu.cpp submit_split_point): every n-th
+    // test7's HELIAS_SUBMIT_SPLIT (host/gpu.cpp submit_split_point): every n-th
     // draw, if the GPU has run dry, the recording so far is submitted mid-job.
     // Live; the env var wins. Launcher only (More > Performance), no F10 row.
     {"submit_split", "Submit split", {"Off", "32", "64", "128", "256"}, 0,
@@ -575,7 +575,7 @@ bool g_laid_out = false;
 bool g_dirty = false;  // something changed since the last save
 
 // What every setting starts with: the table's own indices, taken before
-// anything is loaded over them, then whatever bbhost.toml sets for it - the
+// anything is loaded over them, then whatever HeliasDream.toml sets for it - the
 // frame cap, the logos, and a package's resolution and window mode (the
 // Steam Deck kit's) - so the menus' Defaults go back to those.
 // The table is indexed by SettingId: its entries must be in the enum's order.
@@ -941,14 +941,14 @@ int fps_index(int fps) {
 }
 
 std::string options_path() {
-    // BBHOST_OPTIONS_PATH: a file of its own, so a scripted test that changes
+    // HELIAS_OPTIONS_PATH: a file of its own, so a scripted test that changes
     // settings (tools/menu_drive.sh) never writes the player's.
-    if (const char* e = std::getenv("BBHOST_OPTIONS_PATH"); e && e[0]) {
+    if (const char* e = std::getenv("HELIAS_OPTIONS_PATH"); e && e[0]) {
         return e;
     }
     // The per-user folder (config_user_dir), beside the per-user config: the
-    // F10 settings and the account outlive any copy of bbhost. A --config is a
-    // profile with a file of its own (bbhost-options-<name>.toml), so a dev
+    // F10 settings and the account outlive any copy of heliasdream. A --config is a
+    // profile with a file of its own (HeliasDream-options-<name>.toml), so a dev
     // server's account never mixes with the live one's. The file from before
     // (beside that config, or the config a package or tree used, or in the
     // working directory) is copied over the first time: nobody is signed out.
@@ -969,11 +969,11 @@ std::string options_path() {
             for (const char* f : {"bbhost.toml"}) old.push_back(beside(f));
             old.push_back(beside(config_exe_dir() + "/bbhost.toml"));
         }
-        // A folder of its own (BBHOST_CONFIG_DIR: every test harness) takes the
+        // A folder of its own (HELIAS_CONFIG_DIR: every test harness) takes the
         // settings but not the [account]: one old file beside several test
         // configs signed each of their profiles in as that player, with a
         // token long replaced, and the server refused them all day.
-        const char* own_dir = std::getenv("BBHOST_CONFIG_DIR");
+        const char* own_dir = std::getenv("HELIAS_CONFIG_DIR");
         const bool keep_account = !(own_dir && own_dir[0]);
         for (const std::string& f : old) {
             if (f == mine) continue;
@@ -989,7 +989,7 @@ std::string options_path() {
                 }
                 out << line << '\n';
             }
-            if (out) host_log("options: copied %s to %s (the per-user settings every copy of bbhost reads)%s", f.c_str(),
+            if (out) host_log("options: copied %s to %s (the per-user settings every copy of heliasdream reads)%s", f.c_str(),
                               mine.c_str(), dropped ? ", not its account (a folder of its own)" : "");
             break;
         }
@@ -1034,9 +1034,9 @@ void apply(int id) {
         case kResolution: {
             unsigned w = 0, h = 0;
             // A change the player made asks to be kept (g_res_prev set by
-            // set_index); going back, and the start, ask nothing. BBHOST_RES
+            // set_index); going back, and the start, ask nothing. HELIAS_RES
             // wins here too, or applying the settings at the start undid it.
-            const char* forced = std::getenv("BBHOST_RES");
+            const char* forced = std::getenv("HELIAS_RES");
             if ((forced && forced[0] && std::sscanf(forced, "%ux%u", &w, &h) == 2) ||
                 std::sscanf(s.values[static_cast<std::size_t>(s.index)], "%ux%u", &w, &h) == 2)
                 live_resolution_request(w, h, g_res_prev >= 0 && !g_res_reverting);
@@ -1051,7 +1051,7 @@ void apply(int id) {
             break;  // read by the loader before any of this exists
         case kUpscaler:
         case kUpscaleQuality:
-            // bbhost-vk Phase 1: the scene's size follows (engine/scene_split.h).
+            // heliasdream-vk Phase 1: the scene's size follows (engine/scene_split.h).
             live_resolution_scale_changed();
             break;
         case kUpscaleSharpness:
@@ -1083,7 +1083,7 @@ void save() {
         host_log("options: cannot write %s", path.c_str());
         return;
     }
-    std::fprintf(f, "# bbhost PC port options. Written by the options screen (F10).\n");
+    std::fprintf(f, "# heliasdream PC port options. Written by the options screen (F10).\n");
     std::fprintf(f, "[options]\n");
     std::fprintf(f, "version = \"%d\"\n", kOptionsVersion);
     for (const Setting& s : g_set) {
@@ -1155,10 +1155,10 @@ void rebuild_settings() {
     h.menu_key = index_of(kMenuKey);
     h.trophy_popups = on_of(kTrophyPopups);
     {
-        // BBHOST_RES=WxH still wins, so an A/B run started with one behaves
+        // HELIAS_RES=WxH still wins, so an A/B run started with one behaves
         // the way its command line says.
         unsigned w = 0, hh = 0;
-        const char* e = std::getenv("BBHOST_RES");
+        const char* e = std::getenv("HELIAS_RES");
         if (!(e && e[0] && std::sscanf(e, "%ux%u", &w, &hh) == 2)) {
             const Setting& r = g_set[kResolution];
             if (std::sscanf(r.values[static_cast<std::size_t>(r.index)], "%ux%u", &w, &hh) != 2) w = hh = 0;
@@ -1169,12 +1169,12 @@ void rebuild_settings() {
         }
     }
     // Distance and height: 5 is the game's own, 10% a step either way. Field
-    // of view: 0 is the game's own, 5% wider a step (BBHOST_FOV overrides).
+    // of view: 0 is the game's own, 5% wider a step (HELIAS_FOV overrides).
     const auto around = [](int id) { return 0.5f + 0.1f * static_cast<float>(index_of(id)); };
     h.camera_distance_scale = around(kCameraDistance);
     h.camera_height_scale = around(kCameraHeight);
     {
-        const char* e = std::getenv("BBHOST_FOV");
+        const char* e = std::getenv("HELIAS_FOV");
         const float env = e && *e ? std::strtof(e, nullptr) : 0.0f;
         const int fov = index_of(kFov);
         h.fov_scale = env > 0.0f ? env : fov <= 0 ? 1.0f : 1.0f + 0.05f * static_cast<float>(fov);
@@ -1332,13 +1332,13 @@ void host_options_load() {
     static bool loaded = false;
     if (loaded) return;
     loaded = true;
-    // bbhost.toml still sets the defaults; the options file is what the player
+    // HeliasDream.toml still sets the defaults; the options file is what the player
     // changed, and the environment switches still win over both.
     host_bindings_load_defaults();
     g_set[kSkipLogos].index = config().skip_intro ? 1 : 0;
-    // The PC enhancements seed from bbhost.toml's [world] (all on unless it
+    // The PC enhancements seed from HeliasDream.toml's [world] (all on unless it
     // says otherwise); the options file then holds the player's choice, and a
-    // BBHOST_* switch still wins over both (config_set_enhancements).
+    // HELIAS_* switch still wins over both (config_set_enhancements).
     g_set[kChangeAppearance].index = config().change_appearance ? 0 : 1;
     g_set[kRebirth].index = config().rebirth ? 0 : 1;
     g_set[kFivePlayers].index = config().five_players ? 0 : 1;
@@ -1463,7 +1463,7 @@ void host_options_load() {
         }
         // The Old Hunters was a PC enhancement in v0.2.9 and is the patch
         // old-hunters since. A player who turned it off keeps it off: the
-        // per-user bbhost.toml's [patches] says so from now on, and the next
+        // per-user HeliasDream.toml's [patches] says so from now on, and the next
         // save drops the old key (unless [patches] already says something).
         if (old_hunters_off) {
             bool carried = !config_value("patches.old-hunters").empty();
@@ -1483,8 +1483,8 @@ void host_options_load() {
         }
         host_log("options: read %s", path.c_str());
     }
-    // BBHOST_ACCOUNT=name:token, for a scripted run that must not touch the file.
-    if (const char* e = std::getenv("BBHOST_ACCOUNT"); e && e[0]) {
+    // HELIAS_ACCOUNT=name:token, for a scripted run that must not touch the file.
+    if (const char* e = std::getenv("HELIAS_ACCOUNT"); e && e[0]) {
         const std::string v = e;
         if (const std::size_t c = v.find(':'); c != std::string::npos) {
             net::account_set(v.substr(0, c), v.substr(c + 1));
@@ -1493,28 +1493,28 @@ void host_options_load() {
     }
     // The environment switches the track was brought up with still win, so a
     // run started with one behaves the way it says on the command line.
-    if (const char* e = std::getenv("BBHOST_MOUSE_MENU"); e && e[0]) {
+    if (const char* e = std::getenv("HELIAS_MOUSE_MENU"); e && e[0]) {
         g_set[kMouseMenu].index = e[0] == '0' ? 0 : 1;
     }
-    // The post-processing switches, for A/B runs: BBHOST_SSAO=0 and friends.
-    for (const auto& [env, id] : {std::pair<const char*, int>{"BBHOST_SSAO", kSsao},
-                                  {"BBHOST_MOTION_BLUR", kMotionBlur},
-                                  {"BBHOST_ANTI_ALIAS", kAntiAlias},
-                                  {"BBHOST_DEPTH_OF_FIELD", kDepthOfField},
-                                  {"BBHOST_CHROMATIC_ABERRATION", kChromaticAberration}}) {
+    // The post-processing switches, for A/B runs: HELIAS_SSAO=0 and friends.
+    for (const auto& [env, id] : {std::pair<const char*, int>{"HELIAS_SSAO", kSsao},
+                                  {"HELIAS_MOTION_BLUR", kMotionBlur},
+                                  {"HELIAS_ANTI_ALIAS", kAntiAlias},
+                                  {"HELIAS_DEPTH_OF_FIELD", kDepthOfField},
+                                  {"HELIAS_CHROMATIC_ABERRATION", kChromaticAberration}}) {
         if (const char* e = std::getenv(env); e && e[0]) {
             // {"On","Off"} first (anti_alias adds "Auto"): 0 off, a or A Auto, else on.
             g_set[id].index = e[0] == '0' ? 1 : (id == kAntiAlias && (e[0] == 'a' || e[0] == 'A')) ? 2 : 0;
         }
     }
-    if (const char* e = std::getenv("BBHOST_MOUSE_CAMERA"); e && e[0]) {
+    if (const char* e = std::getenv("HELIAS_MOUSE_CAMERA"); e && e[0]) {
         g_set[kMouseCamera].index = e[0] == '0' ? 0 : 1;
     }
-    if (const char* e = std::getenv("BBHOST_MOUSE_SENS"); e && e[0]) {
+    if (const char* e = std::getenv("HELIAS_MOUSE_SENS"); e && e[0]) {
         const int v = std::atoi(e);
         g_set[kMouseSens].index = v < 0 ? 0 : v > 10 ? 10 : v;
     }
-    if (const char* e = std::getenv("BBHOST_MOUSE_CURSOR"); e && e[0]) {
+    if (const char* e = std::getenv("HELIAS_MOUSE_CURSOR"); e && e[0]) {
         g_set[kDrawCursor].index = e[0] == '0' ? 1 : 0;
     }
     host_options_apply();
@@ -1547,7 +1547,7 @@ void host_options_set_open(bool open) {
 }
 
 bool host_options_key(int scancode, bool repeat) {
-#if defined(BBHOST_HAVE_SDL3)
+#if defined(HELIAS_HAVE_SDL3)
     // F10 always; the Menu key setting adds Insert, Home or F1.
     static constexpr int kMenuKeys[] = {SDL_SCANCODE_F10, SDL_SCANCODE_INSERT, SDL_SCANCODE_HOME, SDL_SCANCODE_F1};
     const int extra = kMenuKeys[std::clamp(g_set[kMenuKey].index, 0, 3)];
@@ -1680,15 +1680,15 @@ void host_options_frame(float display_w, float display_h) {
         g_dirty = true;
         save();
     }
-    // BBHOST_RES_PROMPT_TEST=<flip>:<entry>: the Resolution setting changed
+    // HELIAS_RES_PROMPT_TEST=<flip>:<entry>: the Resolution setting changed
     // to that entry at that flip, the way the menus change it (tests).
     static long test_flip = [] {
-        const char* e = std::getenv("BBHOST_RES_PROMPT_TEST");
+        const char* e = std::getenv("HELIAS_RES_PROMPT_TEST");
         return e && *e ? std::atol(e) : -1L;
     }();
     if (test_flip >= 0 && static_cast<long>(hle_video_flip_count()) >= test_flip) {
         test_flip = -1;
-        const char* e = std::strchr(std::getenv("BBHOST_RES_PROMPT_TEST"), ':');
+        const char* e = std::strchr(std::getenv("HELIAS_RES_PROMPT_TEST"), ':');
         if (e) host_opt_set_resolution_index(std::atoi(e + 1));
     }
     // The game's keep-or-revert dialog answered (engine/live_resolution.h).
@@ -2171,7 +2171,7 @@ void host_options_save_now() {
 
 bool host_steam_deck() {
     static const bool deck = [] {
-        if (const char* e = std::getenv("BBHOST_STEAM_DECK"); e && e[0]) return e[0] == '1';
+        if (const char* e = std::getenv("HELIAS_STEAM_DECK"); e && e[0]) return e[0] == '1';
         // The firmware's vendor and product: Valve's Jupiter (the LCD Deck) or
         // Galileo (the OLED one). Not any Valve machine - another has another
         // GPU, and these two configurations are this one's.

@@ -37,7 +37,7 @@
 //   stick, where DS3 does. No hooks.
 // - The game's update in place: hooks on its prologue, the free camera's
 //   store and the fast turn's two exits, as below.
-// - A compare run (BBHOST_DECOMP_COMPARE=1): the stand-in runs the game's
+// - A compare run (HELIAS_DECOMP_COMPARE=1): the stand-in runs the game's
 //   update and ours on the same input, so the game's gets the store hooks and
 //   the stand-in takes the counts for both (mouse_camera_compare_begin).
 //
@@ -107,7 +107,7 @@ const char* mode_name() {
 }
 
 const bool g_log = [] {
-    const char* e = std::getenv("BBHOST_MOUSE_CAMERA_LOG");
+    const char* e = std::getenv("HELIAS_MOUSE_CAMERA_LOG");
     return e && e[0] == '1';
 }();
 

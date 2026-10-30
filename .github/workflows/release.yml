@@ -11,7 +11,7 @@
 # Actions page builds the same files as artifacts of the run, no release.
 # The tag is annotated and its message holds the release notes:
 #   tools/tag_release.sh v0.2.17 notes.md && git push <remote> v0.2.17
-# (the message: "bbhost v0.2.17", a blank line, the notes verbatim).
+# (the message: "heliasdream v0.2.17", a blank line, the notes verbatim).
 # The release takes them, and the server's bot posts them to the Discord's
 # #releases channel (tools/announce_release.py). A tag without notes gets
 # GitHub's generated notes and no announcement.
@@ -23,13 +23,13 @@
 # cancels the run still going.
 #
 # The bare executables the publish job adds keep the same names in every
-# release - bbhost.exe and bbhost (Linux) - so a shortcut or a launcher entry
+# release - HeliasDream-engine.exe and heliasdream (Linux) - so a shortcut or a launcher entry
 # (a Steam non-Steam game) keeps working when one is replaced by the next.
 # SHA256SUMS lists them with the packages, signed with the release key
 # (SHA256SUMS.sig, made with the RELEASE_SIGNING_KEY secret; a tag without the
-# secret fails rather than publish unsigned). bbhost itself (src/host/updater.h)
+# secret fails rather than publish unsigned). heliasdream itself (src/host/updater.h)
 # only looks for a newer release and opens its page; older builds' updater
-# looked for bbhost-<version>-windows.exe, finds none, and says to get the
+# looked for heliasdream-<version>-windows.exe, finds none, and says to get the
 # release from its page. The same key signs the official
 # plugins each package carries (tools/package_plugins.sh: plugins/<name>.so|.dll
 # + .sig).
@@ -61,17 +61,20 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          submodules: recursive   # third_party/FSR-Vulkan (bbhost-vk)
+          submodules: recursive   # third_party/FSR-Vulkan (heliasdream-vk)
       - uses: actions/cache@v4
         with:
           path: build-ci/prefix
           key: deps-${{ runner.os }}-${{ hashFiles('tools/ci_build.sh') }}
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'   # the launcher (launcher/HeliasDream)
       - name: build
-        run: CI_PORTABLE=1 CI_CMAKE_ARGS="-DBBHOST_RELEASE=ON" tools/ci_build.sh
+        run: CI_PORTABLE=1 CI_CMAKE_ARGS="-DHELIAS_RELEASE=ON" tools/ci_build.sh
       - name: package
         env:
           RELEASE_SIGNING_KEY: ${{ github.event_name != 'pull_request' && secrets.RELEASE_SIGNING_KEY || '' }}
-        run: tools/package_linux.sh build-ci/build/bbhost build/linux
+        run: tools/package_linux.sh build-ci/build/heliasdream build/linux
       - uses: actions/upload-artifact@v4
         with:
           retention-days: ${{ github.event_name == 'pull_request' && 14 || 90 }}
@@ -94,17 +97,17 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          submodules: recursive   # third_party/FSR-Vulkan (bbhost-vk)
+          submodules: recursive   # third_party/FSR-Vulkan (heliasdream-vk)
       - name: git safe directory
         run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
       - uses: actions/cache@v4
         with:
           path: build/win-deps/prefix
           key: win-deps-${{ hashFiles('tools/win_deps.sh') }}
-      - name: build and package
+      - name: build and package   # the launcher's dotnet-sdk comes with CI_PACMAN
         env:
           RELEASE_SIGNING_KEY: ${{ github.event_name != 'pull_request' && secrets.RELEASE_SIGNING_KEY || '' }}
-        run: CI_PACMAN=1 CI_CMAKE_ARGS="-DBBHOST_RELEASE=ON" tools/ci_windows.sh
+        run: CI_PACMAN=1 CI_CMAKE_ARGS="-DHELIAS_RELEASE=ON" tools/ci_windows.sh
       - uses: actions/upload-artifact@v4
         with:
           retention-days: ${{ github.event_name == 'pull_request' && 14 || 90 }}
@@ -124,7 +127,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          submodules: recursive   # third_party/FSR-Vulkan (bbhost-vk)
+          submodules: recursive   # third_party/FSR-Vulkan (heliasdream-vk)
       - uses: actions/download-artifact@v4
         with:
           path: dist
@@ -134,28 +137,28 @@ jobs:
           mkdir -p dist/release dist/x
           cp dist/windows/* dist/linux/* dist/steamdeck/* dist/release/
           # The stripped executables out of the packages, named the same in every release.
-          w=$(ls dist/windows/bbhost-win-*.zip); v=$(basename "$w" .zip); v=${v#bbhost-win-}
-          unzip -q -j "$w" "bbhost-win-$v/bbhost.exe" -d dist/x
-          mv dist/x/bbhost.exe dist/release/bbhost.exe
-          # bbhost-vk: the Linux package is named by tools/package_linux.sh
+          w=$(ls dist/windows/helias-dream-windows-*.zip); wn=$(basename "$w" .zip)
+          unzip -q -j "$w" "$wn/HeliasDream-engine.exe" -d dist/x
+          mv dist/x/HeliasDream-engine.exe dist/release/HeliasDream-engine.exe
+          # heliasdream-vk: the Linux package is named by tools/package_linux.sh
           # (helias-dream-linux-<git describe>), not after the Windows zip's revision.
-          l=$(ls dist/linux/bbhost*-linux-*.tar.gz | head -1); ln=$(basename "$l" .tar.gz)
-          tar xzf "$l" -C dist/x "$ln/bbhost"
-          install -m 755 "dist/x/$ln/bbhost" dist/release/bbhost
+          l=$(ls dist/linux/heliasdream*-linux-*.tar.gz | head -1); ln=$(basename "$l" .tar.gz)
+          tar xzf "$l" -C dist/x "$ln/heliasdream"
+          install -m 755 "dist/x/$ln/heliasdream" dist/release/heliasdream
           # The official plugins, signed in the packages, as assets of their own:
           # the plugin manager's "Get the latest official plugins" fetches
-          # bbhost-plugin-<name>-windows.dll / -linux.so and their .sig.
-          unzip -q "$w" "bbhost-win-$v/plugins/*" -d dist/x
+          # heliasdream-plugin-<name>-windows.dll / -linux.so and their .sig.
+          unzip -q "$w" "$wn/plugins/*" -d dist/x
           tar xzf "$l" -C dist/x "$ln/plugins"
-          for f in dist/x/bbhost-win-$v/plugins/*.dll; do
+          for f in dist/x/$wn/plugins/*.dll; do
             [ -f "$f" ] || continue; n=$(basename "$f" .dll)
-            cp "$f" "dist/release/bbhost-plugin-$n-windows.dll"
-            [ -f "$f.sig" ] && cp "$f.sig" "dist/release/bbhost-plugin-$n-windows.dll.sig"
+            cp "$f" "dist/release/heliasdream-plugin-$n-windows.dll"
+            [ -f "$f.sig" ] && cp "$f.sig" "dist/release/heliasdream-plugin-$n-windows.dll.sig"
           done
           for f in dist/x/$ln/plugins/*.so; do
             [ -f "$f" ] || continue; n=$(basename "$f" .so)
-            cp "$f" "dist/release/bbhost-plugin-$n-linux.so"
-            [ -f "$f.sig" ] && cp "$f.sig" "dist/release/bbhost-plugin-$n-linux.so.sig"
+            cp "$f" "dist/release/heliasdream-plugin-$n-linux.so"
+            [ -f "$f.sig" ] && cp "$f.sig" "dist/release/heliasdream-plugin-$n-linux.so.sig"
           done
           (cd dist/release && sha256sum * > SHA256SUMS)
           ls -la dist/release
@@ -209,11 +212,11 @@ jobs:
           git fetch --force origin "refs/tags/$GITHUB_REF_NAME:refs/tags/$GITHUB_REF_NAME"
           git tag -l --format='%(contents:body)' "$GITHUB_REF_NAME" > "$RUNNER_TEMP/notes.md"
           if grep -q '[^[:space:]]' "$RUNNER_TEMP/notes.md"; then
-            gh release create "$GITHUB_REF_NAME" dist/release/* --title "bbhost $GITHUB_REF_NAME" --notes-file "$RUNNER_TEMP/notes.md"
+            gh release create "$GITHUB_REF_NAME" dist/release/* --title "heliasdream $GITHUB_REF_NAME" --notes-file "$RUNNER_TEMP/notes.md"
             echo "announce=1" >> "$GITHUB_OUTPUT"
           else
             echo "the tag carries no notes: generated notes, and no Discord announcement (Actions > announce release, once the notes are written)"
-            gh release create "$GITHUB_REF_NAME" dist/release/* --title "bbhost $GITHUB_REF_NAME" --generate-notes
+            gh release create "$GITHUB_REF_NAME" dist/release/* --title "heliasdream $GITHUB_REF_NAME" --generate-notes
           fi
       # A release created with the workflow's token starts no other workflow
       # (GitHub's rule), so the announcement is made here; announce-release.yml

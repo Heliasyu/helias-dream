@@ -29,7 +29,7 @@ std::string translation_switches() {
     };
     std::string s = std::string("offsets=") + (runtime_sample_offsets() ? "1" : "0") + ";half_rtz=" + (native_half_rtz() ? "1" : "0") +
                     ";export_rtz=" + (export_rtz_on() ? "1" : "0") + ";legacy_mul=" + (legacy_mul_min_form() ? "min" : "select") + ";";
-    for (const char* name : {"BBHOST_DST_SEL_BRANCH", "BBHOST_LOOP_BLOCKS", "BBHOST_LOOP_REACH", "BBHOST_SPILL_CELLS"}) s += env(name);
+    for (const char* name : {"HELIAS_DST_SEL_BRANCH", "HELIAS_LOOP_BLOCKS", "HELIAS_LOOP_REACH", "HELIAS_SPILL_CELLS"}) s += env(name);
     return s;
 }
 
@@ -522,7 +522,7 @@ struct Translator {
     // The value itself (gcn/wave.h, spill cells): a v_readlane_b32 that only
     // the v_writelane_b32s of its (VGPR, lane) can reach since the last other
     // write to the VGPR reads the scalar they stored, not another invocation
-    // - which holds it only where lane L has a pixel. BBHOST_SPILL_CELLS=0:
+    // - which holds it only where lane L has a pixel. HELIAS_SPILL_CELLS=0:
     // every read is a shuffle, as before.
     SpillCells spill;
     std::map<std::pair<int, int>, Id> cell_vars;
@@ -1185,7 +1185,7 @@ struct Translator {
         // zero. Written as DXVK writes D3D9's (min(|a|, |b|) == 0 ? 0 : a * b),
         // which Mesa recognises as one v_mul_legacy_f32; two compares, an or
         // and a select before. NMin, so a NaN beside a zero still gives zero
-        // (FMin may answer the NaN, as NVIDIA's did). BBHOST_LEGACY_MUL=select:
+        // (FMin may answer the NaN, as NVIDIA's did). HELIAS_LEGACY_MUL=select:
         // the old form.
         if (legacy_mul_min_form()) return fsel(feq(fmin_(fabs_(a), fabs_(b)), cf(0.0f)), cf(0.0f), fmul(a, b));
         const Id zero = bor(feq(a, cf(0.0f)), feq(b, cf(0.0f)));
@@ -2357,10 +2357,10 @@ struct Translator {
     // data - selects X, Y, Z, W: the components go as loaded, and the selects
     // that apply another order run only when it is another (a branch on word
     // 3, which is uniform). They were most of the hot vertex shaders' VALU
-    // (~120 of 348 in 9da6aacb). BBHOST_DST_SEL_BRANCH=0: the selects always.
+    // (~120 of 348 in 9da6aacb). HELIAS_DST_SEL_BRANCH=0: the selects always.
     void write_swizzled(int vdata, int n, const std::vector<Id>& comps, Id w3, Id integer_fmt) {
         static const bool branch = [] {
-            const char* e = std::getenv("BBHOST_DST_SEL_BRANCH");
+            const char* e = std::getenv("HELIAS_DST_SEL_BRANCH");
             return !(e && e[0] == '0');
         }();
         if (!branch) {
@@ -2415,9 +2415,9 @@ struct Translator {
         // rc4: an SGPR offset (16e3fa9f's kind) is added at run time, the
         // walk kept for an offset off a dword or past the binding (read_bound).
         // Not with cb_no_fallback, which has no walk to fall back on.
-        // BBHOST_SOFFSET_BOUND=0: rejected, as before.
+        // HELIAS_SOFFSET_BOUND=0: rejected, as before.
         static const bool soffset_bound_on = [] {
-            const char* e = std::getenv("BBHOST_SOFFSET_BOUND");
+            const char* e = std::getenv("HELIAS_SOFFSET_BOUND");
             return !(e && e[0] == '0');
         }();
         const bool reg_soffset = in.soffset < 104;
@@ -3244,7 +3244,7 @@ struct Translator {
                     // corner with w at or below zero and the clipper stretches
                     // what is left across the frame. The game's own domain
                     // shader fades those out; until that is understood, drop
-                    // the vertex (BBHOST_TESS_NEAR_CULL=0 keeps it).
+                    // the vertex (HELIAS_TESS_NEAR_CULL=0 keeps it).
                     Id bad = m.emit(spv::OpIsNan, t_bool, {comps[0]});
                     if (v_patch_culled) bad = m.emit(spv::OpLogicalOr, t_bool, {bad, m.load(t_bool, v_patch_culled)});
                     if (opt.tess_near_cull > 0.0f) {
@@ -3915,9 +3915,9 @@ struct Translator {
         // the main program's loads use and every bound load was excluded
         // ("registers redefined, dispatcher order"). The swappc still writes
         // its return address into its destination pair, as the call did.
-        // BBHOST_FETCH_INLINE=0: the dispatcher, as before.
+        // HELIAS_FETCH_INLINE=0: the dispatcher, as before.
         static const bool fetch_inline_on = [] {
-            const char* e = std::getenv("BBHOST_FETCH_INLINE");
+            const char* e = std::getenv("HELIAS_FETCH_INLINE");
             return !(e && e[0] == '0');
         }();
         const auto inline_fetch_ok = [&]() -> bool {
@@ -4116,10 +4116,10 @@ struct Translator {
             return target <= in.offset;
         });
     }
-    // BBHOST_LOOP_BLOCKS=0: programs with loops take the dispatcher, as before.
+    // HELIAS_LOOP_BLOCKS=0: programs with loops take the dispatcher, as before.
     static bool loop_blocks_enabled() {
         static const bool on = [] {
-            const char* e = std::getenv("BBHOST_LOOP_BLOCKS");
+            const char* e = std::getenv("HELIAS_LOOP_BLOCKS");
             return !(e && e[0] == '0');
         }();
         return on;
@@ -4314,10 +4314,10 @@ TranslateResult translate(const Program& program, const TranslateOptions& option
     // order visits predecessors first; with loops the backward edges carry a
     // loop's definitions to its head, so the passes repeat until nothing is
     // added. A block's own instructions run in emission order either way.
-    // BBHOST_LOOP_REACH=0: in programs with loops every definition must be the
+    // HELIAS_LOOP_REACH=0: in programs with loops every definition must be the
     // V#'s, as before.
     static const bool loop_reach = [] {
-        const char* e = std::getenv("BBHOST_LOOP_REACH");
+        const char* e = std::getenv("HELIAS_LOOP_REACH");
         return !(e && e[0] == '0');
     }();
     const bool reach = t.dag && (!t.dag_loop || loop_reach);

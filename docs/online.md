@@ -3,16 +3,16 @@
 Bloodborne's online features - co-op, invasions, summon signs, messages,
 bloodstains, the play log behind ghosts - are built on the PS4's
 PlayStation Network libraries (NP Matching2, Signaling, WebAPI, Auth) and
-FromSoftware's own servers. bbhost implements those libraries against a
-private server, so the game's online code runs unchanged and bbhost players
+FromSoftware's own servers. Helia's Dream implements those libraries against a
+private server, so the game's online code runs unchanged and Helia's Dream players
 can play with each other.
 
-PS4 cross-play is not a goal: bbhost players meet only other bbhost players.
+PS4 cross-play is not a goal: Helia's Dream players meet only other Helia's Dream players.
 
 ## Connecting
 
 The setup window chooses the server (the public one, a playtest server, or
-your own) and links an account. In `bbhost.toml`, the public server's
+your own) and links an account. In `heliasdream.toml`, the public server's
 settings, which are the defaults:
 
 ```toml
@@ -24,7 +24,7 @@ require_account = true         # stay offline until this PC is signed in
 auth_server = "https://thehuntersdream.com"   # where the account calls go
 ```
 
-A configuration written by an older bbhost that still sends the public server
+A configuration written by an older Helia's Dream that still sends the public server
 plain http is updated to these settings at the next start.
 
 Accounts have no passwords: a PC is linked to an account (with Discord, or
@@ -35,7 +35,7 @@ is the in-game online name. F10 has the same account screen in game.
 
 - **Matchmaking**: the game's Matching2 calls (create, search and join
   rooms, member events) go to the server's session service. The game's own
-  rules decide who can be summoned or invade; bbhost only carries them.
+  rules decide who can be summoned or invade; Helia's Dream only carries them.
 - **Peer to peer**: players exchange game traffic over UDP directly, as on
   the console. Each instance has its own P2P port (`online.p2p_port`, default
   9307; a second instance on one machine takes the next free one).

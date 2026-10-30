@@ -212,7 +212,7 @@ void register_named_thread(const char* name) {
 
 void host_thread_fit_name(const char* name, char (&out)[16]) {
     // Linux keeps 15 characters and refuses a longer name outright, so the
-    // game's "Core.Res.PostProcessor_0" stayed "bbhost" in /proc, the frame
+    // game's "Core.Res.PostProcessor_0" stayed "heliasdream" in /proc, the frame
     // statistics and the sampler. Leading dotted parts go first
     // ("PostProcessor_0"), then the tail.
     const char* fit = name ? name : "";
@@ -307,7 +307,7 @@ bool host_desktop_max_size(int* w, int* h) {
     *h = bh;
     return true;
 #else
-    // bbhost-vk: each connected, enabled DRM connector's modes in sysfs
+    // heliasdream-vk: each connected, enabled DRM connector's modes in sysfs
     // (/sys/class/drm/card<N>-<connector>/modes, "<w>x<h>" a line, physical
     // pixels whatever the desktop's scaling), the largest of them. Before the
     // window exists, so not SDL's. Without it a Linux start fell back to the

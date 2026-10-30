@@ -117,12 +117,12 @@ void panic_backtrace(std::uint64_t rsp, std::uint64_t rbp) {
 
 GUEST_ABI void hle_dl_panic(const char* file, int line, const char* msg, std::uint64_t rsp,
                             std::uint64_t rbp) {
-    // BBHOST_PANIC_CONTINUE=1 returns instead of aborting, so one panic in a
+    // HELIAS_PANIC_CONTINUE=1 returns instead of aborting, so one panic in a
     // path the port does not need yet does not end the run, and a session can
     // collect every site it reaches. The guest carries on with whatever state
     // tripped the assert, so it is a diagnostic switch, not a fix.
     static const bool keep_going = [] {
-        const char* e = std::getenv("BBHOST_PANIC_CONTINUE");
+        const char* e = std::getenv("HELIAS_PANIC_CONTINUE");
         return e && e[0] == '1';
     }();
     static std::atomic<int> logged{0};
@@ -260,12 +260,12 @@ void hle_guest_pool_report() {
     // An entry nobody points at any more was taken and then dropped - the
     // frame loop will spin for it forever. Hand those back (the flag the pool
     // reads is one dword an entry), which turns the freeze into a hitch.
-    // BBHOST_POOL_RECOVER=0 leaves them lost.
+    // HELIAS_POOL_RECOVER=0 leaves them lost.
     // Off by default: handing an entry back buys the frame loop exactly one
     // flip before the next one is lost, so it is a way to watch the leak, not
     // a way out of it.
     static const bool recover = [] {
-        const char* e = std::getenv("BBHOST_POOL_RECOVER");
+        const char* e = std::getenv("HELIAS_POOL_RECOVER");
         return e && e[0] == '1';
     }();
     if (free_now == 0 && count > 0 && count <= 16 && objects && flags &&
@@ -379,17 +379,17 @@ void hle_patch_guest(ElfImage* image) {
     yebis_install(image);
     // The frame loop's pooled object, borrowed and given back as our source:
     // the game's own keeps the entry on a shared context and loses it
-    // (engine/frame_pool.h). BBHOST_POOL_FIX=0 keeps the game's.
+    // (engine/frame_pool.h). HELIAS_POOL_FIX=0 keeps the game's.
     frame_pool_install(image);
     graphics_patch_install(image);
     // The co-op invite as a type-1 item for the game's own summon manager
     // (engine/summon_invite.h): off, the game's own invite is used;
-    // BBHOST_SUMMON_INVITE=1 brings ours back for experiments.
+    // HELIAS_SUMMON_INVITE=1 brings ours back for experiments.
     summon_invite_install(image);
     np_test_install(image);
     gx_resources_install(image);
     // GX's blend, depth-stencil and rasterizer states as host objects
-    // (engine/gx_state.h). BBHOST_GX_STATE=0 leaves them out, =2 compares.
+    // (engine/gx_state.h). HELIAS_GX_STATE=0 leaves them out, =2 compares.
     gx_state_install(image);
     params_install(image);
     lua_events_install(image);
@@ -415,8 +415,8 @@ void hle_patch_guest(ElfImage* image) {
     // The command-arena acquire (guest 0x2ad3b80) becomes hle_gx_arena_acquire
     // (gnm_exec.cpp): the same scan, but when no chunk is free it waits for the
     // GPU to free one instead of failing, since the refill that crashes at
-    // 0x2ab0a98 cannot handle a failure. BBHOST_ARENA_WAIT=0 keeps the original.
-    if (const char* e = std::getenv("BBHOST_ARENA_WAIT"); !(e && e[0] == '0')) {
+    // 0x2ab0a98 cannot handle a failure. HELIAS_ARENA_WAIT=0 keeps the original.
+    if (const char* e = std::getenv("HELIAS_ARENA_WAIT"); !(e && e[0] == '0')) {
         constexpr std::uint64_t kArenaAcquire = 0x2ad3b80;  // guest VA
         constexpr std::uint8_t kPrologue[] = {0x55, 0x48, 0x89, 0xe5, 0x41, 0x57, 0x41, 0x56, 0x41, 0x55, 0x41, 0x54, 0x53};
         const std::uint64_t at = image->mem.slide + (kArenaAcquire - kPreferredGuestSlide);
@@ -439,13 +439,13 @@ void hle_patch_guest(ElfImage* image) {
         }
     }
 
-    // BBHOST_BP_TESS=1: int3 at the Scaleform shape tessellator (guest VA
+    // HELIAS_BP_TESS=1: int3 at the Scaleform shape tessellator (guest VA
     // 0x4b71b0) so we can read arg3, the mesh packing Matrix2x4.
-    if (const char* e = std::getenv("BBHOST_BP_TESS"); e && e[0] == '1') {
-        // BBHOST_BP_ELF=<hex> retargets the breakpoint (default: the tessellator
+    if (const char* e = std::getenv("HELIAS_BP_TESS"); e && e[0] == '1') {
+        // HELIAS_BP_ELF=<hex> retargets the breakpoint (default: the tessellator
         // at guest 0x4b71b0). 0xb7ab0 is its caller sub_4b7ab0.
         std::uint64_t elf_off = 0xb71b0;
-        if (const char* a = std::getenv("BBHOST_BP_ELF"); a && *a) {
+        if (const char* a = std::getenv("HELIAS_BP_ELF"); a && *a) {
             elf_off = std::strtoull(a, nullptr, 16);
         }
         hle_bp_arm(image->mem.slide + elf_off);

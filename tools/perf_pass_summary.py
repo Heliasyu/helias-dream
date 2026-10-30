@@ -18,7 +18,7 @@ def main():
         args = [a for a in args if a != sys.argv[sys.argv.index('--after') + 1]]
     log_path, mon_path = args[0], args[1]
     lines = open(log_path, encoding='utf-8', errors='replace').read().split('\n')
-    version = next((l for l in lines[:4] if 'bbhost v' in l), '?').replace('[bbhost] ', '')
+    version = next((l for l in lines[:4] if 'heliasdream v' in l), '?').replace('[heliasdream] ', '')
     world_s = None
     for l in lines:
         m = re.search(r'world: the first in-game frame, flip \d+, ([0-9.]+) s after start', l)
@@ -45,7 +45,7 @@ def main():
     for l in lines:
         if 'world: the first in-game frame' in l:
             seen_world = True
-        if seen_world and l.startswith('[bbhost] frames:'):
+        if seen_world and l.startswith('[heliasdream] frames:'):
             m = re.search(r'\(([0-9.]+)/s\)', l)
             if m:
                 fps.append(float(m.group(1)))
@@ -70,10 +70,10 @@ def main():
         print('  fps mean %.2f, min %.1f, seconds under 58: %d of %d' % (statistics.mean(fps), min(fps),
                                                                         sum(1 for f in fps if f < 58), len(fps)))
     if busy:
-        # bbhost's own GPU busy (the union of its command buffers on the GPU's
+        # heliasdream's own GPU busy (the union of its command buffers on the GPU's
         # clock): the per-process 3D column above stays at 0 on AMD's driver.
         b = sorted(busy)
-        print('  gpu busy (bbhost\'s timestamps) mean %.0f ms/s (%.1f%%), p95 %.0f, max %.0f; %.2f ms a flip'
+        print('  gpu busy (heliasdream\'s timestamps) mean %.0f ms/s (%.1f%%), p95 %.0f, max %.0f; %.2f ms a flip'
               % (statistics.mean(b), statistics.mean(b) / 10.0, b[min(len(b) - 1, int(0.95 * len(b)))], b[-1],
                  statistics.mean(b) / statistics.mean(fps) if fps and statistics.mean(fps) > 0 else 0.0))
     for key in ('gpu: memory by heap', 'gpu: memory by site', 'image heap:', 'gpu profile', 'gpu: frame', 'gpu busy:'):

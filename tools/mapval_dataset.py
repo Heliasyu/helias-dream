@@ -239,7 +239,7 @@ class Probe:
 _OFFSETS = {}
 
 
-def block_offset(name, app0=os.environ.get('BBHOST_APP0', '')):
+def block_offset(name, app0=os.environ.get('HELIAS_APP0', '')):
     """The block's MSB MapOffset (tools/msb.py), [0, 0, 0] without one."""
     if name not in _OFFSETS:
         sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -546,7 +546,7 @@ def offset_check(path, tools):
     part (map pieces, objects, enemies, player starts), both ways."""
     sys.path.insert(0, tools)
     import msb as msbmod
-    app0 = os.environ.get('BBHOST_APP0', '')
+    app0 = os.environ.get('HELIAS_APP0', '')
     here = os.path.dirname(os.path.dirname(os.path.abspath(path)))
     sys.path.insert(0, here)
     try:

@@ -24,7 +24,7 @@
 #include "host/options.h"
 #include "host/upscaler.h"
 #include "host/updater.h"
-#if defined(BBHOST_HAVE_SDL3)
+#if defined(HELIAS_HAVE_SDL3)
 #include "host/launcher.h"
 #include "host/plugin_ui.h"
 #endif
@@ -40,7 +40,7 @@
 #include "host/window.h"
 #include "log.h"
 
-#include "bbhost_version.h"
+#include "heliasdream_version.h"
 
 #include <algorithm>
 #include <atomic>
@@ -113,18 +113,18 @@ void run_guest_start(GuestStart fn, void* argv, bool windowed) {
     static GuestLaunch gl;
     gl = GuestLaunch{fn, argv};
     static const std::uint64_t exit_flip = [] {
-        const char* e = std::getenv("BBHOST_EXIT_FLIP");
+        const char* e = std::getenv("HELIAS_EXIT_FLIP");
         return e ? std::strtoull(e, nullptr, 10) : 0ull;
     }();
-    // BBHOST_EXIT_SECONDS=N: as BBHOST_EXIT_FLIP, after N seconds of the run
+    // HELIAS_EXIT_SECONDS=N: as HELIAS_EXIT_FLIP, after N seconds of the run
     // (an uncapped benchmark's flips come at any rate).
     static const double exit_seconds = [] {
-        const char* e = std::getenv("BBHOST_EXIT_SECONDS");
+        const char* e = std::getenv("HELIAS_EXIT_SECONDS");
         return e ? std::strtod(e, nullptr) : 0.0;
     }();
     static const auto run_start = std::chrono::steady_clock::now();
     static const std::uint64_t fault_flip = [] {
-        const char* e = std::getenv("BBHOST_FAULT_AT_FLIP");
+        const char* e = std::getenv("HELIAS_FAULT_AT_FLIP");
         return e ? std::strtoull(e, nullptr, 10) : 0ull;
     }();
     auto pump_until_done = [&](auto is_done) {
@@ -140,17 +140,17 @@ void run_guest_start(GuestStart fn, void* argv, bool windowed) {
                 _exit(0);
             }
             if (fault_flip && hle_video_flip_count() >= fault_flip) {
-                // BBHOST_FAULT_AT_FLIP: a deliberate null write on this thread,
+                // HELIAS_FAULT_AT_FLIP: a deliberate null write on this thread,
                 // to see the crash report and the exit code (Windows: the
-                // vectored handler, the filter, exit 139). BBHOST_FAULT_KIND=
+                // vectored handler, the filter, exit 139). HELIAS_FAULT_KIND=
                 // abort, terminate (an exception nothing catches) or invalid (a
                 // C runtime call given a null stream) instead: the ends that
                 // bypass those handlers (Windows: win_crash's, exit 134).
-                static const char* const kind = std::getenv("BBHOST_FAULT_KIND");
-                host_log("fault: %s at flip %llu (BBHOST_FAULT_AT_FLIP)", kind ? kind : "writing to address 0",
+                static const char* const kind = std::getenv("HELIAS_FAULT_KIND");
+                host_log("fault: %s at flip %llu (HELIAS_FAULT_AT_FLIP)", kind ? kind : "writing to address 0",
                          static_cast<unsigned long long>(fault_flip));
                 if (kind && !std::strcmp(kind, "abort")) std::abort();
-                if (kind && !std::strcmp(kind, "terminate")) std::thread([] { throw std::runtime_error("BBHOST_FAULT_KIND=terminate"); }).join();
+                if (kind && !std::strcmp(kind, "terminate")) std::thread([] { throw std::runtime_error("HELIAS_FAULT_KIND=terminate"); }).join();
                 if (kind && !std::strcmp(kind, "invalid")) std::fclose(static_cast<FILE*>(nullptr));
                 *static_cast<volatile int*>(nullptr) = 1;
             }
@@ -159,7 +159,7 @@ void run_guest_start(GuestStart fn, void* argv, bool windowed) {
                 // The guest keeps running while this prints; the window is
                 // not stopped (that waits for the GPU lock the command
                 // processor may hold), the process just ends.
-                host_log("exit: flip %llu reached (BBHOST_EXIT_FLIP)", static_cast<unsigned long long>(exit_flip));
+                host_log("exit: flip %llu reached (HELIAS_EXIT_FLIP)", static_cast<unsigned long long>(exit_flip));
                 exit_reports();
                 // The cache save takes the GPU lock, which the command
                 // processor (still running) may hold for good: a helper
@@ -279,39 +279,39 @@ void log_cpu() {
 
 // The reports a run prints when it is ended from outside: SIGTERM from
 // `timeout` on Linux, the console's close/Ctrl-C on Windows, and the flip
-// BBHOST_EXIT_FLIP names on both (the run ends itself, with the reports, on
+// HELIAS_EXIT_FLIP names on both (the run ends itself, with the reports, on
 // a platform where the outside signal cannot reach it: `timeout` under wine).
 // The GPU device was lost (gpu.cpp device_lost_locked): the game would go on
 // - its logic and its sound need no GPU - behind a window nothing draws to
 // again, which Windows paints white. The sound stops, the player is told why
-// (and about the hooks that commonly cause it), and bbhost ends with exit
+// (and about the hooks that commonly cause it), and heliasdream ends with exit
 // code 3 once no save is being written.
 void device_lost_exit(bool windowed) {
-    host_log("exit: the GPU device is lost; bbhost ends (exit code 3)");
+    host_log("exit: the GPU device is lost; heliasdream ends (exit code 3)");
     host_audio_pause_all();
-    // A shorter wait for the box under BBHOST_TEST_DEVICE_LOST, which harnesses
+    // A shorter wait for the box under HELIAS_TEST_DEVICE_LOST, which harnesses
     // set with nobody there to close it.
-    const bool test = std::getenv("BBHOST_TEST_DEVICE_LOST") != nullptr;
+    const bool test = std::getenv("HELIAS_TEST_DEVICE_LOST") != nullptr;
     if (windowed) {
         std::string text =
             "The graphics card stopped responding and the system reset it, so the game cannot draw anything more and "
-            "bbhost has to close.\n\n";
+            "Helia's Dream has to close.\n\n";
         if (host_foreign_hooks_obs()) {
-            text += "OBS's game capture is hooked into bbhost (graphics-hook64.dll), a common cause of this. Try again with "
-                    "obs_capture = \"off\" under [video] in bbhost.toml (OBS's Window Capture still records bbhost), or set "
+            text += "OBS's game capture is hooked into heliasdream (graphics-hook64.dll), a common cause of this. Try again with "
+                    "obs_capture = \"off\" under [video] in HeliasDream.toml (OBS's Window Capture still records heliasdream), or set "
                     "DISABLE_VULKAN_OBS_CAPTURE=1 before starting it.\n\n";
         } else if (const std::string hooks = host_foreign_hooks(); !hooks.empty()) {
-            text += "Hooked into bbhost: " + hooks + ". Overlays like these can cause this; try again without them.\n\n";
+            text += "Hooked into heliasdream: " + hooks + ". Overlays like these can cause this; try again without them.\n\n";
         }
         text += "The next starts record where the GPU was, so if it happens again the log says more. Please send the log "
-                "(run-bbhost.bat writes it to the logs folder).";
+                "(the launcher and run-engine.bat write it to the logs folder).";
         // The box on a thread of its own: the exit goes on after a while even
         // if nobody closes it.
         static std::atomic<bool> closed{false};
         static std::string box;
         box = text;
         std::thread([] {
-            host_window_error_box("bbhost: the graphics card stopped responding", box.c_str());
+            host_window_error_box("Helia's Dream: the graphics card stopped responding", box.c_str());
             closed.store(true);
         }).detach();
         const int ticks = test ? 30 : 1200;  // 3 s / 2 min
@@ -376,7 +376,7 @@ BOOL WINAPI on_console_ctrl(DWORD) {
 
 #if !defined(_WIN32)
 
-// --- debug soft-watchpoint (BBHOST_WATCH_FILL) ---------------------------
+// --- debug soft-watchpoint (HELIAS_WATCH_FILL) ---------------------------
 namespace {
 std::atomic<std::uint64_t> g_wp_page{0}, g_wp_lo{0}, g_wp_hi{0};
 std::atomic<bool> g_wp_armed{false};
@@ -576,7 +576,7 @@ void on_segv(int sig, siginfo_t* info, void* ctx) {
                     g_wp_ring[i].r13 = r13;
                     g_wp_ring[i].r12 = r12;
                     // r13 was a source pointer only for the write this watch was
-                    // built for (BBHOST_WATCH_FILL); nothing is dereferenced here -
+                    // built for (HELIAS_WATCH_FILL); nothing is dereferenced here -
                     // this runs with the guest's FS, so no libc either - and a
                     // memcpy's source and destination are kept as rsi and rdi.
                     g_wp_ring[i].src_val = 0;
@@ -711,7 +711,7 @@ void on_segv(int sig, siginfo_t* info, void* ctx) {
             if (!m.found) return false;
             Dl_info info{};
             const bool named = dladdr(reinterpret_cast<void*>(static_cast<std::uintptr_t>(a)), &info) && info.dli_sname;
-            host_log("  %s %llx: %s+0x%llx%s%s", what, static_cast<unsigned long long>(a), m.name && m.name[0] ? m.name : "bbhost",
+            host_log("  %s %llx: %s+0x%llx%s%s", what, static_cast<unsigned long long>(a), m.name && m.name[0] ? m.name : "heliasdream",
                      static_cast<unsigned long long>(a - m.base), named ? " " : "", named ? info.dli_sname : "");
             return true;
         };
@@ -844,11 +844,43 @@ void hle_watch_arm_reads(std::uint64_t lo, std::uint64_t hi) {
 void hle_watch_report() {}
 #endif
 
+#if !defined(_WIN32)
+extern "C" char** environ;
+#endif
+
+namespace {
+// Settings from before the rename: each BBHOST_X the environment carries
+// becomes HELIAS_X, unless that is set too.
+void adopt_old_env() {
+#if defined(_WIN32)
+    char** env = _environ;
+#else
+    char** env = environ;
+#endif
+    std::vector<std::pair<std::string, std::string>> found;
+    for (char** e = env; e && *e; ++e) {
+        const char* s = *e;
+        const char* eq = std::strchr(s, '=');
+        if (std::strncmp(s, "BBHOST_", 7) != 0 || !eq) continue;
+        std::string name = "HELIAS_" + std::string(s + 7, eq);
+        if (!std::getenv(name.c_str())) found.emplace_back(std::move(name), eq + 1);
+    }
+    for (const auto& [k, v] : found) {
+#if defined(_WIN32)
+        _putenv_s(k.c_str(), v.c_str());
+#else
+        setenv(k.c_str(), v.c_str(), 0);
+#endif
+    }
+}
+}  // namespace
+
 int main(int argc, char** argv) {
+    adopt_old_env();
     // --version: the build's name and revision on stdout, nothing else started
     // (the launcher reads it to tell an update apart).
     if (argc == 2 && std::strcmp(argv[1], "--version") == 0) {
-        std::printf("%s %s\n", BBHOST_VERSION, BBHOST_GIT_REV);
+        std::printf("%s %s\n", HELIAS_VERSION, HELIAS_GIT_REV);
         return 0;
     }
     // --menu-strings: the F10 menu's strings, one a line, for its translations (tools/menu_i18n.tsv).
@@ -866,7 +898,7 @@ int main(int argc, char** argv) {
     write_watch_install();               // the vectored handler for write-protected texture memory
     win_crash_install();                 // the crash report, behind it
     SetConsoleCtrlHandler(on_console_ctrl, TRUE);
-    host_log("bbhost %s (%s, Windows x86-64)", BBHOST_VERSION, BBHOST_GIT_REV);
+    host_log("heliasdream %s (%s, Windows x86-64)", HELIAS_VERSION, HELIAS_GIT_REV);
     log_cpu();
     {
         // The machine's memory, for reports from other machines: the GPU
@@ -884,37 +916,37 @@ int main(int argc, char** argv) {
     {
         // The process's standing with Windows' schedulers, left as Windows
         // makes it unless asked.
-        // BBHOST_PRIORITY_CLASS=above|high|normal: the priority class - shadPS4
-        // sets above normal for itself at start, bbhost leaves normal.
-        // BBHOST_POWER_THROTTLING=0: out of Windows' execution-speed throttling
+        // HELIAS_PRIORITY_CLASS=above|high|normal: the priority class - shadPS4
+        // sets above normal for itself at start, heliasdream leaves normal.
+        // HELIAS_POWER_THROTTLING=0: out of Windows' execution-speed throttling
         // (EcoQoS), which its power policy may put on a process it takes for
         // background work - a headless run has no window; =1 into it.
-        const char* pc = std::getenv("BBHOST_PRIORITY_CLASS");
+        const char* pc = std::getenv("HELIAS_PRIORITY_CLASS");
         if (pc && *pc) {
             const std::string v = pc;
             const DWORD cls = v == "above" ? ABOVE_NORMAL_PRIORITY_CLASS : v == "high" ? HIGH_PRIORITY_CLASS : v == "normal" ? NORMAL_PRIORITY_CLASS : 0;
             if (!cls) {
-                host_log("process: BBHOST_PRIORITY_CLASS=%s is not above, high or normal; ignored", pc);
+                host_log("process: HELIAS_PRIORITY_CLASS=%s is not above, high or normal; ignored", pc);
             } else if (SetPriorityClass(GetCurrentProcess(), cls)) {
-                host_log("process: priority class %s (BBHOST_PRIORITY_CLASS)", pc);
+                host_log("process: priority class %s (HELIAS_PRIORITY_CLASS)", pc);
             } else {
                 host_log("process: priority class %s refused: error %lu", pc, GetLastError());
             }
         }
-        const char* pt = std::getenv("BBHOST_POWER_THROTTLING");
+        const char* pt = std::getenv("HELIAS_POWER_THROTTLING");
         if (pt && (pt[0] == '0' || pt[0] == '1')) {
             PROCESS_POWER_THROTTLING_STATE st{};
             st.Version = PROCESS_POWER_THROTTLING_CURRENT_VERSION;
             st.ControlMask = PROCESS_POWER_THROTTLING_EXECUTION_SPEED;
             st.StateMask = pt[0] == '1' ? PROCESS_POWER_THROTTLING_EXECUTION_SPEED : 0;
             const bool ok = SetProcessInformation(GetCurrentProcess(), ProcessPowerThrottling, &st, sizeof(st));
-            host_log("process: execution-speed throttling %s (BBHOST_POWER_THROTTLING=%c)%s", pt[0] == '1' ? "on" : "off", pt[0],
+            host_log("process: execution-speed throttling %s (HELIAS_POWER_THROTTLING=%c)%s", pt[0] == '1' ? "on" : "off", pt[0],
                      ok ? "" : ", refused");
         }
     }
 #else
     host_log_start();  // rc6: the writer thread (core/log_async.cpp)
-    host_log("bbhost %s (%s, Linux x86-64)", BBHOST_VERSION, BBHOST_GIT_REV);
+    host_log("heliasdream %s (%s, Linux x86-64)", HELIAS_VERSION, HELIAS_GIT_REV);
     log_cpu();
     pgo_dump_start();  // the PGO-instrumented build only (host/pgo_dump.h)
     std::signal(SIGTERM, on_term);
@@ -940,11 +972,11 @@ int main(int argc, char** argv) {
     }
 #endif
     {
-        // --stream-selftest[=N] / BBHOST_STREAM_SELFTEST=N: the command
+        // --stream-selftest[=N] / HELIAS_STREAM_SELFTEST=N: the command
         // stream's self-test (host/stream_selftest.cpp), headless, before
         // any configuration or anything of the game; the exit code says.
         int rounds = 0;
-        if (const char* e = std::getenv("BBHOST_STREAM_SELFTEST"); e && *e && *e != '0') rounds = std::max(1, std::atoi(e));
+        if (const char* e = std::getenv("HELIAS_STREAM_SELFTEST"); e && *e && *e != '0') rounds = std::max(1, std::atoi(e));
         for (int i = 1; i < argc; ++i) {
             if (std::strncmp(argv[i], "--stream-selftest", 17) == 0 && (argv[i][17] == 0 || argv[i][17] == '=')) {
                 rounds = argv[i][17] == '=' ? std::max(1, std::atoi(argv[i] + 18)) : 16;
@@ -961,13 +993,13 @@ int main(int argc, char** argv) {
     std::string err;
     if (!config_load(argc, argv, &cfg, &err)) {
         host_log("%s", err.c_str());
-        host_log("usage: %s [--config bbhost.toml] [--app0 DIR] [--data DIR] [--eboot FILE]"
+        host_log("usage: %s [--config HeliasDream.toml] [--app0 DIR] [--data DIR] [--eboot FILE]"
                  " [--write-config PATH] [--headless] [--setup] [eboot]",
                  argv[0]);
         host_log("docs/running.md: where the configuration is looked for and what to put in it");
         return 2;
     }
-#if defined(BBHOST_HAVE_SDL3)
+#if defined(HELIAS_HAVE_SDL3)
     {
         // The setup window (host/launcher.h): when the game's paths are
         // missing or wrong, when asked for (--setup), or at every start
@@ -979,7 +1011,7 @@ int main(int argc, char** argv) {
         const bool plugins_tab = !cfg.headless && help.empty() && !cfg.setup_requested && plugin_ui_wants_attention();
         if (!cfg.headless && (cfg.setup_requested || cfg.setup_always || !help.empty() || plugins_tab)) {
             std::string reason = help.substr(0, help.find('\n'));
-            if (reason.rfind("bbhost: ", 0) == 0) reason = reason.substr(8);
+            if (reason.rfind("heliasdream: ", 0) == 0) reason = reason.substr(8);
             if (launcher_run(cfg, reason, plugins_tab) == LauncherResult::Quit) return help.empty() ? 0 : 2;
             if (!config_load(argc, argv, &cfg, &err)) {
                 host_log("%s", err.c_str());
@@ -989,7 +1021,7 @@ int main(int argc, char** argv) {
     }
 #endif
     // Nothing about the machine this was built on is compiled in: both paths
-    // come from bbhost.toml or the command line. Say plainly what to set when
+    // come from HeliasDream.toml or the command line. Say plainly what to set when
     // they are missing, and write a template when there is no file at all.
     if (const std::string help = config_setup_help(cfg); !help.empty()) {
         std::fputs(help.c_str(), stderr);
@@ -1010,10 +1042,10 @@ int main(int argc, char** argv) {
     hle_video_set_fps_cap(cfg.fps_cap);
     // The PC port's own options (F10 in the window). They are read before the
     // guest is patched because one of them - the company logos - is a patch,
-    // and they seed from bbhost.toml, so a run with no options file behaves
+    // and they seed from HeliasDream.toml, so a run with no options file behaves
     // exactly as it did.
     host_options_load();
-    upscaler_log_startup();  // bbhost-vk: the upscaler settings and FSR-Vulkan (host/upscaler.h); no effect yet
+    upscaler_log_startup();  // heliasdream-vk: the upscaler settings and FSR-Vulkan (host/upscaler.h); no effect yet
     config_set_skip_intro(host_settings().skip_logos);
     // The PC enhancements are read the same way, once: each installs (or its
     // patch applies) while the guest is prepared, so a change waits for the
@@ -1064,23 +1096,23 @@ int main(int argc, char** argv) {
     // Only the 1.09 build runs: every patch, hook and engine layout is an
     // address in it, and another version fails far from the cause. A tester's
     // eboot of another version (2026-09-29) died before its first frame, on a
-    // path pointer of 0xffffffff in the file layer. BBHOST_ANY_EBOOT=1 starts one
+    // path pointer of 0xffffffff in the file layer. HELIAS_ANY_EBOOT=1 starts one
     // anyway, without the patches.
     if (image.sha256 != kEboot109Sha256) {
-        const char* any = std::getenv("BBHOST_ANY_EBOOT");
+        const char* any = std::getenv("HELIAS_ANY_EBOOT");
         if (!(any && any[0] == '1')) {
             std::fputs(config_eboot_help(cfg, image.sha256, kEboot109Sha256).c_str(), stderr);
             std::fflush(stderr);
             return 3;
         }
-        host_log("BBHOST_ANY_EBOOT=1: starting an eboot that is not 1.09");
+        host_log("HELIAS_ANY_EBOOT=1: starting an eboot that is not 1.09");
     }
-    sampler_start(image.mem.slide, image.mem.slide + image.mem.size);  // BBHOST_SAMPLE
+    sampler_start(image.mem.slide, image.mem.slide + image.mem.size);  // HELIAS_SAMPLE
     sampler_watchdog_start(image.mem.slide, image.mem.slide + image.mem.size);  // every thread's stack when the flips stop
 #if defined(_WIN32)
     win_crash_note_image(image.mem.slide, image.mem.slide + image.mem.size);
 #endif
-    main_wait_guest_base(image.mem.slide);  // BBHOST_HLE_COUNT: wait sites as Binary Ninja addresses
+    main_wait_guest_base(image.mem.slide);  // HELIAS_HLE_COUNT: wait sites as Binary Ninja addresses
 
     std::vector<std::int64_t> stack(static_cast<std::size_t>(argc) + 4, 0);
     // The guest sees no host flags: argc = 1, argv[0] = eboot path.
@@ -1098,7 +1130,7 @@ int main(int argc, char** argv) {
     host_log("config: %s headless=%d %dx%d", cfg.config_layers.empty() ? "(none)" : cfg.config_layers.c_str(),
              cfg.headless ? 1 : 0, cfg.width, cfg.height);
     if (!cfg.headless) {
-        windowed = host_window_start(cfg.width, cfg.height, "Bloodborne (bbhost)");
+        windowed = host_window_start(cfg.width, cfg.height, "Bloodborne (Helia's Dream)");
         if (!windowed) {
             host_log("running headless");
         } else {

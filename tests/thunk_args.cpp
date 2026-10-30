@@ -79,7 +79,7 @@ GUEST_ABI std::int64_t outer(void* cb, std::int64_t x, std::int64_t y) {
 }
 
 // The TCB as the guest's rewritten sites read it: gs:[disp] in GS mode
-// (always on Windows, BBHOST_TLS_GS=1 here), fs:0 otherwise.
+// (always on Windows, HELIAS_TLS_GS=1 here), fs:0 otherwise.
 std::uint64_t fs0_magic() {
     GuestTcb* tcb = nullptr;
     if (tls_gs_mode()) {

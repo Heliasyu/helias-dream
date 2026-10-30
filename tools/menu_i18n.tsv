@@ -1,5 +1,5 @@
 # Helia's Dream: the F10 menu's translations (src/host/menu_i18n.h). One row per English
-# string as the menu shows it (bbhost --menu-strings lists them), its translations after it.
+# string as the menu shows it (heliasdream --menu-strings lists them), its translations after it.
 # An empty cell is shown in English. Tab-separated; UTF-8.
 en	ru	es	pt_BR	fr	de	it	pl	tr
 Display	Экран	Pantalla	Tela	Affichage	Anzeige	Schermo	Ekran	Ekran

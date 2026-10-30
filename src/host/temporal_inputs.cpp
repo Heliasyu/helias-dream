@@ -1,4 +1,4 @@
-// bbhost-vk Phase 2: the temporal upscaler's inputs (host/temporal_inputs.h,
+// heliasdream-vk Phase 2: the temporal upscaler's inputs (host/temporal_inputs.h,
 // host/upscaler_inputs.h). The rules are host/temporal/*.h (unit-tested);
 // this is where the renderer's draws meet them.
 //
@@ -324,9 +324,9 @@ std::uint64_t fnv(const void* p, std::size_t n) {
 void temporal_frame_locked(std::uint64_t flip) {
     if (flip == g_cfg.flip) return;
     g_cfg.flip = flip;
-    static const bool no_motion = env_off("BBHOST_MOTION_VECTORS"), no_jitter = env_off("BBHOST_JITTER"),
-                      no_objects = env_off("BBHOST_OBJECT_MOTION"), no_opaque = env_off("BBHOST_OPAQUE_SNAPSHOT"),
-                      no_reactive = env_off("BBHOST_REACTIVE");
+    static const bool no_motion = env_off("HELIAS_MOTION_VECTORS"), no_jitter = env_off("HELIAS_JITTER"),
+                      no_objects = env_off("HELIAS_OBJECT_MOTION"), no_opaque = env_off("HELIAS_OPAQUE_SNAPSHOT"),
+                      no_reactive = env_off("HELIAS_REACTIVE");
     // The settings are a copy under a lock: once a flip, and only when they moved.
     static std::uint64_t serial = ~0ull;
     static HostSettings hs;
@@ -345,9 +345,9 @@ void temporal_frame_locked(std::uint64_t flip) {
     // test6: FSR 4.1.1 takes no reactive mask, so neither it nor the opaque
     // snapshot it is made from are made for it (test5: 0.03-0.09 ms + the
     // copy, more looking down). They come back when FSR 3.1 stands in for it
-    // and with BBHOST_FSR4_REACTIVE=1.
+    // and with HELIAS_FSR4_REACTIVE=1.
     static const bool fsr4_reactive = [] {
-        const char* e = std::getenv("BBHOST_FSR4_REACTIVE");
+        const char* e = std::getenv("HELIAS_FSR4_REACTIVE");
         return e && e[0] == '1';
     }();
     const bool fsr4_only = ((hs.upscaler == upscaler::kFsr411 && !fsr4_replay_unavailable()) || hs.upscaler == upscaler::kFsr4) && !fsr4_reactive;
@@ -378,12 +378,12 @@ void temporal_draw_targets_locked(int color_targets, bool depth) {
 }
 
 namespace {
-// BBHOST_MOTION_PROBE=1 (or =<n> lines): the buffers the G-buffer draws bind,
+// HELIAS_MOTION_PROBE=1 (or =<n> lines): the buffers the G-buffer draws bind,
 // each (shader, stage, binding) once, with their first floats - what a hunt
 // for the scene constants needs from a hardware log.
 int probe_lines() {
     static const int n = [] {
-        const char* e = std::getenv("BBHOST_MOTION_PROBE");
+        const char* e = std::getenv("HELIAS_MOTION_PROBE");
         if (!e || !*e || e[0] == '0') return 0;
         const int v = std::atoi(e);
         return v > 1 ? v : 64;
@@ -645,7 +645,7 @@ void temporal_scale_pass_locked(RtImage* scene_color, std::uint32_t output_w, st
             host_log("motion: no scene camera in 600 frames running (scene blocks seen %llu, rejected %llu, another size %llu; buffers looked at "
                      "%llu, G-buffer draws %llu, most colour targets with a depth %llu): every frame is a cut, so FSR resets its history every "
                      "frame - no temporal accumulation, and the camera motion vectors are zero (the jitter does not depend on it). "
-                     "BBHOST_MOTION_PROBE=1 logs what the G-buffer draws bind",
+                     "HELIAS_MOTION_PROBE=1 logs what the G-buffer draws bind",
                      static_cast<unsigned long long>(g_window.scene_blocks), static_cast<unsigned long long>(g_window.blocks_rejected),
                      static_cast<unsigned long long>(g_window.blocks_wrong_size), static_cast<unsigned long long>(g_window.buffers_seen),
                      static_cast<unsigned long long>(g_window.gbuffer_draws), static_cast<unsigned long long>(g_window.max_colors_with_depth));
@@ -737,7 +737,7 @@ void temporal_scale_pass_locked(RtImage* scene_color, std::uint32_t output_w, st
             push.extent[0] = rw;
             push.extent[1] = rh;
             push.flags = (camera ? 1u : 0u) | (velocity_view ? 2u : 0u);
-            static const float object_min = env_float("BBHOST_OBJECT_MOTION_MIN", 1.5f);
+            static const float object_min = env_float("HELIAS_OBJECT_MOTION_MIN", 1.5f);
             push.object_min = object_min;
             VkCommandBuffer cmd = g_cmd();
             const std::int32_t timed = pass_timer_begin_locked(cmd, TimedPass::Motion);
@@ -782,8 +782,8 @@ void temporal_scale_pass_locked(RtImage* scene_color, std::uint32_t output_w, st
             };
             write_set(set, infos, kReactiveTypes, 4);
             // AMD's sample values (scale 1, threshold 0.2, binary 0.9); tunable for the test sessions.
-            static const float scale = env_float("BBHOST_REACTIVE_SCALE", 1.0f), threshold = env_float("BBHOST_REACTIVE_THRESHOLD", 0.2f),
-                               value = env_float("BBHOST_REACTIVE_VALUE", 0.9f);
+            static const float scale = env_float("HELIAS_REACTIVE_SCALE", 1.0f), threshold = env_float("HELIAS_REACTIVE_THRESHOLD", 0.2f),
+                               value = env_float("HELIAS_REACTIVE_VALUE", 0.9f);
             ReactivePush push{};
             push.extent[0] = rw;
             push.extent[1] = rh;
@@ -825,9 +825,9 @@ void temporal_scale_pass_locked(RtImage* scene_color, std::uint32_t output_w, st
     // test3: with no scene camera FSR resets its history every frame, and a
     // jittered frame it cannot accumulate is the jitter on screen - small
     // lights and edges flicker. So after 60 frames without a camera the
-    // jitter pauses until one is found again (BBHOST_JITTER_NO_CAMERA=1 keeps it).
+    // jitter pauses until one is found again (HELIAS_JITTER_NO_CAMERA=1 keeps it).
     static const bool jitter_anyway = [] {
-        const char* e = std::getenv("BBHOST_JITTER_NO_CAMERA");
+        const char* e = std::getenv("HELIAS_JITTER_NO_CAMERA");
         return e && e[0] == '1';
     }();
     const bool paused = g_cfg.jitter && !jitter_anyway && temporal::jitter_paused_without_camera(g_no_camera_run);

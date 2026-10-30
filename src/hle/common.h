@@ -106,11 +106,11 @@ inline int sce_err(int e) {
 // The guest's microsecond clock and TSC tick with the monotonic clock on both
 // hosts (winpthreads' is QueryPerformanceCounter). On Windows they were
 // GetTickCount64, which moves in 15.6 ms steps whatever timeBeginPeriod says:
-// at 60 fps about one step a frame. BBHOST_CLOCK_QUANTUM_US=N (checks) puts
+// at 60 fps about one step a frame. HELIAS_CLOCK_QUANTUM_US=N (checks) puts
 // them back on steps of N us, 15625 for that clock.
 inline std::uint64_t guest_clock_quantum_us() {
     static const std::uint64_t q = [] {
-        const char* e = std::getenv("BBHOST_CLOCK_QUANTUM_US");
+        const char* e = std::getenv("HELIAS_CLOCK_QUANTUM_US");
         return e ? std::strtoull(e, nullptr, 10) : 0ull;
     }();
     return q;
@@ -140,13 +140,13 @@ inline std::uint64_t rdtsc_now() {
 }
 
 // The guest's clock reads by entry, since the start. They run raw (no
-// thunk), so BBHOST_HLE_COUNT does not see them; the 300-flip report's
+// thunk), so HELIAS_HLE_COUNT does not see them; the 300-flip report's
 // timing line gives these as rates (hle_timing_window, kernel.cpp).
 struct HleClockReads {
     HostShardedCount gettimeofday, clock_gettime, process_time, tsc, time, clock;
 };
 extern HleClockReads g_hle_clock_reads;
-// Whether the clock entries are bound raw (GS mode and BBHOST_RAW_CLOCK not 0).
+// Whether the clock entries are bound raw (GS mode and HELIAS_RAW_CLOCK not 0).
 bool hle_raw_clock();
 // Clock reads per second over `secs`, since the last call, and (into `sync`)
 // the sync layer's slow paths: waits that slept, wakes (kernel.cpp).

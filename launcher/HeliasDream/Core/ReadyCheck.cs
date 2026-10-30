@@ -16,7 +16,7 @@ public sealed record CheckItem(string Label, string Detail, CheckState State);
 /// <summary>What the Play page checks each time it opens.</summary>
 public static class ReadyCheck
 {
-    public static List<CheckItem> Local(string? gameDir, BbhostToml cfg, OptionsFile opts)
+    public static List<CheckItem> Local(string? gameDir, HeliasToml cfg, OptionsFile opts)
     {
         var items = new List<CheckItem>();
 
@@ -177,6 +177,8 @@ public static class GameRunner
         {
             // No reader (the launcher closes as the game starts): the output goes where it always did.
             WorkingDirectory = gameDir, UseShellExecute = false, RedirectStandardOutput = onLine != null, RedirectStandardError = onLine != null,
+            // The Windows engine is a console program: its log goes to the Console page, not a window of its own.
+            CreateNoWindow = OperatingSystem.IsWindows() && onLine != null,
         };
         if (profileConfig != null) { psi.ArgumentList.Add("--config"); psi.ArgumentList.Add(profileConfig); }
         // Native Wayland, the display's scale applied (as the old bbhost wrapper script set them).
@@ -187,11 +189,11 @@ public static class GameRunner
             psi.Environment["SDL_VIDEO_WAYLAND_SCALE_TO_DISPLAY"] = "1";
         }
         // The launcher has already shown everything the engine's own setup window would.
-        psi.Environment["BBHOST_SETUP_WINDOW"] = "0";
-        if (!string.IsNullOrEmpty(monitor)) psi.Environment["BBHOST_DISPLAY"] = monitor;
+        psi.Environment["HELIAS_SETUP_WINDOW"] = "0";
+        if (!string.IsNullOrEmpty(monitor)) psi.Environment["HELIAS_DISPLAY"] = monitor;
         if (presentMode is "mailbox" or "fifo" or "relaxed" or "immediate" or "latest")
-            psi.Environment["BBHOST_PRESENT_MODE"] = presentMode;
-        if (!string.IsNullOrEmpty(gamepad) && gamepad != "auto") psi.Environment["BBHOST_GAMEPAD"] = gamepad;
+            psi.Environment["HELIAS_PRESENT_MODE"] = presentMode;
+        if (!string.IsNullOrEmpty(gamepad) && gamepad != "auto") psi.Environment["HELIAS_GAMEPAD"] = gamepad;
         StreamWriter? log = null;
         if (onLine != null) try
         {
@@ -247,5 +249,6 @@ public static class GameRunner
 
     public static bool Running() =>
         Process.GetProcessesByName("HeliasDream.bin").Any() || Process.GetProcessesByName("HeliasDream-engine").Any() ||
+        Process.GetProcessesByName("heliasdream").Any() ||
         Process.GetProcessesByName("bbhost.bin").Any() || Process.GetProcessesByName("bbhost").Any();
 }

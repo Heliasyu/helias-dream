@@ -22,12 +22,12 @@
 bool present_pass_init(VkDevice device, VkPhysicalDevice phys, VkFormat colour_format);
 void present_pass_shutdown(VkDevice device);
 bool present_pass_ready();
-// rc2, BBHOST_SHARPEN_AT_PRESENT=1 (debugging): FSR, having left its own
+// rc2, HELIAS_SHARPEN_AT_PRESENT=1 (debugging): FSR, having left its own
 // sharpening out, asks the presenter to sharpen (RCAS, `sharpness` 0..1).
 // Any thread; good for 100 ms (a frame without FSR shows plain). False when
 // there is no sharpening pipeline: the caller keeps FSR's own pass.
 bool present_pass_set_sharpen(float sharpness);
-bool present_sharpen_at_present();  // BBHOST_SHARPEN_AT_PRESENT=1
+bool present_sharpen_at_present();  // HELIAS_SHARPEN_AT_PRESENT=1
 
 // The game's display image and the region of it shown.
 struct PresentSource {
@@ -47,7 +47,7 @@ struct PresentSource {
 // last frame's view of the source and its descriptor are reused here.
 bool present_pass_begin(VkCommandBuffer cmd, VkImage dst, VkImageView dst_view, VkExtent2D extent, VkRect2D shown,
                         const PresentSource* src, const float clear[4]);
-// bbhost-vk Phase 2, Show Motion Vectors: the scene's motion image (its
+// heliasdream-vk Phase 2, Show Motion Vectors: the scene's motion image (its
 // region `x, y, w, h`) blended over `shown`, inside the open rendering,
 // before the overlay. False when there is nothing to draw it with.
 bool present_pass_motion(VkCommandBuffer cmd, VkRect2D shown, const PresentSource& motion);

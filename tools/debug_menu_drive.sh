@@ -13,7 +13,7 @@
 # SRC_DATA picks the data to copy (tmp/seed-data), never the player's data/.
 # Steps are words, so in zsh expand a string of them with ${=steps}.
 set -u
-export BBHOST_SETUP_WINDOW=0  # a harness run never stops at the setup window
+export HELIAS_SETUP_WINDOW=0  # a harness run never stops at the setup window
 cd "$(dirname "$0")/.."
 NAME=$1; shift
 envs=()
@@ -21,16 +21,16 @@ while [ $# -gt 0 ] && [ "$1" != "--" ]; do envs+=("$1"); shift; done
 [ "${1:-}" = "--" ] && shift
 rm -rf tmp/data-scratch
 cp -a "${SRC_DATA:-tmp/seed-data}" tmp/data-scratch
-sed -e "s|^data *=.*|data = \"$PWD/tmp/data-scratch\"|" -e "s|^mods *=.*|mods = \"$PWD/tmp/data-scratch/mods\"|" bbhost.toml > tmp/debug-menu-drive.toml
+sed -e "s|^data *=.*|data = \"$PWD/tmp/data-scratch\"|" -e "s|^mods *=.*|mods = \"$PWD/tmp/data-scratch/mods\"|" heliasdream.toml > tmp/debug-menu-drive.toml
 cat > tmp/debug-menu-drive-run.sh <<EOS
 #!/bin/bash
 export SDL_AUDIO_DRIVER=\${SDL_AUDIO_DRIVER:-dummy}
-exec "$PWD/build/bbhost" --config "$PWD/tmp/debug-menu-drive.toml" "\$@"
+exec "$PWD/build/heliasdream" --config "$PWD/tmp/debug-menu-drive.toml" "\$@"
 EOS
 chmod +x tmp/debug-menu-drive-run.sh
 out=build/$NAME
 rm -rf "$out"
-env "${envs[@]}" MENU_DRIVE_OUT="$out" MENU_DRIVE_TIMEOUT="${RUN_SECS:-300}" BBHOST_BIN="$PWD/tmp/debug-menu-drive-run.sh" \
+env "${envs[@]}" MENU_DRIVE_OUT="$out" MENU_DRIVE_TIMEOUT="${RUN_SECS:-300}" HELIAS_BIN="$PWD/tmp/debug-menu-drive-run.sh" \
   timeout $(( ${RUN_SECS:-300} + 60 )) tools/menu_drive.sh title sleep:4 clicknow:0 waitlog:area.glare.luminance sleep:6 "$@" > "$out.drive.txt" 2>&1
 log=$out/run.log
 grep -q 'area.glare.luminance' "$log" && echo "reached the world" || echo "did not reach the world"

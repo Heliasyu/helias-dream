@@ -1,4 +1,4 @@
-// bbhost-vk Phase 1: the scene/UI resolution split (engine/scene_split.h).
+// heliasdream-vk Phase 1: the scene/UI resolution split (engine/scene_split.h).
 #include "engine/scene_split.h"
 
 #include "core/elf.h"
@@ -22,7 +22,7 @@ namespace {
 ElfImage* g_image = nullptr;
 std::uint64_t g_slide = 0;
 bool g_available = false;
-// Each site's bytes at load (after bbhost's own patches), in the table's order.
+// Each site's bytes at load (after heliasdream's own patches), in the table's order.
 std::vector<std::vector<std::uint8_t>> g_original;
 std::uint8_t* g_listener_stub = nullptr;  // near the listener: the two stores, then jmp back
 std::uint8_t* g_size_stub = nullptr;      // near the size read: the output entry's size, ret
@@ -102,8 +102,8 @@ std::vector<std::uint8_t> stub_site_bytes(const scene_split::Site& s) {
 bool scene_split_install(ElfImage* image) {
     g_image = image;
     g_slide = image->mem.slide;
-    if (const char* e = std::getenv("BBHOST_SCENE_SPLIT"); e && e[0] == '0') {
-        host_log("scene-split: off (BBHOST_SCENE_SPLIT=0); the scene renders at the output size");
+    if (const char* e = std::getenv("HELIAS_SCENE_SPLIT"); e && e[0] == '0') {
+        host_log("scene-split: off (HELIAS_SCENE_SPLIT=0); the scene renders at the output size");
         return false;
     }
     if (image->sha256 != kEboot109Sha256) {
@@ -115,7 +115,7 @@ bool scene_split_install(ElfImage* image) {
     for (const scene_split::Site& s : sites) g_original.emplace_back(at_(s.at), at_(s.at) + s.n);
     // What can be checked without a dump: the branch sites are short
     // conditional jumps, and Initialize's colour test is the game's `je` or
-    // bbhost's both-sides `jne` (live_resolution.cpp). The rest is the 1.09
+    // heliasdream's both-sides `jne` (live_resolution.cpp). The rest is the 1.09
     // eboot's (checked by its SHA-256 at start), where Kyo's patches were
     // made. Each site's bytes are logged, so a test session's log has them.
     bool ok = true;
@@ -181,7 +181,7 @@ bool scene_split_live() {
 }
 
 bool scene_split_planned(const ElfImage* image, std::uint32_t ow, std::uint32_t oh) {
-    if (const char* e = std::getenv("BBHOST_SCENE_SPLIT"); e && e[0] == '0') return false;
+    if (const char* e = std::getenv("HELIAS_SCENE_SPLIT"); e && e[0] == '0') return false;
     if (!image || image->sha256 != kEboot109Sha256) return false;
     std::uint32_t rw = 0, rh = 0;
     settings_render_size(ow, oh, &rw, &rh);

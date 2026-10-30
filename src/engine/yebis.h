@@ -40,6 +40,6 @@ bool yebis_set(std::uint32_t off, std::int32_t value);
 // writes these fields itself, so a setting applied once is a setting that
 // lasts until the next time the game touches it.
 //
-// BBHOST_YEBIS_SET=0xe0=0,0x114=0 forces raw offsets, which is how the path
+// HELIAS_YEBIS_SET=0xe0=0,0x114=0 forces raw offsets, which is how the path
 // from "write a 0" to "the picture changes" was measured.
 void yebis_poll();

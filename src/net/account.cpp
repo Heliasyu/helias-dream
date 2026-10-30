@@ -33,7 +33,7 @@ bool auth_call(const std::string& path, const json::Value& body, json::Value& re
     }
     // Every account reply carries ResKind. A server without the account
     // service answers its framework's own "not found" instead, which read as
-    // a bare "refused" - a tester who started bbhost without the playtest
+    // a bare "refused" - a tester who started heliasdream without the playtest
     // config was sent to the live server, which has no accounts yet.
     if (reply.type != json::Value::Type::Object || !reply.find("ResKind")) {
         error = base + " has no account service (HTTP " + std::to_string(r.status) + ")";

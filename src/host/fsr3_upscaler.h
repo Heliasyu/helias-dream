@@ -1,6 +1,6 @@
 #pragma once
 
-// bbhost-vk Phase 3: FSR 3.1.5 (FireBurn/FSR-Vulkan, MIT) as one object that
+// heliasdream-vk Phase 3: FSR 3.1.5 (FireBurn/FSR-Vulkan, MIT) as one object that
 // owns a context and the images FSR keeps between frames, and records a
 // frame's upscale into a command buffer. It knows nothing of the renderer:
 // host/fsr3_pass.cpp drives it from the game's scale pass, and

@@ -43,10 +43,10 @@ std::uint64_t manager() {
 void event_flags_install(ElfImage* image) {
     g_slide = image->mem.slide;
     g_ok = image->sha256 == kEboot109Sha256;
-    if (const char* e = std::getenv("BBHOST_EVENT_FLAG_LOG"); g_ok && e && e[0] == '1') {
+    if (const char* e = std::getenv("HELIAS_EVENT_FLAG_LOG"); g_ok && e && e[0] == '1') {
         g_log = true;
         event_flag_watch(true);
-        host_log("event flags: every change is logged (BBHOST_EVENT_FLAG_LOG=1)");
+        host_log("event flags: every change is logged (HELIAS_EVENT_FLAG_LOG=1)");
     }
 }
 

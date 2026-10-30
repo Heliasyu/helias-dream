@@ -1,4 +1,4 @@
-// bbhost-vk Phase 2: the motion-vector compute pass (host/shaders/motion.comp,
+// heliasdream-vk Phase 2: the motion-vector compute pass (host/shaders/motion.comp,
 // as compiled into host/shaders/motion.spv.h) run on whatever Vulkan device
 // there is - a software one (lavapipe) is enough - against the same math in
 // double (host/temporal/camera.h). A depth image of a known scene, two

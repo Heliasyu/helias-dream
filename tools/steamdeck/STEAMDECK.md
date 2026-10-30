@@ -1,8 +1,8 @@
-# bbhost on the Steam Deck
+# Helia's Dream on the Steam Deck
 
-This is the Linux build of bbhost with settings for the Deck: it renders at
+This is the Linux build of Helia's Dream with settings for the Deck: it renders at
 the screen's own 1280x800, full screen, at the game's 30 fps
-(`bbhost-steamdeck.toml`). It runs natively on SteamOS; nothing needs
+(`heliasdream-steamdeck.toml`). It runs natively on SteamOS; nothing needs
 installing. You bring the game: the CUSA00900 dump with the 1.09 update's
 files over it, and the 1.09 `eboot.bin` decrypted to an ELF (README-linux.txt
 says how to check both).
@@ -15,7 +15,7 @@ says how to check both).
 3. Extract this archive into your home folder, for example `~/Games`
    (right-click it in Dolphin, Extract, Extract archive here).
 4. Add it to Steam: open Steam, Games, "Add a Non-Steam Game to My
-   Library...", Browse, set the file type to All Files, pick `run-bbhost.sh`
+   Library...", Browse, set the file type to All Files, pick `run-heliasdream.sh`
    in the extracted folder, Add Selected Programs. Its Properties can rename
    it (Bloodborne, say).
 5. Start it from Steam (Library, Non-Steam) - here in Desktop Mode too. The
@@ -23,11 +23,11 @@ says how to check both).
    work it): pick the game folder (the one with `dvdroot_ps4` in it) and the
    eboot, then Play. Check that the title screen comes up, then quit.
 
-Always start it from Steam, not by double-clicking `run-bbhost.sh` or from
+Always start it from Steam, not by double-clicking `run-heliasdream.sh` or from
 Konsole. Outside Steam, Steam's desktop controls stay on: A, B and Y also
 send Return, Escape and Space, the d-pad the arrow keys, the triggers mouse
 clicks - so every button does two things, and the menus open and close on
-their own. bbhost says so on screen when it sees it.
+their own. Helia's Dream says so on screen when it sees it.
 
 ## Play (Game Mode)
 
@@ -42,12 +42,12 @@ and keyboard instead, pick the Gamepad layout in its controller settings
   without a keyboard, give F10 to one of the back buttons in the controller
   settings.
 - These settings and the account sign-in are kept for this kit alone, so a
-  copy of bbhost on a PC keeps its own; the game's paths are shared.
+  copy of Helia's Dream on a PC keeps its own; the game's paths are shared.
 - The first minutes in a new area compile shaders and can stutter; they are
   kept, so the next start is smoother.
 - **30 or 60 fps**: System, Steam Deck, Frame Rate. 30 fps renders at the
   screen's own 1280x800, the game's own pace and the Deck's default here.
-  60 fps renders at 960x600 and bbhost scales the picture up to the screen
+  60 fps renders at 960x600 and Helia's Dream scales the picture up to the screen
   with AMD's FSR 1, which keeps edges sharp, with Model Detail at Low (it
   draws distant buildings one step coarser, which is hard to see on this
   screen): the heaviest views found, like the first gate in Central
@@ -63,11 +63,11 @@ and keyboard instead, pick the Gamepad layout in its controller settings
   little more headroom. 30 fps at 1280x800 is the game's own pace and the
   Deck's default here.
 - The Deck's memory is shared with its GPU and tight for this game, so
-  bbhost keeps less in reserve here: resolutions up to 1920x1080 change at
+  Helia's Dream keeps less in reserve here: resolutions up to 1920x1080 change at
   once; larger ones (for a big screen on a dock) apply at the next start,
   and may not fit - they need a gigabyte or more on top, and have not been
   tried on a Deck.
-- F10 (UPDATES) says when a newer bbhost is out, and Open the release page
+- F10 (UPDATES) says when a newer Helia's Dream is out, and Open the release page
   opens its page in the browser. To update, extract the new kit and copy its
   files over this folder.
 

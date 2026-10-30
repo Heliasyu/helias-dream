@@ -1,5 +1,5 @@
 #!/bin/bash
-# Drive bbhost to a menu screen and photograph it.
+# Drive heliasdream to a menu screen and photograph it.
 #
 # Blind autopress navigation by wall time does not reproduce: the same script
 # at 30 fps and at 25 fps (a run still loading) presses at different points in
@@ -13,9 +13,9 @@
 # taps:  f<flip>:<button>[:<hold ms>],...   appended to the walk to System
 # shots: <flip>:<name>,...                  taken once that tap is logged
 #
-# Env: anything bbhost reads (BBHOST_PC_OPTIONS=0 drops the PC rows).
+# Env: anything heliasdream reads (HELIAS_PC_OPTIONS=0 drops the PC rows).
 set -u
-export BBHOST_SETUP_WINDOW=0  # a harness run never stops at the setup window
+export HELIAS_SETUP_WINDOW=0  # a harness run never stops at the setup window
 cd "$(dirname "$0")/.."
 OUT=${1:?out dir}; EXTRA=${2:-}; SHOTS=${3:-}
 LOG=$OUT/run.log
@@ -24,11 +24,11 @@ rm -rf "$OUT"; mkdir -p "$OUT"
 # Always the headless display: the shell may have DISPLAY pointing at a real
 # desktop, and a test run belongs nowhere near it.
 export DISPLAY=${MENU_RUN_DISPLAY:-:77}
-export BBHOST_SKIP_INTRO=${BBHOST_SKIP_INTRO:-1}
+export HELIAS_SKIP_INTRO=${HELIAS_SKIP_INTRO:-1}
 # A copy of the settings, so nothing the walk changes lands in the player's.
-[ -f bbhost-options.toml ] && cp bbhost-options.toml "$OUT/bbhost-options.toml"
-export BBHOST_OPTIONS_PATH=$OUT/bbhost-options.toml
-export BBHOST_AUTOPRESS_HOLD_MS=${BBHOST_AUTOPRESS_HOLD_MS:-150}
+[ -f heliasdream-options.toml ] && cp heliasdream-options.toml "$OUT/heliasdream-options.toml"
+export HELIAS_OPTIONS_PATH=$OUT/heliasdream-options.toml
+export HELIAS_AUTOPRESS_HOLD_MS=${HELIAS_AUTOPRESS_HOLD_MS:-150}
 
 # The walk from boot to the System list, in flips, measured from a run that
 # worked. The title menu opens with **Play Offline** already under the cursor,
@@ -37,9 +37,9 @@ export BBHOST_AUTOPRESS_HOLD_MS=${BBHOST_AUTOPRESS_HOLD_MS:-150}
 # MENU_RUN_WALK replaces it - for in-game screens, where the walk is a Continue
 # rather than a trip into System.
 WALK=${MENU_RUN_WALK:-"f1769:cross,f2309:cross,f3029:up,f3269:up,f3509:cross"}
-export BBHOST_AUTOPRESS="$WALK${EXTRA:+,$EXTRA}"
+export HELIAS_AUTOPRESS="$WALK${EXTRA:+,$EXTRA}"
 
-timeout "${BBHOST_TIMEOUT:-300}" ./build/bbhost > "$LOG" 2>&1 &
+timeout "${HELIAS_TIMEOUT:-300}" ./build/heliasdream > "$LOG" 2>&1 &
 PID=$!
 
 shot_after() {  # <flip> <name>

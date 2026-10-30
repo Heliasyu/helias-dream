@@ -1,6 +1,6 @@
-"""A simulated bbhost client for the online test bench.
+"""A simulated heliasdream client for the online test bench.
 
-It talks to the private server exactly as bbhost does - the game's own HTTP
+It talks to the private server exactly as heliasdream does - the game's own HTTP
 (login, summon signs), the NP surfaces the HLE calls (context_start, rooms,
 heartbeats, events, signaling resolve) and the P2P socket (STUN, probes, the
 relay) - and plays the game's part of a summon in miniature:
@@ -11,7 +11,7 @@ relay) - and plays the game's part of a summon in miniature:
   guest: puts its sign up; an invite datagram that reaches it makes it join
   all:   once in a room, ping every other member over P2P every second
 
-`quirks` replays bbhost's behaviour before the 2026-10-06 fixes, so a run
+`quirks` replays heliasdream's behaviour before the 2026-10-06 fixes, so a run
 can show what players saw:
   "auto_leave"   the host leaves the server's room when one or fewer peers
                  are left after a member leaves (np_matching2.cpp)
@@ -41,7 +41,7 @@ class HttpError(Exception):
 
 
 class Api:
-    """The server's HTTP surfaces, with bbhost's headers."""
+    """The server's HTTP surfaces, with heliasdream's headers."""
 
     def __init__(self, base: str, timeout: float = 5.0):
         self.base = base.rstrip("/")
@@ -83,7 +83,7 @@ class SimClient:
         self.ip = ip
         self.api = Api(bench.http_base)
         self.quirks = set(quirks)
-        self.use_relay = relay  # bbhost's relay frames when the server offers them
+        self.use_relay = relay  # heliasdream's relay frames when the server offers them
         self.area, self.region = area, region
         self.lock = threading.RLock()
         self.nat = Nat(nat, ip, self._on_packet, timeout=nat_timeout, fixed_port=p2p_port)

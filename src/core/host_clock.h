@@ -16,12 +16,12 @@
 // power throttling: no EcoQoS clock drops for its threads, and Windows 11
 // keeps the resolution when the window is hidden or minimized (it otherwise
 // lets a hidden window's process fall back to 15.6 ms, which every timed
-// wait and Sleep then rounds to). BBHOST_TIMER_PERIOD=0, BBHOST_WIN_QOS=0.
+// wait and Sleep then rounds to). HELIAS_TIMER_PERIOD=0, HELIAS_WIN_QOS=0.
 //
 // Priorities (Windows). The vblank clock above the rest, the threads that
 // feed the GPU (command processors, recorder, submission, presenter) one
 // step above normal: on a busy machine a guest worker no longer takes a
-// pacing thread's core. BBHOST_THREAD_PRIO=0 leaves every thread normal.
+// pacing thread's core. HELIAS_THREAD_PRIO=0 leaves every thread normal.
 #pragma once
 
 #include <atomic>
@@ -58,7 +58,7 @@ void host_thread_set_class(HostThreadClass c, const char* who);
 // RLIMIT_NICE to allow it (ulimit -e; CachyOS and many desktops give 31, nice
 // -11); where it does not, the log says so once and nothing changes. Live:
 // the threads met so far are set (or put back to 0) at once, later ones as
-// they start. Windows already raises these threads (BBHOST_THREAD_PRIO).
+// they start. Windows already raises these threads (HELIAS_THREAD_PRIO).
 void host_threads_set_priority(bool on);
 
 // rc5 (Linux; no-ops elsewhere). host_thread_set_class also does both of
@@ -66,7 +66,7 @@ void host_threads_set_priority(bool on);
 // The calling thread's timer slack to 1 ns (prctl PR_SET_TIMERSLACK): its
 // timed sleeps wake when asked instead of up to 50 us later, Linux's default
 // (every limiter and vblank sleep woke ~55 us late in rc3/rc4's logs).
-// True when it is set. BBHOST_TIMER_SLACK=0 leaves the default. Log label
+// True when it is set. HELIAS_TIMER_SLACK=0 leaves the default. Log label
 // `timer slack:`, snapshot [cpu] `timer_slack:`.
 bool host_thread_tight_timers(const char* who);
 // The tight timers are on for this process (the spin floors that assume them).
@@ -77,7 +77,7 @@ bool host_tight_timers_on();
 // bb-vblank - runs on one domain's whole mask (the larger L3, then the best
 // preferred-core ranking), the shader compilers on the others while in game.
 // Any: the process's own mask (what a thread made by a hot thread resets to).
-// A failure is counted and ignored. BBHOST_AFFINITY=0 turns it off. Log label
+// A failure is counted and ignored. HELIAS_AFFINITY=0 turns it off. Log label
 // `placement:`, snapshot [cpu] `placement:`.
 enum class HostPlace { Hot, Cold, Any };
 void host_thread_place(HostPlace p, const char* who);

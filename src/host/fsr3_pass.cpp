@@ -1,4 +1,4 @@
-// bbhost-vk Phase 3: FSR 3.1 at the game's scale pass (host/fsr3_pass.h).
+// heliasdream-vk Phase 3: FSR 3.1 at the game's scale pass (host/fsr3_pass.h).
 //
 // Per frame, at the scale pass (ccbf44a6) with FSR 3.1 (or FSR 4.1.1, until
 // Phase 4) chosen and the scene split:
@@ -18,7 +18,7 @@
 // reason is logged when it changes.
 #include "host/fsr3_pass.h"
 
-#if BBHOST_HAVE_FSR_VULKAN
+#if HELIAS_HAVE_FSR_VULKAN
 
 #include "engine/live_resolution.h"
 #include "engine/scene_split.h"
@@ -51,7 +51,7 @@ namespace {
 
 enum class Fallback : int {
     None = 0,
-    Disabled,       // BBHOST_FSR3=0
+    Disabled,       // HELIAS_FSR3=0
     NoInputs,       // no scene colour, depth or motion this frame
     Sizes,          // a ratio FSR 3.1 does not take
     Target,         // the target is not a plain 2D colour image of the output size
@@ -63,7 +63,7 @@ enum class Fallback : int {
 const char* fallback_name(Fallback f) {
     switch (f) {
     case Fallback::None: return "none";
-    case Fallback::Disabled: return "BBHOST_FSR3=0";
+    case Fallback::Disabled: return "HELIAS_FSR3=0";
     case Fallback::NoInputs: return "no scene inputs this frame (colour, depth copy or motion vectors)";
     case Fallback::Sizes: return "the scene/output ratio is outside FSR 3.1's 1x..3x";
     case Fallback::Target: return "the scale pass's target is not a plain colour image of the output size";
@@ -171,13 +171,13 @@ void dig_locked() {
 }
 
 int env_sign(const char* name, int axis) {
-    // BBHOST_FSR_JITTER_SIGN=x, y or xy: flip that axis' jitter for FSR.
+    // HELIAS_FSR_JITTER_SIGN=x, y or xy: flip that axis' jitter for FSR.
     const char* e = std::getenv(name);
     if (!e) return 1;
     return std::strchr(e, axis == 0 ? 'x' : 'y') ? -1 : 1;
 }
 
-// ---- the stage dump (host/fsr_dump.h, BBHOST_FSR_DUMP=1) ----
+// ---- the stage dump (host/fsr_dump.h, HELIAS_FSR_DUMP=1) ----
 std::uint64_t g_upscaled = 0;  // frames upscaled this run (the dump's automatic one)
 
 // The inputs and the target as it is before the copy; true when this frame dumps.
@@ -250,7 +250,7 @@ temporal::OutputRect fsr3_output_rect_locked(const RtImage* target, const float*
 
 bool fsr3_scale_pass_locked(RtImage* target, const temporal::OutputRect& out, const UpscalerImage* color) {
     static const bool disabled = [] {
-        const char* e = std::getenv("BBHOST_FSR3");
+        const char* e = std::getenv("HELIAS_FSR3");
         return e && e[0] == '0';
     }();
     dig_locked();
@@ -295,7 +295,7 @@ bool fsr3_scale_pass_locked(RtImage* target, const temporal::OutputRect& out, co
         barrier(cmd4, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, VK_ACCESS_MEMORY_WRITE_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
                 VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT);
         const temporal::Fsr3Reset reset4 = temporal::fsr3_reset(g_history4, in.frame, in.reset, false);
-        static const int sx = env_sign("BBHOST_FSR_JITTER_SIGN", 0), sy = env_sign("BBHOST_FSR_JITTER_SIGN", 1);
+        static const int sx = env_sign("HELIAS_FSR_JITTER_SIGN", 0), sy = env_sign("HELIAS_FSR_JITTER_SIGN", 1);
         const temporal::Fsr3Conventions c4 = temporal::fsr3_conventions(in.jitter_x, in.jitter_y, sx, sy);
         const temporal::Fsr3Sharpen sh4 = temporal::fsr3_sharpen(hs.upscale_sharpness);
         Fsr4Params p4;
@@ -330,7 +330,7 @@ bool fsr3_scale_pass_locked(RtImage* target, const temporal::OutputRect& out, co
                 static bool said = false;
                 if (!said) {
                     said = true;
-                    host_log("fsr4: %s writes the scale pass's %ux%u target directly (no copy; BBHOST_FSR_DIRECT_TARGET=0: the copy)",
+                    host_log("fsr4: %s writes the scale pass's %ux%u target directly (no copy; HELIAS_FSR_DIRECT_TARGET=0: the copy)",
                              name4, target->width, target->height);
                 }
             } else {
@@ -448,7 +448,7 @@ bool fsr3_scale_pass_locked(RtImage* target, const temporal::OutputRect& out, co
     fr.depth = in.depth_copy;
     fr.motion = in.motion;
     if (hs.upscale_reactive) fr.reactive = in.reactive;
-    static const int sign_x = env_sign("BBHOST_FSR_JITTER_SIGN", 0), sign_y = env_sign("BBHOST_FSR_JITTER_SIGN", 1);
+    static const int sign_x = env_sign("HELIAS_FSR_JITTER_SIGN", 0), sign_y = env_sign("HELIAS_FSR_JITTER_SIGN", 1);
     const temporal::Fsr3Conventions conv = temporal::fsr3_conventions(in.jitter_x, in.jitter_y, sign_x, sign_y);
     fr.jitter_x = conv.jitter_x;
     fr.jitter_y = conv.jitter_y;
@@ -492,7 +492,7 @@ bool fsr3_scale_pass_locked(RtImage* target, const temporal::OutputRect& out, co
         static bool said = false;
         if (!said) {
             said = true;
-            host_log("fsr3: FSR 3.1 writes the scale pass's %ux%u target directly (no copy of its output; BBHOST_FSR_DIRECT_TARGET=0: the copy)",
+            host_log("fsr3: FSR 3.1 writes the scale pass's %ux%u target directly (no copy of its output; HELIAS_FSR_DIRECT_TARGET=0: the copy)",
                      target->width, target->height);
         }
     } else {
@@ -541,7 +541,7 @@ bool fsr4_replay_unavailable() { return g_fsr4_off; }
 
 bool fsr3_target_storage_wanted(int format, std::uint32_t w, std::uint32_t h, std::uint32_t layers) {
     static const bool off = [] {
-        const char* e = std::getenv("BBHOST_FSR_DIRECT_TARGET");
+        const char* e = std::getenv("HELIAS_FSR_DIRECT_TARGET");
         return e && e[0] == '0';
     }();
     unsigned dw = 0, dh = 0;
@@ -584,14 +584,14 @@ std::string fsr3_report_locked() {
 
 std::string host_gpu_upscale_timing() { return host_gpu_pass_timing(); }
 
-#else  // !BBHOST_HAVE_FSR_VULKAN: upscaler_scene_pass() never asks for FSR 3.1
+#else  // !HELIAS_HAVE_FSR_VULKAN: upscaler_scene_pass() never asks for FSR 3.1
 
 namespace gpu {
 bool fsr3_scale_pass_locked(RtImage*, const temporal::OutputRect&, const UpscalerImage*) { return false; }
 bool fsr3_target_storage_wanted(int, std::uint32_t, std::uint32_t, std::uint32_t) { return false; }
 bool fsr4_replay_unavailable() { return true; }
 temporal::OutputRect fsr3_output_rect_locked(const RtImage*, const float*) { return {}; }
-std::string fsr3_report_locked() { return "fsr3: not built (BBHOST_FSR_VULKAN=OFF)"; }
+std::string fsr3_report_locked() { return "fsr3: not built (HELIAS_FSR_VULKAN=OFF)"; }
 }  // namespace gpu
 std::string host_gpu_upscale_timing() { return std::string(); }
 

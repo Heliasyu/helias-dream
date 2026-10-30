@@ -45,7 +45,7 @@ unsigned g_next_ctx = 1;
 unsigned g_next_conn = 1;
 
 bool g_trace = [] {
-    const char* e = std::getenv("BBHOST_NP_TRACE");
+    const char* e = std::getenv("HELIAS_NP_TRACE");
     return e && e[0] == '1';
 }();
 

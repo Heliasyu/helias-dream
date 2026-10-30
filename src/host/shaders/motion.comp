@@ -1,5 +1,5 @@
 #version 460
-// bbhost-vk Phase 2: the scene's motion vectors (host/temporal_inputs.cpp),
+// heliasdream-vk Phase 2: the scene's motion vectors (host/temporal_inputs.cpp),
 // one invocation per render pixel. Camera motion from the scene depth and
 // the camera of this frame and the last (host/temporal/camera.h is the same
 // math in double, and tests/temporal_test.cpp checks it); where the game's

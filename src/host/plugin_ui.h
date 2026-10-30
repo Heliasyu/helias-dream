@@ -2,7 +2,7 @@
 // Plugins tab before the game starts and in the in-game plugin menu. It
 // lists every plugin file (official ones marked), turns plugins on and off,
 // fetches the latest official plugins, and draws each plugin's settings
-// from the options table it exports (bbhost_plugin.h, BbOption) - with its
+// from the options table it exports (heliasdream_plugin.h, BbOption) - with its
 // action buttons (Start the boss rush) when the game is running.
 #pragma once
 

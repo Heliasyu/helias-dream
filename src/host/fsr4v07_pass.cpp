@@ -15,7 +15,7 @@
 #include <fstream>
 #include <thread>
 
-#if defined(BBHOST_HAVE_FSR4_V07)
+#if defined(HELIAS_HAVE_FSR4_V07)
 
 extern "C" {
 #include "ffx_vk_fsr4_v07.h"
@@ -304,7 +304,7 @@ bool resource(FfxInterface* iface, VkImage image, VkImageView view, VkFormat for
 }  // namespace
 
 std::string fsr4v07_assets_dir() {
-    if (const char* e = std::getenv("BBHOST_FSR4V07_DIR"); e && e[0]) return e;
+    if (const char* e = std::getenv("HELIAS_FSR4V07_DIR"); e && e[0]) return e;
     std::string base;
     if (const char* x = std::getenv("XDG_DATA_HOME"); x && x[0]) base = x;
     else if (const char* h = std::getenv("HOME"); h && h[0]) base = std::string(h) + "/.local/share";
@@ -319,7 +319,7 @@ bool fsr4v07_assets_present(const std::string& dir) {
 
 void fsr4v07_device_features(VkPhysicalDeviceFeatures& f, VkPhysicalDeviceVulkan12Features& f12, VkPhysicalDeviceVulkan13Features& f13,
                              std::vector<const char*>& exts, void** chain) {
-    if (env_off("BBHOST_FSR4V07")) return;
+    if (env_off("HELIAS_FSR4V07")) return;
     const std::string dir = fsr4v07_assets_dir();
     if (!fsr4v07_assets_present(dir)) {
         host_log("fsr4: no FSR 4 assets in %s: FSR 4 is FSR 3.1 (the launcher's Set up downloads them)", dir.c_str());
@@ -398,7 +398,7 @@ bool fsr4v07_record_locked(VkCommandBuffer cmd, const UpscalerInputs& in, std::u
         *why = g_fatal_why;
         return false;
     }
-    if (env_off("BBHOST_FSR4V07")) return fail_for_good("BBHOST_FSR4V07=0");
+    if (env_off("HELIAS_FSR4V07")) return fail_for_good("HELIAS_FSR4V07=0");
     if (!g_support.asked) return fail_for_good("no FSR 4 assets in " + fsr4v07_assets_dir() + " (the launcher's Set up downloads them)");
     if (!g_support.ok) return fail_for_good("the GPU lacks " + g_support.missing);
     const FfxFsr4ModelPreset want = model_for(in.render_w, output_w);

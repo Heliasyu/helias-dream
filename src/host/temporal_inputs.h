@@ -1,6 +1,6 @@
 #pragma once
 
-// bbhost-vk Phase 2: the temporal upscaler's inputs, made as the game draws
+// heliasdream-vk Phase 2: the temporal upscaler's inputs, made as the game draws
 // (host/temporal_inputs.cpp; what they are: host/upscaler_inputs.h).
 //
 // Active only while the scene is split (Phase 1) and either a temporal
@@ -9,11 +9,11 @@
 // before - Upscaler Off, FSR 1 and Native AA stay stock. The jitter only
 // with a temporal upscaler.
 //
-//   BBHOST_JITTER=0          never jitter
-//   BBHOST_MOTION_VECTORS=0  no motion pass (no jitter either)
-//   BBHOST_OBJECT_MOTION=0   camera motion only (the game's velocity unused)
-//   BBHOST_OPAQUE_SNAPSHOT=0 no opaque-colour snapshot
-//   BBHOST_MOTION_PROBE=1    log the buffers the G-buffer draws bind (=<n>: n lines)
+//   HELIAS_JITTER=0          never jitter
+//   HELIAS_MOTION_VECTORS=0  no motion pass (no jitter either)
+//   HELIAS_OBJECT_MOTION=0   camera motion only (the game's velocity unused)
+//   HELIAS_OPAQUE_SNAPSHOT=0 no opaque-colour snapshot
+//   HELIAS_MOTION_PROBE=1    log the buffers the G-buffer draws bind (=<n>: n lines)
 //
 // Renderer calls are made under the renderer's lock (gpu_internal.h).
 

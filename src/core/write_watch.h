@@ -33,7 +33,7 @@
 // shadow arms the alias as well (hle_kernel_write_watch_alias); the texture
 // cache keeps a slow hash as the backstop instead.
 //
-// BBHOST_WRITE_WATCH=0 turns it off. On Windows the protection is
+// HELIAS_WRITE_WATCH=0 turns it off. On Windows the protection is
 // VirtualProtect and the fault a vectored exception handler
 // (write_watch_install, first in line); the section views the guest memory
 // lives in take page protections like any private mapping, and Vulkan reads

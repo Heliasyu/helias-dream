@@ -1,6 +1,6 @@
 #pragma once
 
-// BBHOST_SF_PROBE=1: where Scaleform's memory goes. Hooks on the heap
+// HELIAS_SF_PROBE=1: where Scaleform's memory goes. Hooks on the heap
 // engine's grow path (0x233c660) log each heap's footprint against its limit
 // and the free space of the Dantelion heaps under it; a hook on the global
 // heap's AllocAutoHeap (0x23389c0) remembers each thread's last request, and

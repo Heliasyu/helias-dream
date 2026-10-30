@@ -24,23 +24,23 @@
 
 namespace {
 const bool g_on = [] {
-    const char* e = std::getenv("BBHOST_FRAME_STATS");
+    const char* e = std::getenv("HELIAS_FRAME_STATS");
     return e && *e == '1';
 }();
-// BBHOST_FRAME_DETAIL=1: the per-second lines' detail (frame_stats.h). A
+// HELIAS_FRAME_DETAIL=1: the per-second lines' detail (frame_stats.h). A
 // switch of its own, so a harness asking for it still gets the `frames:`
 // lines from a build that predates it.
 const bool g_detail = [] {
-    const char* e = std::getenv("BBHOST_FRAME_DETAIL");
+    const char* e = std::getenv("HELIAS_FRAME_DETAIL");
     return g_on && e && *e == '1';
 }();
 thread_local bool t_main_loop = false;
-// BBHOST_WAIT_LOG=<prefix>[,<prefix>...]: threads whose names start with one
-// of these log every wait of BBHOST_WAIT_LOG_MS (20) or more, with its call
-// chain under BBHOST_HLE_COUNT - for the threads the main loop waits on.
+// HELIAS_WAIT_LOG=<prefix>[,<prefix>...]: threads whose names start with one
+// of these log every wait of HELIAS_WAIT_LOG_MS (20) or more, with its call
+// chain under HELIAS_HLE_COUNT - for the threads the main loop waits on.
 const std::vector<std::string> g_log_threads = [] {
     std::vector<std::string> v;
-    const char* e = std::getenv("BBHOST_WAIT_LOG");
+    const char* e = std::getenv("HELIAS_WAIT_LOG");
     for (std::string s = e ? e : ""; !s.empty();) {
         const std::size_t c = s.find(',');
         v.push_back(s.substr(0, c));
@@ -49,14 +49,14 @@ const std::vector<std::string> g_log_threads = [] {
     return v;
 }();
 const std::int64_t g_log_wait_ns = [] {
-    const char* e = std::getenv("BBHOST_WAIT_LOG_MS");
+    const char* e = std::getenv("HELIAS_WAIT_LOG_MS");
     return static_cast<std::int64_t>(e ? std::atof(e) * 1e6 : 20e6);
 }();
-// BBHOST_FRAME_SLOW_MS (profiling kit; default 33): the main-loop frame
+// HELIAS_FRAME_SLOW_MS (profiling kit; default 33): the main-loop frame
 // length from which the frame's waits by call site are logged below
 // (`main loop: a N ms frame`); 11 catches the periodic ~12 ms frame.
 const std::uint64_t g_slow_frame_us = [] {
-    const char* e = std::getenv("BBHOST_FRAME_SLOW_MS");
+    const char* e = std::getenv("HELIAS_FRAME_SLOW_MS");
     const double ms = e ? std::atof(e) : 33.0;
     return static_cast<std::uint64_t>((ms > 0 ? ms : 33.0) * 1000.0);
 }();
@@ -75,7 +75,7 @@ bool log_waits() {
     return t_log_waits == 1;
 }
 std::atomic<std::uint64_t> g_waited_ns[3];
-// BBHOST_HLE_COUNT: the guest return address of the thread's current HLE
+// HELIAS_HLE_COUNT: the guest return address of the thread's current HLE
 // call (the thunk notes it), and the main loop's waits summed by it.
 thread_local std::uint64_t t_site = 0;  // a hash of t_chain
 thread_local std::uint64_t t_chain[3] = {};
@@ -186,7 +186,7 @@ void main_wait_sites_report() {
 void frame_stats_main_frame(std::uint64_t busy_us, std::uint64_t flip) {
     if (!g_on) return;
     // A frame of two or more: what the main loop waited for in it (by call
-    // site with BBHOST_HLE_COUNT) - streaming and compile hitches, not the
+    // site with HELIAS_HLE_COUNT) - streaming and compile hitches, not the
     // steady cost the per-second line shows.
     if (busy_us > g_slow_frame_us) {
         std::sort(g_frame_sites.begin(), g_frame_sites.end(), [](const auto& a, const auto& b) { return a.second > b.second; });

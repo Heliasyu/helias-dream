@@ -21,7 +21,7 @@
 //   pad[2] = 1           # an array field's element
 //   f32_0x14 = 60.0      # or <type>_<offset>: f32, i32, u32, i16, u16, i8, u8
 //
-// BBHOST_PARAM_DUMP="Table:id,..." prints rows by field name.
+// HELIAS_PARAM_DUMP="Table:id,..." prints rows by field name.
 #pragma once
 
 #include <cstddef>

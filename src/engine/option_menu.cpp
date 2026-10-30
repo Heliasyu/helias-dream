@@ -158,7 +158,7 @@ const char kOurDeckName[] = "PCDeck";
 // Hunters, the mirror, the rebirth, five players. Each is read once at start,
 // which its line help says.
 const char kOurEnhanceName[] = "PCEnhance";
-// bbhost-vk (docs/vk/PLAN.md): the upscaler and its debug views, and the
+// heliasdream-vk (docs/vk/PLAN.md): the upscaler and its debug views, and the
 // upscaler's quality and sharpness - two sections, because a section takes
 // one pick list, on its last row. Made only when the movie took them
 // (menu_assets_vk_sections).
@@ -231,7 +231,7 @@ constexpr std::uint32_t kSystemEnhanceRowId = 110013;
 // PC Enhancements, 124000: three toggles, each for the next start (124000
 // was The Old Hunters, a patch of its own since: the setup window's Patches tab).
 constexpr std::uint32_t kEnhMirror = 124001, kEnhRebirth = 124002, kEnhFivePlayers = 124003;
-// bbhost-vk: PC Upscaling, 125000, and Upscaling Quality, 126000.
+// heliasdream-vk: PC Upscaling, 125000, and Upscaling Quality, 126000.
 constexpr std::uint32_t kSystemUpscaleRowId = 110014, kSystemUpQualityRowId = 110015;
 constexpr std::uint32_t kUpMotionVectors = 125000, kUpGpuTime = 125001, kUpUpscaler = 125002;
 constexpr std::uint32_t kUpSharpness = 126000, kUpQuality = 126001;
@@ -490,7 +490,7 @@ void add_pair_row(void* dialog, std::uint8_t* value, std::uint32_t id, const Cho
 // the game's would make the port's settings change the game's. They are the
 // port's settings; they belong to the port.
 // One entry per setting the rows expose. The byte is what a row writes; `key`
-// is the same name the F10 screen and bbhost-options.toml use, so the two front
+// is the same name the F10 screen and HeliasDream-options.toml use, so the two front
 // ends drive one set of settings and one file. F10 is scaffolding - this is
 // where these belong.
 struct Toggle {
@@ -579,7 +579,7 @@ std::int32_t g_resolution = 2;
 std::int32_t g_last_resolution = -1;
 std::int32_t g_last_frame_cap = -1;
 bool g_seeded = false;
-bool g_vk_sections = false;  // the movie has bbhost-vk's PC Upscaling sections (option_menu_install)
+bool g_vk_sections = false;  // the movie has heliasdream-vk's PC Upscaling sections (option_menu_install)
 
 // PC Controls: the mouse, which DS3 PC gives a screen of its own. Camera
 // Sensitivity is the game's own slider (0..10, as Controls' Camera
@@ -629,7 +629,7 @@ Toggle g_enhance[] = {
 };
 constexpr int kEnhanceRows = static_cast<int>(sizeof(g_enhance) / sizeof(g_enhance[0]));
 
-// bbhost-vk's PC Upscaling: the two debug toggles, then the upscaler's pick
+// heliasdream-vk's PC Upscaling: the two debug toggles, then the upscaler's pick
 // list (the index into the setting's list: Off, FSR 1, FSR 3.1, FSR 4.1.1);
 // and Upscaling Quality: the sharpness slider (its eleven steps are the
 // setting's 0.0..1.0), then the quality preset's pick list.
@@ -882,7 +882,7 @@ GUEST_ABI void pc_enhance_handler(void* dialog, void* params) {
     log_rows("PCEnhance", dialog, kEnhanceRows, kEnhanceRows);
 }
 
-// bbhost-vk: PC Upscaling and Upscaling Quality as last opened, as PC
+// heliasdream-vk: PC Upscaling and Upscaling Quality as last opened, as PC
 // Graphics is kept (g_gfx_dialog): a resize waits while a pick list is up on
 // one of them (option_menu_popup_open). Menu thread.
 std::uint8_t* g_up_dialog = nullptr;
@@ -906,7 +906,7 @@ bool tracked_alive(std::uint8_t* dialog, std::uint64_t vtable, int row, const vo
 bool up_alive() { return tracked_alive(g_up_dialog, g_up_vtable, 0, &g_up_toggles[0].value); }
 bool upq_alive() { return tracked_alive(g_upq_dialog, g_upq_vtable, kUpQualityRows - 1, &g_up_quality); }
 
-// bbhost-vk's PC Upscaling: two toggles, then the upscaler's pick list, last.
+// heliasdream-vk's PC Upscaling: two toggles, then the upscaler's pick list, last.
 GUEST_ABI void pc_upscale_handler(void* dialog, void* params) {
     host_log("pc-options: PCUpscale opened, dialog=%p params=%p", dialog, params);
     track(&g_up_dialog, &g_up_vtable, &g_up_base_depth, dialog);
@@ -920,7 +920,7 @@ GUEST_ABI void pc_upscale_handler(void* dialog, void* params) {
     log_rows("PCUpscale", dialog, kUpscaleRows, kUpscaleRows);
 }
 
-// bbhost-vk's Upscaling Quality: the sharpness slider, then the quality's pick list.
+// heliasdream-vk's Upscaling Quality: the sharpness slider, then the quality's pick list.
 GUEST_ABI void pc_upquality_handler(void* dialog, void* params) {
     host_log("pc-options: PCUpQuality opened, dialog=%p params=%p", dialog, params);
     track(&g_upq_dialog, &g_upq_vtable, &g_upq_base_depth, dialog);
@@ -1685,7 +1685,7 @@ GUEST_ABI void* pc_system_finalize(void* out, void* builder, void* arg3) {
          hle_wrap_fn(reinterpret_cast<void*>(&pc_row_open))},
         {reinterpret_cast<void*>(static_cast<std::uintptr_t>(kSystemGraphicsRowId)),
          hle_wrap_fn(reinterpret_cast<void*>(&pc_graphics_row_open))},
-        // bbhost-vk, beside PC Graphics; left out below when the movie has no sections for them.
+        // heliasdream-vk, beside PC Graphics; left out below when the movie has no sections for them.
         {reinterpret_cast<void*>(static_cast<std::uintptr_t>(kSystemUpscaleRowId)),
          hle_wrap_fn(reinterpret_cast<void*>(&pc_upscale_row_open))},
         {reinterpret_cast<void*>(static_cast<std::uintptr_t>(kSystemUpQualityRowId)),
@@ -1909,7 +1909,7 @@ void option_menu_poll() {
     push(g_cam_mouse_auto_rotation);
     for (auto& t : g_toggles) push(t);
     for (auto& t : g_enhance) push(t);
-    // bbhost-vk's PC Upscaling and Upscaling Quality (Phase 1: the quality sizes the scene).
+    // heliasdream-vk's PC Upscaling and Upscaling Quality (Phase 1: the quality sizes the scene).
     for (auto& t : g_up_toggles) push(t);
     push(g_up_sharpness);
     if (g_upscaler != g_upscaler_last) {
@@ -2011,10 +2011,10 @@ void option_menu_list_update(void* comp, bool focused) {
 
 void option_menu_install(ElfImage* image) {
     // On by default: the PC rows are part of the port, not an experiment.
-    // BBHOST_PC_OPTIONS=0 leaves System exactly as the game builds it.
-    const char* e = std::getenv("BBHOST_PC_OPTIONS");
+    // HELIAS_PC_OPTIONS=0 leaves System exactly as the game builds it.
+    const char* e = std::getenv("HELIAS_PC_OPTIONS");
     if (e && e[0] == '0') {
-        host_log("pc-options: off (BBHOST_PC_OPTIONS=0)");
+        host_log("pc-options: off (HELIAS_PC_OPTIONS=0)");
         return;
     }
     g_slide = image->mem.slide;
@@ -2064,7 +2064,7 @@ int option_menu_confirm_take() { return g_confirm_answer.exchange(0); }
 // button on whichever answer is highlighted - and counted as no either way.
 void option_menu_confirm_close() {
     if (!g_confirm_open.load()) {
-        // bbhost-vk: never put up (PC Graphics closed, or a pick list stayed
+        // heliasdream-vk: never put up (PC Graphics closed, or a pick list stayed
         // on its stack, before the question could go up). Its request is
         // withdrawn here, or it went up later - the next time PC Graphics
         // opened - as a question nobody was waiting for.

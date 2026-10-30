@@ -1,6 +1,6 @@
 #include "host/plugin_ui.h"
 
-#include "bbhost_plugin.h"
+#include "heliasdream_plugin.h"
 #include "core/config.h"
 #include "host/updater.h"
 

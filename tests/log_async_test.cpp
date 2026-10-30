@@ -78,21 +78,21 @@ int main() {
         ++lines;
         if (first) {
             first = false;
-            if (l != "[bbhost] before the writer: written directly") ++bad;
+            if (l != "[heliasdream] before the writer: written directly") ++bad;
             continue;
         }
-        if (l == "[bbhost] after the threads") {
+        if (l == "[heliasdream] after the threads") {
             saw_after = true;
             continue;
         }
-        if (l == "[bbhost] after sync mode: written directly") {
+        if (l == "[heliasdream] after sync mode: written directly") {
             if (!saw_after) ++bad;
             saw_sync = true;
             continue;
         }
-        if (l.rfind("[bbhost] log: ", 0) == 0) continue;
+        if (l.rfind("[heliasdream] log: ", 0) == 0) continue;
         int t = -1, i = -1;
-        if (std::sscanf(l.c_str(), "[bbhost] t%d n%d [", &t, &i) != 2 || t < 0 || t >= kThreads) {
+        if (std::sscanf(l.c_str(), "[heliasdream] t%d n%d [", &t, &i) != 2 || t < 0 || t >= kThreads) {
             if (bad++ < 5) std::fprintf(stderr, "log_async_test: a mangled line: %.80s\n", l.c_str());
             continue;
         }
@@ -100,7 +100,7 @@ int main() {
         const int len = (i * 7919 + t * 104729) % 900;
         const std::string pad(static_cast<std::size_t>(len), static_cast<char>('a' + (i + t) % 26));
         char want[1024];
-        std::snprintf(want, sizeof(want), "[bbhost] t%d n%d [%s] end", t, i, pad.c_str());
+        std::snprintf(want, sizeof(want), "[heliasdream] t%d n%d [%s] end", t, i, pad.c_str());
         if (l != want) {
             if (bad++ < 5) std::fprintf(stderr, "log_async_test: line t%d n%d differs\n", t, i);
         }

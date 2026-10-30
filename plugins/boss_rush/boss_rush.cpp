@@ -1,4 +1,4 @@
-// Boss rush: an official bbhost plugin (docs/plugins.md).
+// Boss rush: an official heliasdream plugin (docs/plugins.md).
 //
 // The game's bosses one after another: each round wakes a boss (its defeat
 // flag cleared), carries the player to a lamp of its map and on to just
@@ -32,9 +32,9 @@
 // boss fights' event scripts (the health bar's NpcName and its entity) and
 // the lamps each defeat lights (tools/mapval_lamps.py's "requires" column);
 // the fog walls from the same scripts and the maps' layouts.
-#include "bbhost/sdk.hpp"
-#include "bbhost/engine/sprj/camera.hpp"
-#include "bbhost/engine/sprj/game_data_man.hpp"
+#include "heliasdream/sdk.hpp"
+#include "heliasdream/engine/sprj/camera.hpp"
+#include "heliasdream/engine/sprj/game_data_man.hpp"
 
 #include <cmath>
 #include <fstream>
@@ -47,7 +47,7 @@ extern "C" BB_PLUGIN_EXPORT const BbPluginInfo bb_plugin_info = {
     "boss_rush",
     "Boss rush",
     "1.1.0",
-    "bbhost",
+    "heliasdream",
     "Fight the game's bosses back to back, timed; deaths retry the round and the save's bosses are restored at the end.",
 };
 
@@ -720,7 +720,7 @@ void skip() {
 
 }  // namespace
 
-extern "C" BB_PLUGIN_EXPORT int bb_plugin_image(const BbHostApi* api) {
+extern "C" BB_PLUGIN_EXPORT int bb_plugin_image(const HeliasApi* api) {
     if (!g.attach(api, 9)) return 1;
     if (!api->eboot_is_109()) return 1;
     g_dir = api->plugin_dir("boss_rush");

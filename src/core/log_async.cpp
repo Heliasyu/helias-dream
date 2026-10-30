@@ -15,7 +15,7 @@
 // The crash and exit paths call host_log_sync_mode()/host_log_flush(): what is
 // queued is written first, then every later line synchronously. A process
 // killed outright (SIGKILL, OOM) loses at most the lines of the last few
-// milliseconds. BBHOST_LOG_SYNC=1: the old synchronous writes.
+// milliseconds. HELIAS_LOG_SYNC=1: the old synchronous writes.
 //
 // The producer side runs on any thread, including guest threads inside HLE
 // calls and the fault handler: no thread-locals, no locks, no libc calls that
@@ -86,7 +86,7 @@ std::uint64_t now_ns() {
 // reserved but not yet written stops the drain unless `wait_until` (ns) lets
 // it wait for it. Returns the chunks written.
 // Batches of whole lines, at most PIPE_BUF (4096) bytes: a write to a pipe
-// (run-bbhost.sh's tee) of up to that many bytes is atomic, so another
+// (run-heliasdream.sh's tee) of up to that many bytes is atomic, so another
 // writer's output (the driver's, MangoHud's) never lands inside a line, as
 // with the old one-line writes.
 constexpr std::size_t kBatchFlush = 4096 - 5 * kSlotBytes;
@@ -209,9 +209,9 @@ void writer_main() {
 
 void host_log_start() {
     if (g_started.exchange(true)) return;
-    const char* e = std::getenv("BBHOST_LOG_SYNC");
+    const char* e = std::getenv("HELIAS_LOG_SYNC");
     if (e && *e == '1') {
-        host_log("log: synchronous writes (BBHOST_LOG_SYNC=1)");
+        host_log("log: synchronous writes (HELIAS_LOG_SYNC=1)");
         return;
     }
     std::thread(writer_main).detach();

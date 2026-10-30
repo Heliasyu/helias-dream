@@ -1,4 +1,4 @@
-// host/flip_trace.cpp (BBHOST_FLIP_TRACE=1, set by ctest): 60 simulated flips
+// host/flip_trace.cpp (HELIAS_FLIP_TRACE=1, set by ctest): 60 simulated flips
 // through the game -> command processor -> present hooks, one of them 14 ms
 // late. The trace must log exactly one `fliptrace: slow frame` (with the flip
 // before it), and its snapshot section must have a CSV line per presented
@@ -45,7 +45,7 @@ void check(bool ok, const char* what) {
 
 int main() {
     g_host_log_tap = tap;
-    check(fliptrace::on(), "BBHOST_FLIP_TRACE=1 turns it on");
+    check(fliptrace::on(), "HELIAS_FLIP_TRACE=1 turns it on");
     check(perf::g_fn && perf::g_title == "flip_trace", "the [flip_trace] snapshot section is registered");
     for (int i = 1; i <= 60; ++i) {
         fliptrace::main_frame(7000);

@@ -8,7 +8,7 @@
 // environment's call log, every string's count and which strings were freed.
 //
 // The expressions: every condition and argument of the dump's 271 talk
-// scripts and its character scripts (BBHOST_APP0; skipped without it), each
+// scripts and its character scripts (HELIAS_APP0; skipped without it), each
 // on several states, and random well-formed bytecode over every opcode the
 // scripts can use, with the values where the bits matter (NaN payloads, -0,
 // denormals, the int range's edges, division by zero, strings). The
@@ -112,7 +112,7 @@ GUEST_ABI u64 wcslen16(const u16* s) {
     return n;
 }
 
-// The C library's tables the eboot's own printf engine asks for, as bbhost
+// The C library's tables the eboot's own printf engine asks for, as heliasdream
 // answers them (hle/libc.cpp): Dinkumware's ctype bits.
 short g_ctype[257], g_tolower[257], g_toupper[257];
 struct { const char* decimal_point = "."; const char* thousands_sep = ""; const char* grouping = ""; char pad[256] = {}; } g_lconv;

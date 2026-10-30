@@ -1,9 +1,9 @@
 #pragma once
 
-// bbhost-vk Phase 2: which of the game's draws feed which upscaler input.
+// heliasdream-vk Phase 2: which of the game's draws feed which upscaler input.
 // Pure tables and rules, no dependencies (tests/temporal_test.cpp):
 //
-//  - Shader hashes (the OrbShdr footer's, which bbhost names pipelines by
+//  - Shader hashes (the OrbShdr footer's, which heliasdream names pipelines by
 //    and shadPS4 calls pgm_hash) from IFreemz's shadPS4-Bloodborne-DLSS-FSR:
 //    the game's own object-velocity draws (it renders them for its motion
 //    blur into a coarse 160x90 RGBA8 target), the pass that turns depth into

@@ -20,7 +20,7 @@ public sealed class Ctx
 {
     public required OptionsFile Options { get; init; }
     public required LauncherSettings Settings { get; init; }
-    public required Func<BbhostToml> Config { get; init; }
+    public required Func<HeliasToml> Config { get; init; }
     public required Func<string?> GameDir { get; init; }
     public required Action<int> GoTo { get; init; }
     public required Action Changed { get; init; }
@@ -695,7 +695,7 @@ public static class Pages
 
     static Control Setup(Ctx ctx)
     {
-        var toml = new OptionsFile(Paths.BbhostToml);
+        var toml = new OptionsFile(Paths.HeliasToml);
         var cfg = ctx.Config();
         var status = Ui.Text("", 12, "soft");
         void Saved(string what) { status.Text = what; }

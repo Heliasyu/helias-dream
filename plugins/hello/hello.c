@@ -11,11 +11,11 @@
  *
  * A host only ever appends to its API: check that `version` is at least the
  * one whose calls you make, not that it is equal. */
-#include "bbhost_plugin.h"
+#include "heliasdream_plugin.h"
 
 #include <stdint.h>
 
-static const BbHostApi* api;
+static const HeliasApi* api;
 static uint64_t calls, frames;
 static int read_param, read_player, read_position, flags_seen;
 
@@ -76,14 +76,14 @@ static void on_flag(uint32_t id, int value, void* user) {
     if (++flags_seen <= 5) api->log("hello: event flag %u -> %d (frame %llu)", id, value, (unsigned long long)frames);
 }
 
-BB_PLUGIN_EXPORT int bb_plugin_init(const BbHostApi* a) {
+BB_PLUGIN_EXPORT int bb_plugin_init(const HeliasApi* a) {
     api = a;
     if (a->version < 1) return 1;
     a->log("hello: init, online id '%s', data in %s", a->config("online.online_id"), a->data_dir());
     return 0;
 }
 
-BB_PLUGIN_EXPORT int bb_plugin_image(const BbHostApi* a) {
+BB_PLUGIN_EXPORT int bb_plugin_image(const HeliasApi* a) {
     unsigned char head[4] = {0};
     a->log("hello: eboot %.12s... (1.09: %d)", a->eboot_sha256(), a->eboot_is_109());
     if (a->read(0x400000, head, sizeof(head)) == 0) {

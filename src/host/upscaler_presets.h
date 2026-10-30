@@ -1,6 +1,6 @@
 #pragma once
 
-// bbhost-vk's upscaler choices and quality presets (docs/vk/PLAN.md), as
+// heliasdream-vk's upscaler choices and quality presets (docs/vk/PLAN.md), as
 // plain data: the settings (host/settings.h: upscaler, upscale_quality,
 // upscale_sharpness) index these tables, and the render size a preset asks
 // for is computed here, the one place, so the menus, the log and the later
@@ -54,7 +54,7 @@ inline void render_size(int preset, std::uint32_t out_w, std::uint32_t out_h, st
 }
 
 // The settings' sharpness (0..1, FSR 3's convention) as FSR 1's RCAS stops
-// below its maximum: 1 - sharpness, so 0.8 is the 0.2 stops bbhost's FSR 1
+// below its maximum: 1 - sharpness, so 0.8 is the 0.2 stops heliasdream's FSR 1
 // has always used (host/fsr.cpp) and 1.0 is RCAS at full strength.
 inline float rcas_stops(float sharpness) {
     const float s = sharpness < 0.0f ? 0.0f : sharpness > 1.0f ? 1.0f : sharpness;

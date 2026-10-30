@@ -27,8 +27,8 @@ constexpr std::uint64_t kCameraRoot = 0x593e860;   // the camera owner's root ob
 
 std::uint64_t g_slide = 0;
 bool g_ok = false;
-bool g_warp_enabled = false;  // BBHOST_TEST_WARP=1, or a gameplay plugin the player turned on
-bool g_unlock = false;        // BBHOST_TEST_UNLOCK_LAMPS=1
+bool g_warp_enabled = false;  // HELIAS_TEST_WARP=1, or a gameplay plugin the player turned on
+bool g_unlock = false;        // HELIAS_TEST_UNLOCK_LAMPS=1
 
 template <typename T>
 bool rd(std::uint64_t at, T* out) {
@@ -44,7 +44,7 @@ std::uint64_t slot(std::uint64_t bn) { return g_ok ? g_slide + (bn - kPreferredG
 
 bool finite3(const float v[3]) { return std::isfinite(v[0]) && std::isfinite(v[1]) && std::isfinite(v[2]); }
 
-// BBHOST_CHR_SCAN=<file>: a research recorder for the main player's action
+// HELIAS_CHR_SCAN=<file>: a research recorder for the main player's action
 // state (host/haptics.h wants to know what the character is doing, not what
 // is held). Every frame: the time, the pad, then 0x1000 bytes each of the
 // ChrIns and of three of its modules, found in the module container (+0x3b0)
@@ -68,7 +68,7 @@ void read_block(std::uint64_t at, std::uint8_t* out) {
     for (std::size_t o = 0; o < kScanBytes; o += 0x100) host_read_safe(reinterpret_cast<const void*>(static_cast<std::uintptr_t>(at + o)), out + o, 0x100);
 }
 void chr_scan() {
-    static const char* path = std::getenv("BBHOST_CHR_SCAN");
+    static const char* path = std::getenv("HELIAS_CHR_SCAN");
     if (!path || !*path || !g_ok) return;
     static std::FILE* f = nullptr;
     static bool failed = false, listed = false;
@@ -77,10 +77,10 @@ void chr_scan() {
         f = std::fopen(path, "wb");
         if (!f) {
             failed = true;
-            host_log("world: BBHOST_CHR_SCAN cannot open %s", path);
+            host_log("world: HELIAS_CHR_SCAN cannot open %s", path);
             return;
         }
-        host_log("world: BBHOST_CHR_SCAN to %s (%zu bytes a frame)", path, sizeof(ScanHead) + 8 * kScanBytes);
+        host_log("world: HELIAS_CHR_SCAN to %s (%zu bytes a frame)", path, sizeof(ScanHead) + 8 * kScanBytes);
     }
     const std::uint64_t man = ptr(slot(kWorldChrMan));
     const std::uint64_t chr = man ? ptr(man + 0x60) : 0;
@@ -147,7 +147,7 @@ bool world_player_anim(std::int32_t* anim) {
 
 namespace {
 
-// BBHOST_FIND_BULLETS=1: a research search for the Quicksilver Bullets count
+// HELIAS_FIND_BULLETS=1: a research search for the Quicksilver Bullets count
 // (host/haptics.h wants L2 slack the moment the gun is empty). Around the
 // local player's game data (GameDataMan +0x08, +-128 MiB), the int32s that
 // went down by exactly one 0.6 s after a shot's animation (117051000) began,
@@ -228,7 +228,7 @@ void bullets_report(const char* after) {
 void bullets_tick() {
     BulletSearch& b = g_bullets;
     static const bool want = [] {
-        const char* e = std::getenv("BBHOST_FIND_BULLETS");
+        const char* e = std::getenv("HELIAS_FIND_BULLETS");
         return e && e[0] == '1';
     }();
     if (!want || !g_ok) return;
@@ -351,13 +351,13 @@ int world_player_bullets() { return g_bullets_now.load(std::memory_order_relaxed
 void world_chr_install(ElfImage* image) {
     g_slide = image->mem.slide;
     g_ok = image->sha256 == kEboot109Sha256;
-    if (const char* e = std::getenv("BBHOST_TEST_WARP"); e && e[0] == '1') {
+    if (const char* e = std::getenv("HELIAS_TEST_WARP"); e && e[0] == '1') {
         g_warp_enabled = true;
-        host_log("world: BBHOST_TEST_WARP=1 - plugins may move the player (a test switch)");
+        host_log("world: HELIAS_TEST_WARP=1 - plugins may move the player (a test switch)");
     }
-    if (const char* e = std::getenv("BBHOST_TEST_UNLOCK_LAMPS"); g_ok && e && e[0] == '1') {
+    if (const char* e = std::getenv("HELIAS_TEST_UNLOCK_LAMPS"); g_ok && e && e[0] == '1') {
         g_unlock = true;
-        host_log("world: BBHOST_TEST_UNLOCK_LAMPS=1 - every lamp is lit at each load (a test switch)");
+        host_log("world: HELIAS_TEST_UNLOCK_LAMPS=1 - every lamp is lit at each load (a test switch)");
     }
 }
 
@@ -433,7 +433,7 @@ namespace {
 // The lamps. Each map's event script starts
 // event 7000 once per lamp with (warp object entity, lamp entity, the flag
 // that must be on before it can be lit - 999 for none, flag base); the lamp
-// DB (FrpgNetMan +0xc70, bbhost/engine/frpg/bonfire_db.hpp) registers the base,
+// DB (FrpgNetMan +0xc70, heliasdream/engine/frpg/bonfire_db.hpp) registers the base,
 // and base+10 is the lamp's lit flag, base+11 "selected" (the last one
 // rested at in that map). Extracted from dvdroot_ps4/event/m*.emevd.dcx by
 // tools/mapval_lamps.py; the chalice dungeons (m29) have none there.
@@ -487,7 +487,7 @@ void unlock_lamps(std::uint32_t block) {
         hle_call_guest<std::int64_t>(reinterpret_cast<void*>(static_cast<std::uintptr_t>(slot(kSetEventFlag))), man, lit, 1);
         ++set;
     }
-    host_log("world: BBHOST_TEST_UNLOCK_LAMPS in block 0x%08x: %d lamp lit flags set, %d were set, %d have no flag block in this save", block,
+    host_log("world: HELIAS_TEST_UNLOCK_LAMPS in block 0x%08x: %d lamp lit flags set, %d were set, %d have no flag block in this save", block,
              set, already, missing);
 }
 

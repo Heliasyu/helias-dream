@@ -30,7 +30,7 @@
 // `ctx + 0x120` is still written and cleared, because that is the game's
 // field and something else may read it - it is just no longer what we trust.
 //
-// BBHOST_POOL_FIX=0 runs the game's own function instead.
+// HELIAS_POOL_FIX=0 runs the game's own function instead.
 
 #include <cstdint>
 

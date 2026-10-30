@@ -215,10 +215,10 @@ void mapped_refresh(bool force) {
     std::uint32_t addr = 0;
     std::uint16_t port = 0;
     bool ok = false;
-    // The relay HELLO unless BBHOST_NET_RELAY=0 (then datagrams go to the
+    // The relay HELLO unless HELIAS_NET_RELAY=0 (then datagrams go to the
     // server's relay ports as addressed, the per-port relay of PS4 clients).
     static const bool use_relay = [] {
-        const char* e = std::getenv("BBHOST_NET_RELAY");
+        const char* e = std::getenv("HELIAS_NET_RELAY");
         return !(e && e[0] == '0');
     }();
     stun::Relay relay;
