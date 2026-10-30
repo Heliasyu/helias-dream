@@ -212,11 +212,11 @@ jobs:
           git fetch --force origin "refs/tags/$GITHUB_REF_NAME:refs/tags/$GITHUB_REF_NAME"
           git tag -l --format='%(contents:body)' "$GITHUB_REF_NAME" > "$RUNNER_TEMP/notes.md"
           if grep -q '[^[:space:]]' "$RUNNER_TEMP/notes.md"; then
-            gh release create "$GITHUB_REF_NAME" dist/release/* --title "heliasdream $GITHUB_REF_NAME" --notes-file "$RUNNER_TEMP/notes.md"
+            gh release create "$GITHUB_REF_NAME" dist/release/* --title "Helia's Dream $GITHUB_REF_NAME" --notes-file "$RUNNER_TEMP/notes.md"
             echo "announce=1" >> "$GITHUB_OUTPUT"
           else
             echo "the tag carries no notes: generated notes, and no Discord announcement (Actions > announce release, once the notes are written)"
-            gh release create "$GITHUB_REF_NAME" dist/release/* --title "heliasdream $GITHUB_REF_NAME" --generate-notes
+            gh release create "$GITHUB_REF_NAME" dist/release/* --title "Helia's Dream $GITHUB_REF_NAME" --generate-notes
           fi
       # A release created with the workflow's token starts no other workflow
       # (GitHub's rule), so the announcement is made here; announce-release.yml
