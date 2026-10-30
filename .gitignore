@@ -49,3 +49,4 @@ out/fsr4cap/
 # PGO profiles (merged .profdata and raw .profraw): local, per compiler
 /pgo/
 *.profraw
+/build-ubuntu/

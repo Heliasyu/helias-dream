@@ -23,7 +23,7 @@ triggers.
 ## Status
 | | |
 |---|---|
-| Current build | [`v0.2.18-vk.2`](https://github.com/Heliasyu/helias-dream/releases/tag/v0.2.18-vk.2) (2026-10-22) |
+| Current build | [`v0.2.18-vk.3`](https://github.com/Heliasyu/helias-dream/releases/tag/v0.2.18-vk.3) (2026-10-30): Linux and Windows |
 | Tested on | RX 9070 XT, Ryzen 9 5950X, KDE Plasma (Wayland) |
 | Performance | 4K output, FSR 4.1.1 Performance, 120 cap: ~120-122 fps average, 1% lows ~110 in Old Yharnam |
 | Known issues | Heavy smoke can dip below 120; some textures at Vicar Amelia. See [KNOWN_ISSUES](docs/vk/KNOWN_ISSUES.md). |
